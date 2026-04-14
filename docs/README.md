@@ -4,6 +4,23 @@
 
 ---
 
+## 安装（全局工具）
+
+```bash
+# 1. 克隆到全局目录
+git clone git@github.com:x5/sloth-agent.git ~/.sloth-agent
+
+# 2. 使用 uv 安装
+cd ~/.sloth-agent
+uv venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -e .
+
+# 3. 为项目初始化
+sloth init --project ~/my-project
+```
+
+---
+
 ## 文档命名规范
 
 Sloth Agent 使用统一的文档命名规范：
@@ -39,61 +56,41 @@ docs/
 
 ---
 
-## 目录结构
+## 全局目录结构
 
 ```
-your-project/
-├── .sloth-agent/              # 框架全部文件（加入 .gitignore）
-│   ├── src/                    # 框架源码
-│   │   ├── sloth_agent/       # Python 模块
-│   │   ├── core/             # 核心模块
-│   │   ├── memory/           # 记忆系统
-│   │   ├── tools/            # 工具集
-│   │   ├── providers/        # LLM 提供商
-│   │   ├── human/           # 人类审批
-│   │   ├── reliability/      # Watchdog/Checkpoint
-│   │   └── tdd/             # TDD 强制
-│   ├── configs/              # 配置
-│   ├── skills/               # 技能库
-│   ├── memory/               # 记忆数据
-│   ├── checkpoints/          # 断点快照
-│   ├── logs/                 # 日志
-│   ├── workspace/            # 工作目录
-│   └── run.py                # 启动脚本
-│
-├── docs/                      # 文档（框架生成）
-│   ├── specs/                # 设计规格
-│   ├── plans/                # 实现计划
-│   ├── reports/              # 工作报告
-│   └── guides/               # 用户指南
-│
-└── [你的项目文件...]
+~/.sloth-agent/                  # 全局安装目录
+├── src/                        # 框架源码
+├── configs/                    # 全局配置
+├── skills/                     # 全局 Skills 库
+├── memory/                     # 全局记忆
+├── checkpoints/                # 全局断点
+├── logs/                       # 全局日志
+└── run.py                      # 入口脚本
+
+[项目目录]/
+├── .sloth/                     # 项目配置（加入 .gitignore）
+│   └── project.yaml
+├── docs/                       # 项目文档
+├── TODO.md                     # 项目任务
+└── [项目源代码...]
 ```
 
 ---
 
 ## 快速开始
 
-### 1. 安装框架
+### 1. 安装框架（全局）
 
 ```bash
-# 下载框架并初始化
-git clone <sloth-agent-repo> .sloth-agent
-
-cd .sloth-agent
-
-# 自动安装 uv 并运行（如果没有 uv 会自动安装）
-python run.py
+git clone git@github.com:x5/sloth-agent.git ~/.sloth-agent
+cd ~/.sloth-agent && uv pip install -e .
 ```
 
-### 2. 首次配置
+### 2. 初始化项目
 
 ```bash
-# 复制环境变量模板
-cp configs/.env.example configs/.env
-
-# 编辑 configs/.env 填入 API 密钥
-vim configs/.env
+sloth init --project ~/my-project
 ```
 
 ### 3. 创建规格文档
@@ -103,6 +100,16 @@ vim configs/.env
 ```bash
 # 文件名格式: YYYYMMDD-project-description-design-spec.md
 vim docs/specs/20260415-myproject-design-spec.md
+```
+
+### 4. 运行
+
+```bash
+# Night Phase: SPEC -> PLAN -> 审批
+sloth run --project ~/my-project --phase night
+
+# Day Phase: 执行 PLAN -> 生成报告
+sloth run --project ~/my-project --phase day
 ```
 
 ---
@@ -115,35 +122,49 @@ vim docs/specs/20260415-myproject-design-spec.md
 - **多模态**: 支持代码开发、内容创作、数据分析等综合任务
 - **高可靠**: TDD 开发、Watchdog 监控（3分钟心跳）、Checkpoint 恢复
 - **多模型**: 支持 DeepSeek, Qwen, Kimi, MiniMax, GLM
+- **全局安装**: 一次安装，所有项目通用
+- **多项目支持**: 通过 `.sloth/project.yaml` 配置各项目
 
 ---
 
 ## 配置说明
 
-### .sloth-agent/configs/agent.yaml
+### ~/.sloth-agent/configs/agent.yaml（全局）
 
 ```yaml
 agent:
   name: "sloth-agent"
-  workspace: "./workspace"  # 实际项目代码位置
+  workspace: "./workspace"
 
 watchdog:
   heartbeat_interval: 180  # 3分钟心跳
 
 tdd:
   enforced: true
-  coverage_threshold: 80   # 测试覆盖率门槛
+  coverage_threshold: 80
 ```
 
-### .sloth-agent/configs/llm_providers.yaml
+### ~/.sloth-agent/configs/llm_providers.yaml
 
 支持模型：DeepSeek, Qwen, Kimi, MiniMax, GLM
+
+### [项目]/.sloth/project.yaml（项目级）
+
+```yaml
+project:
+  name: my-project
+  path: /home/user/my-project
+  docs_dir: docs
+
+llm:
+  default_provider: deepseek
+```
 
 ---
 
 ## 注意事项
 
-1. **.sloth-agent/ 应该加入 .gitignore**
+1. **.sloth/ 应该加入 .gitignore**
 2. **框架不会修改你的项目文件**，除非你在规格文档中明确要求
 3. **高风险操作（L3/L4）需要额外审批**
 
@@ -155,7 +176,7 @@ tdd:
 
 | 文档 | 说明 |
 |------|------|
-| [Workflow Process Spec](specs/20260415-workflow-process-spec.md) | 7步强制流程、TDD铁律、四阶段调试 |
+| [Workflow Process Spec](specs/20260415-workflow-process-spec.md) | 7步强制流程、TDD铁律、全局安装架构 |
 | [Workflow Tools & Hooks Spec](specs/20260415-workflow-tools-hooks-spec.md) | 每步工具/脚本/钩子映射 |
 | [Tools Design Spec](specs/20260415-tools-design-spec.md) | 工具系统设计 |
 | [Naming Convention Guide](../docs/20260415-naming-convention-user-guide.md) | 文档命名规范 |
