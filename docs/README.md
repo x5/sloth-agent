@@ -1,5 +1,7 @@
 # Sloth Agent
 
+![Sloth Agent Logo](sloth-agent.png)
+
 > 自驱动、自进化的 AI Agent 框架
 
 ---
@@ -215,5 +217,5 @@ llm:
 
 ### 用户指南 (guides/)
 
-- [用户手册](guides/user-guide.md)
-- [系统设计文档](specs/sloth-agent-design-spec.md)
+- [Sloth Agent 用户手册](guides/20260415-sloth-agent-user-guide.md)
+- [命名规范指南](guides/20260415-naming-convention-user-guide.md)
