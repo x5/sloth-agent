@@ -96,11 +96,19 @@ docs/
 └── run.py                      # 入口脚本
 
 [项目目录]/
-├── .sloth/                     # 项目配置（加入 .gitignore）
+├── .sloth/                     # 项目配置
 │   └── project.yaml
-├── docs/                       # 项目文档
-├── TODO.md                     # 项目任务
-└── [项目源代码...]
+├── docs/                       # 文档
+│   ├── specs/
+│   ├── plans/
+│   └── reports/
+├── src/                        # 源代码
+├── tests/                      # 测试代码
+├── scripts/                    # 辅助脚本
+├── README.md
+├── .gitignore
+├── pyproject.toml              # 或 Cargo.toml / package.json
+└── TODO.md
 ```
 
 ---

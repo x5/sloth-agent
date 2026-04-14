@@ -575,6 +575,27 @@ workflow:
 - [ ] 单元测试
 ```
 
+### 任务 8: 项目初始化与文档强制器 (P0)
+
+```
+- [ ] 实现 DocumentEnforcer 类
+- [ ] 实现 validate_project_structure()
+- [ ] 实现 validate_docs_structure()
+- [ ] 实现 validate_document_path()
+- [ ] 实现 create_project_structure()
+- [ ] 支持多语言项目 (Python/Rust/Node/Go)
+- [ ] sloth init 命令集成
+- [ ] 单元测试
+```
+
+**DocumentEnforcer 验证规则**:
+
+| 检查项 | 不通过则 |
+|--------|---------|
+| 目录结构完整 | 拒绝初始化 |
+| 文档命名规范 | 拒绝创建 |
+| 文档位置正确 | 拒绝创建 |
+
 ---
 
 ## 6. 验收标准

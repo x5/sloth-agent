@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(ls -la .agent-evolve/)",
+      "Bash(ls -la .agent-evolve/src/)",
+      "Bash(find . -type d -name \".agent-evolve\" -exec echo \"Found: {}\" \\\\; -exec ls -la {} \\\\;)",
+      "Bash(find . -type f \\\\\\( -name \"*.py\" -o -name \"*.yaml\" -o -name \"*.toml\" -o -name \"*.md\" \\\\\\) -exec sed -i 's/agent-evolve/sloth-agent/g; s/Agent Evolve/Sloth Agent/g; s/AGENT_EVOLVE/SLOTH_AGENT/g' {} \\\\;)",
+      "Bash(find:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:docs.openclaw.ai)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:hermes-agent.nousresearch.com)"
+    ]
+  }
+}
