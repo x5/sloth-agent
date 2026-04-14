@@ -1,0 +1,25 @@
+# Sloth Agent Framework
+.sloth-agent/memory/
+.sloth-agent/checkpoints/
+.sloth-agent/logs/
+.sloth-agent/.env
+.sloth-agent/workspace/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

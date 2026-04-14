@@ -1,0 +1,65 @@
+agent:
+  name: "sloth-agent"
+  workspace: "./workspace"
+  timezone: "Asia/Shanghai"
+
+execution:
+  auto_execute_hours: "09:00-18:00"
+  require_approval_hours: "18:00-09:00"
+
+watchdog:
+  heartbeat_interval: 180   # 3 minutes
+  max_missing_heartbeats: 3  # 3 missed = 9 min unresponsive -> restart
+  restart_delay: 60         # seconds to wait before restart
+
+checkpoint:
+  interval: 1      # save after each subtask
+  storage: "./checkpoints/"
+
+tdd:
+  enforced: true
+  coverage_threshold: 80  # %
+  ui_test_enabled: true
+
+verification:
+  enabled: true
+  retry: 3
+  file_exists_check: true
+  build_check: true
+  test_check: true
+
+approval:
+  mode: "plan_level"  # approve plan once, execute automatically
+
+  async_channels:
+    - type: "feishu"
+      webhook: "${FEISHU_WEBHOOK}"
+    - type: "email"
+      smtp: "${SMTP_HOST}"
+      port: 587
+      from_addr: "${SMTP_FROM}"
+      to:
+        - "${APPROVAL_EMAIL}"
+
+  timeout:
+    action: "skip"  # skip if no response
+    hours: 2
+
+memory:
+  short_term_retention_days: 7
+  vector_db_path: "./memory/context/"
+  sqlite_path: "./memory/agent.db"
+
+skills:
+  directory: "./skills"
+  auto_revisor_enabled: true
+  revision_triggers:
+    - "error_driven"
+    - "stale_update"
+    - "experience_accumulation"
+    - "periodic_audit"
+
+logging:
+  level: "INFO"
+  file: "./logs/agent.log"
+  daily_rotation: true

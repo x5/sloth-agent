@@ -1,0 +1,80 @@
+providers:
+  - name: deepseek
+    api_base: "https://api.deepseek.com/v1"
+    api_key: "${DEEPSEEK_API_KEY}"
+    models:
+      - id: "deepseek-chat"
+        temperature: 0.7
+        max_tokens: 4096
+      - id: "deepseek-coder"
+        temperature: 0.3
+        max_tokens: 4096
+    enabled: true
+
+  - name: qwen
+    api_base: "https://dashscope.aliyuncs.com/api/v1"
+    api_key: "${DASHSCOPE_API_KEY}"
+    models:
+      - id: "qwen-turbo"
+        temperature: 0.7
+        max_tokens: 8192
+      - id: "qwen-plus"
+        temperature: 0.7
+        max_tokens: 32768
+      - id: "qwen-max"
+        temperature: 0.5
+        max_tokens: 32768
+    enabled: true
+
+  - name: kimi
+    api_base: "https://api.moonshot.cn/v1"
+    api_key: "${MOONSHOT_API_KEY}"
+    models:
+      - id: "moonshot-v1-8k"
+        temperature: 0.7
+        max_tokens: 8192
+      - id: "moonshot-v1-32k"
+        temperature: 0.7
+        max_tokens: 32768
+      - id: "moonshot-v1-128k"
+        temperature: 0.7
+        max_tokens: 131072
+    enabled: true
+
+  - name: minimax
+    api_base: "https://api.minimax.chat/v1"
+    api_key: "${MINIMAX_API_KEY}"
+    models:
+      - id: "MiniMax-Text-01"
+        temperature: 0.7
+        max_tokens: 8192
+    enabled: true
+
+  - name: glm
+    api_base: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: "${ZHIPU_API_KEY}"
+    models:
+      - id: "glm-4"
+        temperature: 0.7
+        max_tokens: 128000
+      - id: "glm-4-flash"
+        temperature: 0.7
+        max_tokens: 128000
+      - id: "glm-4-plus"
+        temperature: 0.5
+        max_tokens: 128000
+    enabled: true
+
+fallback:
+  enabled: true
+  order:
+    - "deepseek"
+    - "qwen"
+    - "kimi"
+    - "minimax"
+    - "glm"
+  retry_on_failure: true
+  max_retries: 2
+
+default_provider: "deepseek"
+default_model: "deepseek-chat"
