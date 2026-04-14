@@ -6,16 +6,41 @@
 
 ## 安装（全局工具）
 
+### macOS / Linux / WSL2
+
 ```bash
-# 1. 克隆到全局目录
+curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.sh | bash
+```
+
+或手动安装：
+
+```bash
 git clone git@github.com:x5/sloth-agent.git ~/.sloth-agent
-
-# 2. 使用 uv 安装
 cd ~/.sloth-agent
-uv venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv venv .venv && source .venv/bin/activate
 uv pip install -e .
+```
 
-# 3. 为项目初始化
+### Windows (PowerShell)
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.ps1 | iex
+```
+
+或手动安装：
+
+```powershell
+git clone git@github.com:x5/sloth-agent.git $HOME\.sloth-agent
+cd $HOME\.sloth-agent
+uv venv .venv
+.venv\Scripts\Activate.ps1
+uv pip install -e .
+```
+
+### 安装后初始化
+
+```bash
+# 为项目初始化
 sloth init --project ~/my-project
 ```
 
