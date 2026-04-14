@@ -1,8 +1,21 @@
+
+<p align="center">
+  <img src="assets/sloth-agent-banner.png" alt="sloth agent banner - the beast for beasts" width="100%">
+</p>
+
+---
+
 # Sloth Agent
 
-![Sloth Agent Logo](sloth-agent.png)
+> **AI**: 你是在职的牛马吗？
+>
+> **我**: 是！
 
-> 自驱动、自进化的 AI Agent 框架
+> **AI**: 你想有自己的牛马吗？
+>
+> **用户**: 想！
+
+> **AI**: Sloth，给牛马用的牛马~
 
 ---
 
