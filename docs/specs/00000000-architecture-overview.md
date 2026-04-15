@@ -46,7 +46,7 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
 | **技能即指令** | SKILL.md prompt 模板，运行时注入，兼容 Claude Code | 同左 + 技能自动进化 |
 | **存储** | 纯文件系统（jsonl），所有状态可手动编辑、可回溯 | + SQLite 索引 + ChromaDB 向量检索 |
 | **质量保障** | 自动门控（lint / type / test / coverage / smoke） | + 事件驱动工作流规则 |
-| **模型路由** | Stage 级路由：deepseek-chat（编码）/ deepseek-reasoner（调试）/ qwen-max（审查） | Agent 级独立模型配置 + 自动降级 |
+| **模型路由** | Stage 级路由：deepseek-v3.2（编码）/ deepseek-r1-0528（调试）/ qwen3.6-plus（审查） | Agent 级独立模型配置 + 自动降级 |
 | **自我纠错** | Reflection + Stuck Detection + 自动回滚 | + Speculative Execution（best-of-N） |
 | **安全默认** | 路径白名单 + 命令黑名单 + 幻觉防护（HallucinationGuard） | 5 层安全 + 沙箱隔离 + 审计日志 |
 | **成本控制** | Token 预算 + Context Window Manager | + 熔断降级 + 费用预测 + 多 Provider 自动切换 |
@@ -75,7 +75,7 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
          ▼                  ▼                  ▼
 ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
 │  Builder Agent │ │ Reviewer Agent │ │ Deployer Agent │
-│  deepseek-chat │→│ qwen-max /     │→│ deepseek-chat  │
+│  deepseek-v3.2   │→│ qwen3.6-plus /  │→│ deepseek-v3.2  │
 │  + reasoner    │ │ claude         │ │                │
 │  编码+调试+测试 │ │ 审查+质量验证  │ │ 部署+验证      │
 │  Reflection    │ │                │ │                │
@@ -234,9 +234,9 @@ v1.0 采用 3 个 Agent 的设计，分组原则：**按上下文耦合度 + 审
 
 | Agent | 包含阶段 | 推荐模型 | 职责 | 上下文量级 |
 |-------|---------|---------|------|-----------|
-| **Builder** | Plan 解析 → 编码 → 调试 → 单元测试 | deepseek-chat（编码）<br>deepseek-reasoner（调试） | 读取 plan、拆分任务、编写代码、运行测试、修复错误 | 重 (~50-60K tokens) |
+| **Builder** | Plan 解析 → 编码 → 调试 → 单元测试 | deepseek-v3.2（编码）<br>deepseek-r1-0528（调试） | 读取 plan、拆分任务、编写代码、运行测试、修复错误 | 重 (~50-60K tokens) |
 | **Reviewer** | 代码审查 + 质量验证 | qwen-max 或 claude | 独立审查 Builder 产出，检查代码质量、安全、性能 | 中 (~10-15K tokens) |
-| **Deployer** | 部署 + 验证 | deepseek-chat | 执行部署脚本、运行 smoke test、验证上线结果 | 轻 (~3-5K tokens) |
+| **Deployer** | 部署 + 验证 | deepseek-v3.2 | 执行部署脚本、运行 smoke test、验证上线结果 | 轻 (~3-5K tokens) |
 
 核心设计原则：
 - **Reviewer 必须使用不同于 Builder 的 LLM**（同一模型审自己的代码几乎无价值）
@@ -410,14 +410,14 @@ class ContextWindowManager:
 
 | Agent 角色 | 所属 Phase | 可用技能 | 推荐模型 | 最大实例 |
 |-----------|-----------|---------|---------|---------|
-| **Analyst** | Phase 1 需求分析 | brainstorming, writing-plans | qwen-plus | 1 |
-| **Planner** | Phase 2 计划制定 | writing-plans, brainstorming | qwen-max | 1 |
-| **Engineer** | Phase 3 编码实现 | test-driven-development, subagent-driven-development | deepseek-chat | 3 |
-| **Debugger** | Phase 4 调试排错 | /investigate, /debug | deepseek-chat | 2 |
-| **Reviewer** | Phase 5 代码审查 | requesting-code-review, /review | claude-sonnet | 2 |
-| **QA** | Phase 6 质量验证 | /qa, /cso | claude-sonnet | 2 |
-| **Release** | Phase 7 发布上线 | /ship, finishing-a-branch | deepseek-chat | 1 |
-| **Monitor** | Phase 8 上线监控 | /health, /retro | qwen-plus | 1 |
+| **Analyst** | Phase 1 需求分析 | brainstorming, writing-plans | qwen3.6-plus | 1 |
+| **Planner** | Phase 2 计划制定 | writing-plans, brainstorming | qwen3-max | 1 |
+| **Engineer** | Phase 3 编码实现 | test-driven-development, subagent-driven-development | deepseek-v3.2 | 3 |
+| **Debugger** | Phase 4 调试排错 | /investigate, /debug | deepseek-r1-0528 | 2 |
+| **Reviewer** | Phase 5 代码审查 | requesting-code-review, /review | glm-4.5 / claude-sonnet | 2 |
+| **QA** | Phase 6 质量验证 | /qa, /cso | glm-4.5 / claude-sonnet | 2 |
+| **Release** | Phase 7 发布上线 | /ship, finishing-a-branch | deepseek-v3.2 | 1 |
+| **Monitor** | Phase 8 上线监控 | /health, /retro | qwen3.5-plus | 1 |
 | **General** | 无（通用） | 任意技能 | 可配置 | 1 |
 
 ### 5.3 远期: 通用 Agent
@@ -477,11 +477,11 @@ v1.0 不使用 8-Phase 模型，而是 3-Agent 串行流水线 + 自动门控：
 
 | 阶段 | Agent | LLM | 输入 | 输出 | 门控 |
 |------|-------|-----|------|------|------|
-| Plan 解析 | Builder | deepseek-reasoner | Plan 文件 | 任务列表 (结构化) | 无 |
-| 编码实现 | Builder | deepseek-chat | 任务列表 | 代码 + 测试 | Gate1: lint ✅ type ✅ |
-| 调试修复 | Builder | deepseek-reasoner | 失败测试 | 修复代码 | Gate1: 测试通过 |
-| 代码审查 | Reviewer | qwen-max | BuilderOutput | 审查报告 | Gate2: 无阻塞问题 + coverage ≥ 阈值 |
-| 部署 | Deployer | deepseek-chat | ReviewerOutput | 部署结果 | Gate3: smoke test ✅ |
+| Plan 解析 | Builder | deepseek-r1-0528 | Plan 文件 | 任务列表 (结构化) | 无 |
+| 编码实现 | Builder | deepseek-v3.2 | 任务列表 | 代码 + 测试 | Gate1: lint ✅ type ✅ |
+| 调试修复 | Builder | deepseek-r1-0528 | 失败测试 | 修复代码 | Gate1: 测试通过 |
+| 代码审查 | Reviewer | qwen3.6-plus | BuilderOutput | 审查报告 | Gate2: 无阻塞问题 + coverage ≥ 阈值 |
+| 部署 | Deployer | deepseek-v3.2 | ReviewerOutput | 部署结果 | Gate3: smoke test ✅ |
 
 #### v1.0 Adaptive Execution（替代线性 Phase）
 
@@ -547,7 +547,7 @@ class Reflection(BaseModel):
 async def reflect(self, result: ExecutionResult, gate: GateResult) -> Reflection:
     """
     核心原则：喂完整的环境观察，不要摘要。
-    用 reasoner 模型（deepseek-reasoner），不用 chat 模型。
+    用 reasoner 模型（deepseek-r1-0528），不用 chat 模型。
     """
     prompt = f"""
     ## 任务
@@ -970,22 +970,39 @@ Persistent + Learning:
 ```
 支持的 Provider 和模型:
 ├── DeepSeek
-│   ├── deepseek-chat          # 主力编码模型
-│   └── deepseek-reasoner      # 推理模型
+│   ├── deepseek-v3.2          # 最新基础模型（2025-12）
+│   ├── deepseek-r1-0528       # 最新推理模型（2026-01）
+│   └── deepseek-v4            # 编码旗舰（2026-02）
+│   [上一代: deepseek-chat, deepseek-reasoner]
+│
 ├── Qwen (通义千问)
-│   ├── qwen-turbo             # 低成本
-│   ├── qwen-plus              # 标准
-│   └── qwen-max               # 高能力
+│   ├── qwen3.6-plus           # 最新旗舰，代码增强（2026-03）
+│   ├── qwen3.5-plus           # 多模态，速度快（2026-02）
+│   ├── qwen3-max              # 最大规模文本旗舰
+│   └── qwen3-max-thinking     # 旗舰推理模型
+│   [上一代: qwen-turbo, qwen-plus, qwen-max]
+│
 ├── Kimi (月之暗面)
-│   ├── moonshot-v1-8k
-│   ├── moonshot-v1-32k
-│   └── moonshot-v1-128k
+│   ├── kimi-k2.5              # 最新旗舰，视觉编码（2026-01）
+│   ├── kimi-k2                # 上一代（2025-07，32B/1T）
+│   └── kimi-claw              # 浏览器 AI Agent（2026-02）
+│   [上一代: moonshot-v1-8k/32k/128k]
+│
 ├── GLM (智谱)
-│   └── glm-4
+│   ├── glm-4.5                # 最新旗舰，Agent 专用（2025-07）
+│   ├── glm-4.5-air            # 轻量版（106B/12B）
+│   └── glm-4.5-flash          # 免费版
+│   [上一代: glm-4]
+│
 ├── MiniMax
-│   └── minimax-pro
+│   ├── minimax-m2.5           # 最新全栈交付（2026）
+│   └── minimax-m1             # MoE 推理模型（2025-06）
+│
 └── Xiaomi (小米)
-    └── mimo-v2
+    ├── mimo-v2-pro            # 最新旗舰（2026-03，1T+/42B）
+    ├── mimo-v2-omni           # 全模态 Agent（2026-03）
+    └── mimo-v2-flash          # 轻量版（2025-12，309B/15B）
+    [上一代: mimo-v2]
 
 自动降级:
 ├── 首选模型不可用 → 按 fallback 顺序切换
@@ -1530,13 +1547,13 @@ agents:
     stages:
       plan_parsing:
         provider: "deepseek"
-        model: "deepseek-reasoner"    # 推理强，理解复杂 plan
+        model: "deepseek-r1-0528"     # 推理强，理解复杂 plan
       coding:
         provider: "deepseek"
-        model: "deepseek-chat"        # 代码生成质量好 + 便宜
+        model: "deepseek-v3.2"        # 代码生成质量好 + 便宜
       debugging:
         provider: "deepseek"
-        model: "deepseek-reasoner"    # 需要分析错误根因
+        model: "deepseek-r1-0528"     # 需要分析错误根因
     context:
       max_tokens: 60000               # Builder 上下文上限
       keep_recent_turns: 3            # 保留最近 3 轮完整对话
@@ -1547,7 +1564,7 @@ agents:
     stages:
       review:
         provider: "qwen"
-        model: "qwen-max"             # 必须不同于 coding 的 provider
+        model: "qwen3.6-plus"         # 必须不同于 coding 的 provider
     context:
       max_tokens: 20000
 
@@ -1555,7 +1572,7 @@ agents:
     stages:
       deploy:
         provider: "deepseek"
-        model: "deepseek-chat"
+        model: "deepseek-v3.2"
     context:
       max_tokens: 8000
 
