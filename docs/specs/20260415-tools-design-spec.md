@@ -291,7 +291,7 @@ name: CheckpointSave
 description: 将当前任务状态保存到检查点文件
 risk_level: 1
 permission: auto
-storage: .sloth-agent/checkpoints/
+storage: checkpoints/
 format: JSON
 ```
 
@@ -323,7 +323,7 @@ description: 从执行错误或成功经验中生成新的技能文档
 risk_level: 1
 permission: auto
 output: Markdown with YAML frontmatter
-storage: .sloth-agent/skills/
+storage: skills/
 ```
 
 #### 4.2.2 SkillRevise
@@ -470,7 +470,7 @@ game_tools:
 ### 6.2 权限配置示例
 
 ```yaml
-# .sloth-agent/configs/permissions.yaml
+# configs/permissions.yaml
 permissions:
   default_policy: ask  # 默认需要审批
 

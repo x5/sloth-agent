@@ -254,20 +254,20 @@ class Skill:
 
 | ID | 名称 | 触发方式 |
 |----|------|---------|
-| `brainstorming` | Brainstorming | auto |
-| `writing-plans` | Writing Plans | auto |
-| `test-driven-development` | TDD | auto |
-| `subagent-driven-development` | Subagent 驱动开发 | auto |
-| `using-git-worktrees` | Git Worktrees | auto |
-| `systematic-debugging` | 系统调试 | auto |
-| `requesting-code-review` | 代码审查请求 | auto |
-| `verification-before-completion` | 完成前验证 | auto |
-| `finishing-a-development-branch` | 分支收尾 | auto |
-| `receiving-code-review` | 接收审查反馈 | auto |
-| `executing-plans` | 执行计划 | auto |
-| `dispatching-parallel-agents` | 并行子代理 | auto |
-| `writing-skills` | 技能创建 | auto |
-| `using-superpowers` | Superpowers 入门 | auto |
+| `brainstorming` | Brainstorming | auto+manual |
+| `writing-plans` | Writing Plans | auto+manual |
+| `test-driven-development` | TDD | auto+manual |
+| `subagent-driven-development` | Subagent 驱动开发 | auto+manual |
+| `using-git-worktrees` | Git Worktrees | auto+manual |
+| `systematic-debugging` | 系统调试 | auto+manual |
+| `requesting-code-review` | 代码审查请求 | auto+manual |
+| `verification-before-completion` | 完成前验证 | auto+manual |
+| `finishing-a-development-branch` | 分支收尾 | auto+manual |
+| `receiving-code-review` | 接收审查反馈 | auto+manual |
+| `executing-plans` | 执行计划 | auto+manual |
+| `dispatching-parallel-agents` | 并行子代理 | auto+manual |
+| `writing-skills` | 技能创建 | auto+manual |
+| `using-superpowers` | Superpowers 入门 | auto+manual |
 
 #### gstack (23 个)
 
