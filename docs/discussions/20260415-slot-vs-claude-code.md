@@ -1,7 +1,7 @@
 # Sloth Agent vs Claude Code：方向讨论
 
 > 日期: 2026-04-16 更新
-> 状态: **方向明确，待细化流程**
+> 状态: **方向明确，流程确认**
 
 ---
 
@@ -10,22 +10,24 @@
 **Sloth Agent = 黑灯工厂**
 
 ```
-白天（09:00-22:00）：自主工作，严格按流程，高质量完成任务
-晚上（22:00）：人类补位，看报告、解决问题、制定次日计划
+晚上（22:00）：阶段一 需求分析 → 阶段二 计划制定
+白天（09:00-22:00）：阶段三~八 自主执行 (编码→调试→审查→质量→发布→监控)
 ```
 
 ---
 
-## 核心差异化
+## 8 阶段工作流
 
-**Sloth Agent vs Claude Code + cron**
-
-| | Claude Code | Sloth Agent (黑灯工厂) |
-|--|------------|----------------------|
-| **运行时** | 人类盯着，边做边改 | 人类下班了它自己跑 |
-| **流程** | 按需、灵活 | **非常细致的流程约束** |
-| **质量保证** | 靠 human 盯着 | TDD + 验证门控硬卡 |
-| **问题升级** | 直接问 human | 换模型/方式尝试，无法解决则记录等晚上 |
+| 阶段 | 阶段名称 | Superpowers | gstack | 时段 |
+| :--- | :--- | :--- | :--- | :--- |
+| 阶段一 | 需求分析 | brainstorming | /office-hours | 晚上 |
+| 阶段二 | 计划制定 | writing-plans | /autoplan | 晚上 |
+| 阶段三 | 编码实现 | TDD, subagent, git-worktrees | | 白天 |
+| 阶段四 | 调试排错 | systematic-debugging | /browse, /investigate | 白天 |
+| 阶段五 | 代码审查 | requesting-code-review | /review, /codex | 白天 |
+| 阶段六 | 质量验证 | | /qa, /cso, /plan-design-review | 白天 |
+| 阶段七 | 发布上线 | finishing-a-development-branch | /ship, /land-and-deploy | 白天 |
+| 阶段八 | 上线监控 | | /canary | 白天 |
 
 ---
 
@@ -51,31 +53,19 @@
 | **连续失败 N 次** | 按配置切换到备选模型 |
 | **按任务类型** | Brainstorming 用 GLM，Implementing 用 DeepSeek，Review 用 Claude |
 
-**均无法解决 → 记录问题 + 尝试方法，待晚上一起 review。**
-
 ---
 
 ## 晚上 Human 工作流程
 
 ```
-22:00 收到报告
+22:00 阶段一  需求分析 (brainstorming + office-hours)
    ↓
-看报告：明确当日完成/未完成
+   阶段二  计划制定 (writing-plans + autoplan)
    ↓
-补位：解决白天记录的未解决问题
+   明确需求：生成/细化 SPEC
    ↓
-明确需求：生成/细化 SPEC
-   ↓
-制定第二天计划：从 PLAN 中确定明天的 todo
+   制定第二天计划：从 PLAN 中确定明天 todo
 ```
-
----
-
-## 待解决问题
-
-- [ ] **流程约束清单**：白天必须严格遵守的流程有哪些？（TDD、验证门控之外还有什么？）
-- [ ] **escalation 标准**：什么情况算"无法解决"需要记录？
-- [ ] **验证门控细化**：除了测试通过，还有哪些硬性门控？
 
 ---
 
