@@ -11,7 +11,15 @@
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:docs.openclaw.ai)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:hermes-agent.nousresearch.com)"
+      "WebFetch(domain:hermes-agent.nousresearch.com)",
+      "WebFetch(domain:mp.weixin.qq.com)",
+      "WebFetch(domain:minimax-algeng-chat-tts.oss-cn-wulanchabu.aliyuncs.com)",
+      "Bash(robocopy:*)",
+      "Bash(ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)"
     ]
   }
 }

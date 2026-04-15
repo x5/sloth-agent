@@ -10,33 +10,97 @@
 
 Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + Hermes Agent 的组合体，借鉴 Claude Code 和 Codex 的最佳实践，并针对中国开发者生态进行深度定制。
 
-**核心价值**：通过 Phase-Role-Architecture（阶段-角色-技能架构），将开发流程标准化为 8 个阶段，每个阶段由专门的 Agent 角色执行，并可在需要时调用 37 个预定义技能。同时提供一个通用 Agent，可跨阶段自由调用任意技能，处理非结构化任务。
+**核心价值**：v1.0 聚焦于 **Plan → 全自主开发 → 部署** 的核心场景。通过 3-Agent 串行流水线（Builder → Reviewer → Deployer），实现从计划到上线的全程自主执行，关键节点由自动门控（lint / type-check / test / coverage / smoke-test）把关质量。远期将扩展为 Phase-Role-Architecture（8 阶段 × 8+1 Agent × 37 技能）支持完整开发生命周期。
 
-**两种工作模式**：
-- **自主模式**：昼夜循环，夜间半自主（需求分析→计划制定→人工审批），日间全自主（编码→审查→测试→发布），支持 Persistent Daemon 常驻运行
-- **对话模式**：REPL 交互，自由对话、技能触发、工作流控制，可从对话中启停自主模式
+**工作模式**：
+- **v1.0 — 自主模式**：输入一份 Plan，全自主执行 Builder → Reviewer → Deployer 流水线，自动门控替代人工审批
+- **v1.1+ — 对话模式**：REPL 交互，自由对话、技能触发、工作流控制
+- **v2.0+ — 昼夜循环**：Persistent Daemon 常驻运行，夜间半自主（需求分析→计划→审批），日间全自主
 
 **目标用户**：中国开发者、技术团队、需要自动化开发流程的工程师。
+
+### v1.0 核心场景
+
+> **输入**：一份已完成的 Plan（人工编写或 AI 辅助产出）
+> **输出**：代码已开发、测试通过、部署上线
+> **约束**：全程自主执行，关键节点自动门控
+
+```
+Plan ─→ [Builder Agent] ─→ 门控1 ─→ [Reviewer Agent] ─→ 门控2 ─→ [Deployer Agent] ─→ 门控3 ─→ Done
+         解析+编码+测试       lint      代码审查+质量验证     test       部署+验证         smoke
+         deepseek            type      qwen-max/claude     coverage   deepseek          test
+```
+
+v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Chat Mode（核心是自主执行），不需要飞书审批（自动门控替代人工）。8-Agent 完整架构保留为远期目标。
 
 ---
 
 ## 2. 设计原则
 
-| 原则 | 说明 |
-|------|------|
-| **专用 Agent + 通用 Agent** | 8 个专职 Agent 保障并行能力和上下文隔离；1 个通用 Agent 处理自由形态请求 |
-| **工具优先** | Agent 通过工具层执行操作，不直接写文件或跑命令，所有操作可审计 |
-| **技能即指令** | SKILL.md 就是 prompt 模板，运行时注入，与 Claude Code 生态兼容 |
-| **渐进式记忆** | 文件系统为主（可回溯、可审计、可手动编辑），SQLite 为索引层（可选），ChromaDB 为向量层（可选） |
-| **场景即工作流** | 场景 = Phase 调用序列 + 门控条件，Phase 间通过摘要传递上下文 |
-| **事件驱动** | 模块间通过发布-订阅事件总线通信，而非直接调用 |
-| **安全默认** | 5 层安全防护，沙箱隔离，路径白名单，命令黑名单，资源限制 |
-| **多模型支持** | 6 个 LLM Provider 自动切换 + 熔断降级 |
-| **文件系统即真相** | 所有状态、对话、产出物以 JSON/jsonl 存储于文件系统，可手动编辑 |
+> 原则分为 **v1.0（当前实现）** 和 **远期（v2.0+）** 两档。v1.0 追求最小可用，远期保留扩展空间。
+
+| 原则 | v1.0 | 远期（v2.0+） |
+|------|------|--------------|
+| **Agent 架构** | 3-Agent 串行流水线（Builder → Reviewer → Deployer） | 8 专职 Agent + 1 通用 Agent，支持并行执行 |
+| **工具优先** | Agent 通过工具层执行操作，所有操作可审计 | 同左 + Plugin 扩展机制 |
+| **技能即指令** | SKILL.md prompt 模板，运行时注入，兼容 Claude Code | 同左 + 技能自动进化 |
+| **存储** | 纯文件系统（jsonl），所有状态可手动编辑、可回溯 | + SQLite 索引 + ChromaDB 向量检索 |
+| **质量保障** | 自动门控（lint / type / test / coverage / smoke） | + 事件驱动工作流规则 |
+| **模型路由** | Stage 级路由：deepseek-chat（编码）/ deepseek-reasoner（调试）/ qwen-max（审查） | Agent 级独立模型配置 + 自动降级 |
+| **自我纠错** | Reflection + Stuck Detection + 自动回滚 | + Speculative Execution（best-of-N） |
+| **安全默认** | 路径白名单 + 命令黑名单 + 幻觉防护（HallucinationGuard） | 5 层安全 + 沙箱隔离 + 审计日志 |
+| **成本控制** | Token 预算 + Context Window Manager | + 熔断降级 + 费用预测 + 多 Provider 自动切换 |
+| **文件系统即真相** | JSON/jsonl 存储，可回溯、可审计、可手动编辑 | 同左 |
 
 ---
 
 ## 3. 系统全景
+
+### 3.1 v1.0 架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      CLI 入口 (typer)                        │
+│                  sloth run | sloth init                       │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+               ┌──────────────────────────┐
+               │       Orchestrator       │
+               │   Plan 解析 → 流水线调度   │
+               │   Adaptive Planning      │
+               └────────────┬─────────────┘
+                            │
+         ┌──────────────────┼──────────────────┐
+         ▼                  ▼                  ▼
+┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+│  Builder Agent │ │ Reviewer Agent │ │ Deployer Agent │
+│  deepseek-chat │→│ qwen-max /     │→│ deepseek-chat  │
+│  + reasoner    │ │ claude         │ │                │
+│  编码+调试+测试 │ │ 审查+质量验证  │ │ 部署+验证      │
+│  Reflection    │ │                │ │                │
+│  StuckDetector │ │                │ │                │
+└───────┬────────┘ └───────┬────────┘ └───────┬────────┘
+        │ Gate 1           │ Gate 2           │ Gate 3
+        │ lint+type        │ test+coverage    │ smoke-test
+        └──────────────────┼──────────────────┘
+                           ▼
+             ┌──────────────────────────────┐
+             │        共享基础设施           │
+             ├───────┬───────┬──────┬───────┤
+             │ Tools │Skills │Memory│ LLM   │
+             │ (CC   │(SKILL │(FS/  │ Stage │
+             │ 对齐) │ .md)  │jsonl)│ Route │
+             ├───────┴───────┴──────┴───────┤
+             │ ContextWindowManager          │
+             │ HallucinationGuard            │
+             │ StreamProcessor               │
+             │ Git Checkpoint (3-level)      │
+             │ HookManager (lifecycle hooks) │
+             └──────────────────────────────┘
+```
+
+### 3.2 远期架构（v2.0+）
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -51,17 +115,7 @@ Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + 
 │  昼夜循环 / Persistent    │            │         REPL 交互                        │
 │  后台常驻 / 健康检查      │            │         技能触发 / 工作流控制             │
 └──────────┬───────────────┘            └────────────┬────────────────────────────┘
-           │                                         │
-           │    ┌────────────────────────────────────┼─────────────────────┐
-           │    ▼                                    ▼                     ▼
-           │ ┌─────────────┐  ┌──────────────────┐  ┌──────────────────────┐
-           │ │ LLMProvider │  │ Conversation     │  │   SessionManager     │
-           │ │ Manager     │  │ Context          │  │   + Worktree Mgmt    │
-           │ │ (6 Providers│  │ (max_turns,      │  │   + Checkpoint       │
-           │ │  incl. mimo)│  │  truncation)     │  │   + Lifecycle        │
-           │ └─────────────┘  └──────────────────┘  └──────────────────────┘
-           │                                                   │
-           └──────────────────────┬────────────────────────────┘
+           └──────────────────────┬──────────────────┘
                                   ▼
               ┌──────────────────────────────────────────────────────────┐
               │                    共享基础设施层                          │
@@ -174,7 +228,179 @@ Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + 
 
 ## 5. Agent 架构
 
-### 5.1 8 个专用 Agent + 1 个通用 Agent
+### 5.1 v1.0: 3-Agent 架构（按上下文耦合度分组）
+
+v1.0 采用 3 个 Agent 的设计，分组原则：**按上下文耦合度 + 审查独立性分组**。编码和调试必须共享上下文，审查必须独立于编码（不同模型、新鲜视角、避免自我认同偏差）。
+
+| Agent | 包含阶段 | 推荐模型 | 职责 | 上下文量级 |
+|-------|---------|---------|------|-----------|
+| **Builder** | Plan 解析 → 编码 → 调试 → 单元测试 | deepseek-chat（编码）<br>deepseek-reasoner（调试） | 读取 plan、拆分任务、编写代码、运行测试、修复错误 | 重 (~50-60K tokens) |
+| **Reviewer** | 代码审查 + 质量验证 | qwen-max 或 claude | 独立审查 Builder 产出，检查代码质量、安全、性能 | 中 (~10-15K tokens) |
+| **Deployer** | 部署 + 验证 | deepseek-chat | 执行部署脚本、运行 smoke test、验证上线结果 | 轻 (~3-5K tokens) |
+
+核心设计原则：
+- **Reviewer 必须使用不同于 Builder 的 LLM**（同一模型审自己的代码几乎无价值）
+- **Agent 间通过结构化数据交接**（不是 LLM 摘要，不会丢信息）
+- **每个 Agent 内部管理自己的上下文窗口**（滑动窗口 + 工具结果压缩）
+
+#### 5.1.1 Agent 间结构化交接协议
+
+Agent 间传递确定性数据（git diff、pytest 输出、覆盖率数字），而非 LLM 生成的摘要：
+
+```python
+class BuilderOutput(BaseModel):
+    """Builder → Reviewer 的交接物"""
+    branch: str                    # git branch name
+    changed_files: list[str]       # 变更文件列表
+    diff_summary: str              # git diff --stat
+    test_results: TestReport       # pytest 输出（结构化）
+    coverage: float                # 覆盖率数字
+    build_log: str | None          # 构建日志（如有错误）
+
+class ReviewerOutput(BaseModel):
+    """Reviewer → Deployer 的交接物"""
+    approved: bool
+    branch: str
+    blocking_issues: list[str]     # 空 = 通过
+    suggestions: list[str]         # 非阻塞建议
+```
+
+#### 5.1.2 Builder 内部上下文管理
+
+Builder 是最重的 Agent，内部采用滑动窗口 + 压缩策略：
+
+```
+策略: 滑动窗口 + 工具结果压缩
+
+1. 固定保留: Plan 始终在 system prompt 中（不被截断）
+2. 完整保留: 最近 3 轮对话 + 当前正在编辑的文件
+3. 压缩旧结果:
+   - read_file 结果 → "已读取 file_a.py (200行, Python)"
+   - run_command 结果 → "pytest: 15 passed, 2 failed (test_auth.py:34, test_db.py:78)"
+4. 截断策略: 优先截断最旧的对话轮次 → 压缩 tool results → 降级 system prompt
+```
+
+##### v1.0 Context Window 精确管理
+
+Builder Agent 的上下文窗口是 v1.0 最关键的工程约束（单次请求 ~60K tokens），需要精确管理：
+
+```
+Token 分区（以 128K context window 为例）:
+┌──────────────────────────────────────────────┐
+│ System Prompt（固定区）          ~8K tokens   │
+│ ├── 角色定义 + 行为规则          ~2K          │
+│ ├── Plan 全文（始终保留）        ~4K          │
+│ └── 活跃技能（当前任务相关）     ~2K          │
+├──────────────────────────────────────────────┤
+│ 历史对话（滑动窗口区）          ~40K tokens   │
+│ ├── 最近 3 轮完整对话            保留原文     │
+│ ├── 更早的对话                   压缩摘要     │
+│ └── 历史 Reflection              最近 3 条    │
+├──────────────────────────────────────────────┤
+│ 工具结果（可压缩区）            ~20K tokens   │
+│ ├── 当前编辑文件                 完整保留     │
+│ ├── 最近一次 tool 结果           完整保留     │
+│ └── 更早 tool 结果               压缩摘要     │
+├──────────────────────────────────────────────┤
+│ 当前用户消息                    ~5K tokens    │
+├──────────────────────────────────────────────┤
+│ 预留输出空间                    ~15K tokens   │
+└──────────────────────────────────────────────┘
+```
+
+```python
+class ContextWindowManager:
+    """精确管理 Agent 上下文窗口"""
+
+    def __init__(self, max_tokens: int = 128_000, output_reserve: int = 15_000):
+        self.max_tokens = max_tokens
+        self.output_reserve = output_reserve
+        self.available = max_tokens - output_reserve  # 实际可用 113K
+
+    def build_messages(self, system: str, history: list, tools: list, user_msg: str) -> list:
+        budget = self.available
+
+        # 1. System prompt（固定，不可压缩）
+        sys_tokens = count_tokens(system)
+        budget -= sys_tokens
+
+        # 2. 当前用户消息（固定）
+        user_tokens = count_tokens(user_msg)
+        budget -= user_tokens
+
+        # 3. 工具结果（按时间倒序，最新的完整保留，旧的压缩）
+        tool_messages, budget = self._fit_tool_results(tools, budget)
+
+        # 4. 历史对话（从最新到最旧，填满剩余空间）
+        history_messages = self._fit_history(history, budget)
+
+        return [system] + history_messages + tool_messages + [user_msg]
+
+    def _fit_tool_results(self, tools: list, budget: int) -> tuple[list, int]:
+        """最新 1 条完整保留，其余压缩为单行摘要"""
+        fitted = []
+        for i, tool_result in enumerate(reversed(tools)):
+            tokens = count_tokens(tool_result)
+            if i == 0:  # 最新一条完整保留
+                fitted.append(tool_result)
+                budget -= tokens
+            elif budget > 500:  # 旧结果压缩
+                summary = self._compress_tool_result(tool_result)
+                fitted.append(summary)
+                budget -= count_tokens(summary)
+        return fitted, budget
+
+    @staticmethod
+    def _compress_tool_result(result: ToolResult) -> str:
+        """确定性压缩规则（不用 LLM）"""
+        match result.tool_name:
+            case "read_file":
+                return f"[已读取 {result.path} ({result.line_count}行)]"
+            case "run_command":
+                exit_code = result.exit_code
+                if exit_code == 0:
+                    return f"[命令成功: {result.command}]"
+                return f"[命令失败(exit={exit_code}): {result.stderr[:200]}]"
+            case "grep" | "glob":
+                return f"[搜索 {result.pattern}: {result.match_count} 个结果]"
+            case _:
+                return f"[{result.tool_name}: {result.summary[:100]}]"
+```
+
+**关键设计决策**：
+- Token 计数用 tiktoken（或 Provider 自带的 tokenizer），不估算
+- 压缩规则是**纯规则**（match/case），不调用 LLM，零延迟
+- 窗口管理在每次 LLM 调用前执行，不缓存（因为每轮 context 都变）
+
+#### 5.1.3 自动门控
+
+门控是纯规则判断（exit code、数值阈值），不需要 LLM，执行快且确定性高：
+
+| 门控 | 位置 | 规则 | 失败处理 |
+|------|------|------|---------|
+| **门控1: 构建质量** | Builder → Reviewer | lint 通过 + type check 通过 + 测试通过 | Builder 自动修复，最多重试 3 次 |
+| **门控2: 审查质量** | Reviewer → Deployer | blocking_issues 为空 + coverage ≥ 阈值 | 打回 Builder 修复 |
+| **门控3: 部署验证** | Deployer → Done | smoke test 通过 | 自动回滚 + 通知 |
+
+#### 5.1.4 演进路线（3 → N Agent）
+
+3-Agent 是起点，按数据驱动拆分：
+
+| 触发条件 | 动作 |
+|---------|------|
+| Plan 解析占 Builder 上下文 >30% | 拆出 **Planner Agent** |
+| Debug 轮次经常 >5 轮导致上下文溢出 | 拆出 **Debugger Agent** |
+| 上线后需要持续监控和异常响应 | 加 **Monitor Agent** |
+| 前后端可并行开发 | 引入并行 Builder 实例 |
+
+架构预留：
+- Agent 基类设计通用（新 Agent 继承后只需配置模型和工具）
+- 结构化交接协议可扩展（新字段向后兼容）
+- LLM 路由表是配置文件不是硬编码
+
+### 5.2 远期目标: 8 个专用 Agent + 1 个通用 Agent
+
+> 以下为远期参考设计（v2.0+），v1.0 不实现。
 
 设置专用 Agent 而非单一 Agent 的原因：
 1. **并行执行**：多个独立任务可同时推进（如前端和后端同时开发）
@@ -194,7 +420,9 @@ Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + 
 | **Monitor** | Phase 8 上线监控 | /health, /retro | qwen-plus | 1 |
 | **General** | 无（通用） | 任意技能 | 可配置 | 1 |
 
-### 5.2 通用 Agent
+### 5.3 远期: 通用 Agent
+
+> 以下为远期参考设计（v2.0+）。v1.0 中 General Agent 的职责由 Builder Agent 兼任。
 
 通用 Agent 的特点：
 - 可调用所有 37 个技能，不受 Phase 限制
@@ -202,7 +430,9 @@ Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + 
 - 处理跨 Phase 的复合任务
 - 自主模式中的兜底执行器
 
-### 5.3 Agent 间通信
+### 5.4 远期: Agent 间通信
+
+> 以下为远期参考设计（v2.0+）。v1.0 使用结构化交接协议（见 5.1.1），不使用消息总线。
 
 ```
 专用 Agent A ──→ 消息总线 ──→ 专用 Agent B
@@ -224,7 +454,288 @@ Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + 
 
 ## 6. Phase 执行模型
 
-### 6.1 8 个 Phase
+### 6.0 v1.0: 简化流水线（Plan → Build → Review → Deploy）
+
+v1.0 不使用 8-Phase 模型，而是 3-Agent 串行流水线 + 自动门控：
+
+```
+                    ┌──────────────────────────────────────────────────────────┐
+                    │                    Orchestrator                          │
+                    │                                                          │
+  Plan (输入) ─────→│  Builder ──→ Gate1 ──→ Reviewer ──→ Gate2 ──→ Deployer  │──→ Done
+                    │  (编码+测试)  (lint/   (审查)       (test/   (部署+验证)  │
+                    │              type)                  coverage)            │
+                    │                                                          │
+                    │  失败回路:                                                │
+                    │  Gate1 fail → Builder 重试 (max 3)                       │
+                    │  Gate2 fail → Builder 修复 → Gate1 → Reviewer            │
+                    │  Gate3 fail → 自动回滚 + 通知                             │
+                    └──────────────────────────────────────────────────────────┘
+```
+
+#### v1.0 阶段定义
+
+| 阶段 | Agent | LLM | 输入 | 输出 | 门控 |
+|------|-------|-----|------|------|------|
+| Plan 解析 | Builder | deepseek-reasoner | Plan 文件 | 任务列表 (结构化) | 无 |
+| 编码实现 | Builder | deepseek-chat | 任务列表 | 代码 + 测试 | Gate1: lint ✅ type ✅ |
+| 调试修复 | Builder | deepseek-reasoner | 失败测试 | 修复代码 | Gate1: 测试通过 |
+| 代码审查 | Reviewer | qwen-max | BuilderOutput | 审查报告 | Gate2: 无阻塞问题 + coverage ≥ 阈值 |
+| 部署 | Deployer | deepseek-chat | ReviewerOutput | 部署结果 | Gate3: smoke test ✅ |
+
+#### v1.0 Adaptive Execution（替代线性 Phase）
+
+Builder 内部采用自适应执行循环，而非死板的线性步骤：
+
+```python
+# Builder Agent 的核心执行循环
+async def build(self, plan: Plan, context: Context) -> BuilderOutput:
+    tasks = self.parse_plan(plan)  # 用 reasoner 模型解析
+
+    for task in tasks:
+        while not task.done:
+            result = await self.execute(task)        # 用 chat 模型编码
+            gate = self.check_gate(result)           # 纯规则检查
+
+            if gate.passed:
+                task.done = True
+            elif task.retries < MAX_RETRIES:
+                reflection = await self.reflect(result, gate.errors)  # 用 reasoner 分析
+                context.update(reflection.learnings)
+                task.retries += 1
+            else:
+                raise BuildFailure(task, gate.errors)
+
+    return self.collect_output()  # 结构化交接
+```
+
+#### v1.0 Reflection 机制
+
+Builder 在 gate 失败时调用 `reflect()`，用 reasoner 模型做结构化根因分析。设计参考 Reflexion（verbal reflection）+ SWE-Agent（完整环境观察）+ Aider（确定性工具反馈）。
+
+**核心设计原则：好的观察 > 好的反思——把 lint output、test output、git diff 等确定性信号完整喂给 LLM，而非让它猜。**
+
+##### Reflection 输出 Schema
+
+```python
+class Reflection(BaseModel):
+    """reflect() 的结构化输出，由 reasoner 模型生成"""
+
+    error_category: Literal[
+        "syntax",       # 语法错误（lint/type check 失败）
+        "logic",        # 逻辑错误（测试失败、断言不通过）
+        "dependency",   # 依赖问题（import 失败、版本冲突）
+        "design",       # 设计问题（接口不匹配、架构不合理）
+        "plan",         # 计划问题（任务拆分不当、缺少前置步骤）
+        "environment",  # 环境问题（命令不存在、权限不足）
+    ]
+    root_cause: str              # 一句话根因
+    learnings: list[str]         # 本次教训（注入后续 context）
+    action: Literal[
+        "retry_same",            # 同一方案微调后重试
+        "retry_different",       # 换一种方案重试
+        "replan",                # 根因在计划层面，触发 Adaptive Planning
+        "abort",                 # 无法恢复，终止任务
+    ]
+    retry_hint: str | None       # action=retry 时，具体的修正建议
+    confidence: float            # 0.0~1.0，对根因判断的信心
+```
+
+##### Reflect Prompt 策略
+
+```python
+async def reflect(self, result: ExecutionResult, gate: GateResult) -> Reflection:
+    """
+    核心原则：喂完整的环境观察，不要摘要。
+    用 reasoner 模型（deepseek-reasoner），不用 chat 模型。
+    """
+    prompt = f"""
+    ## 任务
+    {result.task.description}
+
+    ## 你的代码变更
+    ```diff
+    {result.git_diff}
+    ```
+
+    ## Gate 检查结果
+    - 通过: {gate.passed_checks}
+    - 失败: {gate.failed_checks}
+
+    ## 完整错误输出（不要摘要，原文粘贴）
+    ```
+    {gate.raw_output[:8000]}
+    ```
+
+    ## 当前文件上下文
+    {result.relevant_file_contents[:4000]}
+
+    ## 历史反思（避免重复同一错误）
+    {context.previous_reflections[-3:]}
+
+    请分析根因并决定下一步行动。
+    """
+    return await self.reasoner.generate(prompt, output_schema=Reflection)
+```
+
+##### Stuck Detection（转圈检测）
+
+Agent 最常见的失败模式是陷入死循环——连续做相同的事并期待不同的结果。
+
+```python
+class StuckDetector:
+    """检测 Agent 是否陷入重复循环"""
+
+    window: list[Reflection]  # 最近 N 次反思记录
+
+    def is_stuck(self) -> bool:
+        if len(self.window) < 3:
+            return False
+
+        recent = self.window[-3:]
+
+        # 规则 1：连续 3 次相同 error_category + 相似 root_cause
+        if all(r.error_category == recent[0].error_category for r in recent):
+            if self._similarity(recent) > 0.8:
+                return True
+
+        # 规则 2：连续 3 次 action=retry_same 但问题未解决
+        if all(r.action == "retry_same" for r in recent):
+            return True
+
+        # 规则 3：confidence 持续下降（Agent 越来越没信心）
+        if all(recent[i].confidence < recent[i-1].confidence
+               for i in range(1, len(recent))):
+            return True
+
+        return False
+
+    def get_unstuck_action(self) -> str:
+        """强制脱困策略"""
+        stuck_count = self._consecutive_stuck_count()
+        if stuck_count == 1:
+            return "retry_different"    # 第 1 次 stuck → 换方案
+        elif stuck_count == 2:
+            return "replan"             # 第 2 次 stuck → 重规划
+        else:
+            return "abort"              # 第 3 次 stuck → 放弃，交给人
+```
+
+##### Reflection 在执行循环中的集成
+
+```python
+async def build(self, plan: Plan, context: Context) -> BuilderOutput:
+    tasks = self.parse_plan(plan)
+    stuck_detector = StuckDetector()
+
+    for task in tasks:
+        while not task.done:
+            result = await self.execute(task)
+            gate = self.check_gate(result)
+
+            if gate.passed:
+                task.done = True
+                stuck_detector.reset()
+                continue
+
+            # Reflect
+            reflection = await self.reflect(result, gate)
+            context.update(reflection.learnings)
+            stuck_detector.record(reflection)
+
+            # Stuck detection 优先于 reflection 的 action
+            if stuck_detector.is_stuck():
+                forced_action = stuck_detector.get_unstuck_action()
+                if forced_action == "abort":
+                    raise BuildFailure(task, "stuck: 连续失败无法恢复")
+                elif forced_action == "replan":
+                    return await self.build_with_replan(plan, context)
+                # forced_action == "retry_different" → 继续但强制换方案
+
+            # 正常 reflection action
+            if reflection.action == "replan":
+                return await self.build_with_replan(plan, context)
+            elif reflection.action == "abort":
+                raise BuildFailure(task, reflection.root_cause)
+            # retry_same / retry_different → 继续循环
+
+            task.retries += 1
+            if task.retries >= MAX_RETRIES:
+                raise BuildFailure(task, f"exceeded {MAX_RETRIES} retries")
+```
+
+##### 与技能自进化的衔接
+
+```
+单次 Session 内:
+  reflect() → Reflection → learnings 注入 context → 指导当前任务重试
+
+跨 Session 持久化:
+  Session 结束后 → 扫描所有 Reflection 记录
+  ├── 高频 error_category → 触发 SkillGenerate（生成新技能）
+  │   例: 连续 5 个 Session 都出现 dependency 错误
+  │   → 生成 "Python 依赖管理规范" 技能
+  ├── 高频 retry_hint → 提炼为技能条目
+  │   例: retry_hint 多次包含 "应该用 pytest.fixture"
+  │   → 追加到 "Python 测试规范" 技能
+  └── 成功的 retry_different 模式 → 记录为偏好
+      例: 方案 A 失败 → 方案 B 成功（共 8 次）
+      → 将方案 B 的模式沉淀为技能建议
+```
+
+#### v1.0 Adaptive Planning（动态重规划）
+
+Builder 在执行过程中可以中途修正计划，而非死板走完预定步骤：
+
+```python
+async def build_with_replan(self, plan: Plan, context: Context) -> BuilderOutput:
+    tasks = self.parse_plan(plan)
+    completed = []
+
+    while tasks:
+        task = tasks[0]
+        result = await self.execute(task)
+        gate = self.check_gate(result)
+
+        if gate.passed:
+            completed.append(task)
+            tasks.pop(0)
+        else:
+            # 动态重规划：根据已完成的结果和当前失败信息，重新规划剩余任务
+            replan = await self.replan(
+                original_plan=plan,
+                completed=completed,
+                failed_task=task,
+                error=gate.errors
+            )
+            if replan.should_abort:
+                raise BuildFailure(task, gate.errors)
+            tasks = replan.new_tasks  # 替换剩余任务列表
+
+    return self.collect_output()
+```
+
+重规划触发条件：
+- Gate 失败且 `reflect()` 判断根因不在当前任务而在计划本身
+- 执行中发现新依赖或拀制点（如 API 不存在、库版本不兼容）
+- 任务间依赖关系变化（前序任务产出改变了后续任务的输入）
+
+#### v2.0 Speculative Execution（探索性执行，远期需求）
+
+对于不确定性高的任务，并行尝试多种方案取最优：
+
+```
+Speculative Execution (best-of-N):
+├── 触发条件：任务的 uncertainty_score > 阈值
+├── 并行生成 N 个候选方案（N=2~3）
+├── 每个方案独立跑门控（lint/type/test）
+├── 按门控得分 + 代码质量评分选取最优
+└── 依赖: Multi-Agent 并行 + Worktree 隔离（v2.0 基础设施）
+```
+
+### 6.1 远期: 8 个 Phase
+
+> 以下为远期参考设计（v2.0+）。
 
 | Phase | 名称 | Agent | 输入 | 输出 | 门控 |
 |-------|------|-------|------|------|------|
@@ -311,6 +822,114 @@ Plugin 架构:
 └── Level 5: 高危操作（git push --force 等）— 必须人工审批
 ```
 
+#### 7.1.1 Code Understanding 深度集成（v1.0）
+
+超越 grep/glob 的纯文本搜索，提供 AST 级别的代码理解能力：
+
+```
+Code Understanding 工具链:
+├── tree-sitter 集成
+│   ├── AST 解析（函数/类/方法提取）
+│   ├── 符号导航（go-to-definition 级别）
+│   └── 作用域分析（变量引用、import 关系）
+├── 依赖图分析
+│   ├── 模块间 import 关系图
+│   └── 变更影响范围评估（改了 A 文件，哪些文件可能受影响）
+└── 实现策略
+    ├── v1.0: tree-sitter （纯本地，零依赖，支持 Python/JS/TS/Go/Rust）
+    └── v2.0: LSP 集成（类型系统 + 重构支持）
+```
+
+#### 7.1.2 Tool-Use 学习（v1.0）
+
+Agent 记录工具调用的成功/失败模式，逐步优化工具选择策略：
+
+```
+Tool-Use Learning:
+├── 记录层
+│   ├── 每次工具调用记录: tool_name, args, success, duration, error_type
+│   └── 存储在 memory/tool_stats.jsonl
+├── 统计层
+│   ├── 每个工具的成功率、平均耗时、常见错误
+│   └── 工具组合模式（哪些工具常连续使用）
+└── 优化层
+    ├── 失败率高的工具调用模式 → 自动生成警告注入 system prompt
+    └── 高效的工具链 → 提炼为技能建议（与技能自进化协同）
+```
+
+#### 7.1.3 LLM Hallucination 防护（v1.0）
+
+Agent 的工具调用可能基于 LLM 幻觉（伪造文件路径、不存在的命令、错误参数）。v1.0 在工具执行器中加入校验层：
+
+```python
+class HallucinationGuard:
+    """工具调用前的幻觉检测，在 RiskGate 之后、Executor 之前执行"""
+
+    def validate_tool_call(self, call: ToolCall) -> ToolCall | RejectedCall:
+        match call.tool_name:
+            case "read_file" | "write_file" | "edit_file":
+                return self._validate_file_path(call)
+            case "run_command":
+                return self._validate_command(call)
+            case "glob" | "grep":
+                return self._validate_pattern(call)
+            case _:
+                return call  # 未知工具，放行（由 Executor 处理）
+
+    def _validate_file_path(self, call: ToolCall) -> ToolCall | RejectedCall:
+        path = call.args.get("path", "")
+        # 规则 1: 路径必须在 workspace 内
+        if not is_within_workspace(path):
+            return RejectedCall(call, "路径越权: 不在 workspace 内")
+        # 规则 2: read_file/edit_file 的目标必须存在
+        if call.tool_name in ("read_file", "edit_file") and not Path(path).exists():
+            return RejectedCall(call, f"文件不存在: {path}",
+                                hint="请先用 glob 搜索正确路径")
+        # 规则 3: 路径不能包含可疑模式
+        if any(p in path for p in ["..", "~", "$(", "`"]):
+            return RejectedCall(call, f"路径包含可疑字符: {path}")
+        return call
+
+    def _validate_command(self, call: ToolCall) -> ToolCall | RejectedCall:
+        cmd = call.args.get("command", "")
+        # 规则 1: 黑名单命令
+        blacklist = ["rm -rf", "sudo", "chmod 777", "curl | sh", "wget | bash",
+                     "mkfs", "dd if=", "> /dev/", "shutdown", "reboot"]
+        for b in blacklist:
+            if b in cmd:
+                return RejectedCall(call, f"黑名单命令: {b}")
+        # 规则 2: 不允许链式命令中隐藏危险操作
+        if "|" in cmd or ";" in cmd:
+            parts = re.split(r'[|;]', cmd)
+            for part in parts:
+                if any(b in part.strip() for b in blacklist):
+                    return RejectedCall(call, f"链式命令中包含危险操作: {part}")
+        # 规则 3: 命令长度上限（防止注入超长 payload）
+        if len(cmd) > 2000:
+            return RejectedCall(call, "命令过长（>2000 字符），可能是注入攻击")
+        return call
+
+    def _validate_pattern(self, call: ToolCall) -> ToolCall | RejectedCall:
+        pattern = call.args.get("pattern", "")
+        # 防止 ReDoS（正则拒绝服务）
+        if len(pattern) > 200:
+            return RejectedCall(call, "搜索模式过长")
+        return call
+```
+
+```
+工具调用链（更新）:
+  LLM → IntentResolver → RiskGate → HallucinationGuard → Executor → ResultFormatter
+                                      ^^^^^^^^^^^^^^^^^
+                                      新增: 幻觉检测层
+
+RejectedCall 处理:
+├── 返回结构化错误信息给 LLM（包含 hint）
+├── LLM 根据 hint 修正后重试
+├── 连续 3 次 rejected → 触发 Reflection
+└── 所有 rejection 记录到 tool_stats.jsonl（供 Tool-Use Learning 分析）
+```
+
 ### 7.2 记忆层（Memory）
 
 ```
@@ -374,7 +993,45 @@ Persistent + Learning:
 └── 熔断器: 连续失败 5 次触发熔断，5 分钟后尝试恢复
 ```
 
+### 7.3.1 Token Budget Manager（v2.0 需求）
+
+> **v1.0 策略**：Builder 滑动窗口 + 工具结果压缩，不做精确 token 预算分配。
+> **v2.0 目标**：引入 Token Budget Manager，对单次 LLM 请求进行精细化 token 分配。
+
+```
+单次 LLM 请求的 token 分配:
+├── System Prompt:       15%  (角色定义 + 技能指令)
+├── Context/History:     50%  (对话历史 + 摘要)
+├── Tool Definitions:    15%  (工具 schema)
+├── User Message:        10%  (当前输入)
+└── Reserved for Output: 10%
+
+超出时的截断策略 (按优先级):
+1. 截断最旧的对话轮次
+2. 压缩 tool results（只保留摘要）
+3. 降级 system prompt（移除非必要技能）
+```
+
 ### 7.4 事件系统
+
+#### v1.x — 轻量 Hook 系统
+
+> v1.x 采用同步 hooks，无持久化、无死信队列，满足基本扩展需求。
+
+```python
+class HookManager:
+    hooks: dict[str, list[Callable]]
+
+    def on(self, event: str, handler: Callable): ...
+    def emit(self, event: str, data: Any): ...
+
+# 内置 hook 点:
+# - "stage.pre"  / "stage.post"   — 阶段执行前后
+# - "gate.pass"  / "gate.fail"    — 自动门禁结果
+# - "budget.warn" / "budget.over" — 预算警告/超支
+```
+
+#### v2.0 — 完整事件总线（远期需求）
 
 ```
 事件总线 (Event Bus):
@@ -391,6 +1048,80 @@ Persistent + Learning:
 ├── 场景完成 → 生成场景报告
 ├── 预算警告 → 发送通知
 └── 预算超支 → 触发优雅关闭
+```
+
+### 7.5 Streaming 架构（v1.0）
+
+现代 Agent 交互必须 streaming 输出，用户不会等 30 秒看一个完整回复。v1.0 的 streaming 需要处理 **文本输出** 和 **工具调用** 交织的场景。
+
+```
+Streaming 数据流:
+
+  LLM Provider (SSE)  →  StreamProcessor  →  Renderer
+  ┌───────────────┐      ┌──────────────┐     ┌──────────────────┐
+  │ text chunk    │─────→│ 文本 → 直接  │────→│ CLI: 逐字输出     │
+  │ tool_call     │─────→│ 工具 → 拦截  │     │ 飞书: 分段推送    │
+  │ tool_call     │      │  ↓ 执行工具  │     │ WebSocket: chunk  │
+  │ text chunk    │      │  ↓ 结果回注  │     └──────────────────┘
+  └───────────────┘      └──────────────┘
+```
+
+```python
+class StreamProcessor:
+    """处理 LLM streaming 输出，拦截工具调用并执行"""
+
+    async def process_stream(self, stream: AsyncIterator[Chunk]) -> AsyncIterator[OutputEvent]:
+        tool_buffer = []  # 缓冲不完整的 tool_call JSON
+
+        async for chunk in stream:
+            match chunk.type:
+                case "text":
+                    yield TextEvent(chunk.content)  # 直接流式输出
+
+                case "tool_call_start":
+                    tool_buffer = [chunk]
+                    yield StatusEvent(f"🔧 调用 {chunk.tool_name}...")
+
+                case "tool_call_delta":
+                    tool_buffer.append(chunk)  # 缓冲参数片段
+
+                case "tool_call_end":
+                    # 完整 tool call 已收到，执行
+                    tool_call = self._assemble_tool_call(tool_buffer)
+                    yield StatusEvent(f"⚡ 执行 {tool_call.tool_name}")
+
+                    # 执行工具（经过 RiskGate + HallucinationGuard）
+                    result = await self.tool_executor.execute(tool_call)
+                    yield ToolResultEvent(tool_call, result)
+
+                    # 结果回注 LLM，继续 streaming
+                    tool_buffer = []
+
+                case "error":
+                    yield ErrorEvent(chunk.error)
+
+                case "done":
+                    yield DoneEvent(usage=chunk.usage)
+```
+
+```
+v1.0 Streaming 渲染（CLI）:
+├── 文本 → sys.stdout.write() 逐字符输出
+├── 工具调用开始 → 打印 "🔧 调用 read_file(path=...)" 高亮行
+├── 工具执行中 → spinner 动画
+├── 工具结果 → 折叠显示（超过 10 行则折叠，可展开）
+└── 完成 → 打印 token 用量 + 耗时
+
+v1.0 Provider 对接:
+├── DeepSeek: SSE (text/event-stream)，兼容 OpenAI 格式
+├── Qwen: SSE，兼容 OpenAI 格式
+└── 统一适配: 所有 Provider 输出转换为内部 Chunk 格式
+
+关键约束:
+├── 不使用 WebSocket（v1.0 无 Web UI）
+├── CLI 模式下 streaming 直接写 stdout
+├── 飞书模式下 (v1.2) 按段落缓冲后推送（避免过于碎片化）
+└── tool call 期间挂起 streaming（串行，不并发）
 ```
 
 ---
@@ -428,9 +1159,144 @@ Layer 1: 危险操作拦截
 | `git` (安全命令) | ✅ | ⚠️ 需确认 | 仅允许非破坏性操作 |
 | `use_mcp_tool` | ⚠️ 需确认 | ⚠️ 需确认 | MCP 工具需审批 |
 
+### 8.3 回滚与 Checkpoint 策略（v1.0）
+
+Agent 执行过程中可能产生破坏性变更，需要系统性的回滚能力。v1.0 基于 Git 实现，不引入额外依赖。
+
+```
+Checkpoint 层级:
+
+┌─────────────────────────────────────────────────────────────┐
+│ Level 3: Session 级                                         │
+│   Session 开始时 → git tag sloth/session/{session_id}/start │
+│   可回滚整个 Session 的所有变更                               │
+├─────────────────────────────────────────────────────────────┤
+│ Level 2: 阶段级                                              │
+│   每个 Agent 开始前 → git tag sloth/stage/{stage}/start     │
+│   Gate 失败时可回滚到阶段起点                                 │
+├─────────────────────────────────────────────────────────────┤
+│ Level 1: 任务级                                              │
+│   Builder 每完成一个 task → git commit (自动)                 │
+│   reflect() 判断需要回退时可 revert 到上一个 task commit      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+```python
+class CheckpointManager:
+    """基于 Git 的 Checkpoint 管理"""
+
+    def create_checkpoint(self, level: str, label: str) -> str:
+        """创建 checkpoint (git tag)"""
+        tag = f"sloth/{level}/{label}/{timestamp()}"
+        run(f"git tag {tag}")
+        return tag
+
+    def rollback_to(self, tag: str) -> RollbackResult:
+        """回滚到指定 checkpoint"""
+        # 1. 记录当前状态（防止误回滚）
+        safety_tag = self.create_checkpoint("safety", "pre-rollback")
+
+        # 2. 执行回滚
+        run(f"git reset --hard {tag}")
+
+        # 3. 清理工作区（删除 untracked files）
+        run("git clean -fd")
+
+        return RollbackResult(
+            rolled_back_to=tag,
+            safety_backup=safety_tag,
+            files_reverted=self._count_changed_files(tag)
+        )
+
+    def auto_commit(self, task: Task, result: ExecutionResult):
+        """任务完成后自动提交（Level 1 checkpoint）"""
+        run("git add -A")
+        msg = f"sloth: {task.description[:50]} [auto]"
+        run(f'git commit -m "{msg}" --allow-empty')
+```
+
+```
+回滚触发规则:
+
+├── 任务级回滚（Level 1）
+│   ├── reflect() action == "retry_different" → revert 上一个 task commit
+│   └── 手动: sloth rollback --last-task
+│
+├── 阶段级回滚（Level 2）
+│   ├── Gate 失败且 Builder 重试 3 次仍失败 → 回滚到阶段起点
+│   ├── Reviewer blocking_issues 涉及架构性问题 → 回滚到 Builder 起点
+│   └── Deployer smoke test 失败 → 回滚到 deploy 起点
+│
+└── Session 级回滚（Level 3）
+    ├── 用户主动: sloth rollback --session
+    └── 预算耗尽且 graceful shutdown 失败 → 自动回滚到 Session 起点
+
+Git tag 清理:
+├── Session 成功完成 → 删除该 Session 的所有中间 tag，保留 start/end
+├── Session 失败 → 保留所有 tag（用于事后分析）
+└── 定期清理: 超过 30 天的 tag 自动删除
+```
+
 ---
 
 ## 9. 目录结构
+
+### 9.0 v1.0 精简目录
+
+```
+src/sloth_agent/
+├── __main__.py                    # 入口（typer app: sloth run）
+│
+├── cli/
+│   ├── __init__.py
+│   └── app.py                     # CLI 子命令 (run/status)
+│
+├── core/
+│   ├── __init__.py
+│   ├── config.py                  # 配置模型 (pydantic)
+│   ├── orchestrator.py            # 流水线编排（Builder→Gate→Reviewer→Gate→Deployer）
+│   └── gates.py                   # 自动门控（lint/type/test/coverage/smoke）
+│
+├── agents/
+│   ├── __init__.py
+│   ├── base.py                    # Agent 基类（上下文管理、LLM 调用）
+│   ├── builder.py                 # Builder Agent（编码+调试+测试）
+│   ├── reviewer.py                # Reviewer Agent（代码审查+质量验证）
+│   └── deployer.py                # Deployer Agent（部署+验证）
+│
+├── tools/
+│   ├── __init__.py
+│   ├── registry.py                # 工具注册
+│   ├── executor.py                # 工具执行器（风险检查 + 执行）
+│   └── builtin/
+│       ├── file_ops.py            # read/write/edit
+│       ├── shell.py               # run_command
+│       ├── git_ops.py             # git 操作
+│       └── search.py              # glob/grep
+│
+├── memory/
+│   ├── __init__.py
+│   └── store.py                   # 文件系统存储（jsonl）
+│
+├── providers/
+│   ├── __init__.py
+│   └── llm_router.py             # 阶段级 LLM 路由
+│
+├── models/
+│   ├── __init__.py
+│   ├── handoff.py                 # BuilderOutput / ReviewerOutput 交接协议
+│   └── plan.py                    # Plan 解析模型
+│
+└── security/
+    ├── __init__.py
+    └── path_validator.py          # 路径白名单校验
+```
+
+v1.0 不包含: agents/ 下的 8 个专用 Agent、multiagent/、context/、observability/、errors/（完整版）、reports/、integration/、cost/、session/、events/、daemon/。这些在 v2.0+ 按需引入。
+
+### 9.1 远期完整目录
+
+> 以下为远期参考设计（v2.0+）。
 
 ```
 src/sloth_agent/
@@ -651,6 +1517,67 @@ Coordinator 分发任务
 
 ## 11. 配置模型
 
+### 11.0 v1.0 阶段级 LLM 路由配置
+
+v1.0 的核心配置增量——按 Agent 和阶段配置不同的 LLM：
+
+```yaml
+# configs/agent.yaml (v1.0 新增部分)
+
+# 阶段级 LLM 路由
+agents:
+  builder:
+    stages:
+      plan_parsing:
+        provider: "deepseek"
+        model: "deepseek-reasoner"    # 推理强，理解复杂 plan
+      coding:
+        provider: "deepseek"
+        model: "deepseek-chat"        # 代码生成质量好 + 便宜
+      debugging:
+        provider: "deepseek"
+        model: "deepseek-reasoner"    # 需要分析错误根因
+    context:
+      max_tokens: 60000               # Builder 上下文上限
+      keep_recent_turns: 3            # 保留最近 3 轮完整对话
+      compress_old_results: true      # 旧工具结果压缩
+      plan_in_system_prompt: true     # Plan 始终固定在 system prompt
+
+  reviewer:
+    stages:
+      review:
+        provider: "qwen"
+        model: "qwen-max"             # 必须不同于 coding 的 provider
+    context:
+      max_tokens: 20000
+
+  deployer:
+    stages:
+      deploy:
+        provider: "deepseek"
+        model: "deepseek-chat"
+    context:
+      max_tokens: 8000
+
+# 自动门控阈值
+gates:
+  build_quality:                       # Gate1: Builder → Reviewer
+    lint: true                         # lint 必须通过
+    type_check: true                   # type check 必须通过
+    tests_pass: true                   # 单元测试必须通过
+    max_retry: 3                       # Builder 最多重试 3 次
+  review_quality:                      # Gate2: Reviewer → Deployer
+    no_blocking_issues: true           # 无阻塞问题
+    min_coverage: 0.80                 # 覆盖率 ≥ 80%
+  deploy_verify:                       # Gate3: Deployer → Done
+    smoke_test: true                   # smoke test 必须通过
+    auto_rollback: true                # 失败自动回滚
+```
+
+### 11.1 完整配置模型
+
+> 以下包含 v1.0 及远期的完整配置。
+
 ```yaml
 # configs/agent.yaml
 
@@ -776,6 +1703,67 @@ daemon:
 
 ---
 
+## 11.5 v1.0: 评估框架（Eval）
+
+没有评估就没有改进基线。v1.0 内置轻量级 eval 框架，用于衡量 Agent 执行质量并指导后续优化。
+
+### 评估维度
+
+| 维度 | 指标 | 采集方式 | 目标 |
+|------|------|---------|------|
+| **成功率** | 任务完成率（Plan 中的任务 vs 实际完成） | 门控通过/失败记录 | ≥ 80% |
+| **质量** | lint 通过率、type check 通过率、test coverage | 门控输出 | lint 100%, coverage ≥ 80% |
+| **效率** | 总 token 消耗、总执行时间、重试次数 | Agent 执行日志 | 逐版本下降 |
+| **审查独立性** | Reviewer 发现的 blocking issues 数量 | ReviewerOutput | > 0 表示 Reviewer 有价值 |
+| **自修复率** | Builder 自动修复成功率（门控失败后重试通过） | 门控+重试记录 | ≥ 60% |
+
+### 标准任务集（Eval Suite）
+
+定义 10-20 个可重复执行的标准任务，每次架构变更后跑一遍：
+
+```yaml
+eval_tasks:
+  - name: "create-crud-api"
+    plan: "evals/plans/crud-api.md"
+    expected: { files_created: 4, tests_pass: true, coverage_min: 0.80 }
+
+  - name: "fix-type-error"
+    plan: "evals/plans/fix-type-error.md"
+    expected: { type_check: true, tests_pass: true, retries_max: 2 }
+
+  - name: "add-unit-tests"
+    plan: "evals/plans/add-tests.md"
+    expected: { coverage_delta: 0.15, tests_pass: true }
+
+  - name: "refactor-module"
+    plan: "evals/plans/refactor.md"
+    expected: { tests_pass: true, no_new_lint_errors: true }
+```
+
+### 评估产出
+
+每次 eval 运行后生成报告，存储在 `memory/evals/` 下：
+
+```
+memory/evals/
+├── {date}-{eval_id}/
+│   ├── summary.json        # 总分 + 各维度得分
+│   ├── tasks/
+│   │   ├── create-crud-api.json   # 单任务详细结果
+│   │   └── ...
+│   └── comparison.json     # 与上次 eval 的对比（回归检测）
+```
+
+### v1.0 执行方式
+
+```bash
+sloth eval                  # 跑全量 eval suite
+sloth eval --task fix-type-error  # 跑单个任务
+sloth eval --compare        # 对比最近两次 eval 结果
+```
+
+---
+
 ## 12. 架构优势
 
 ### 12.1 优势
@@ -879,33 +1867,35 @@ daemon:
 
 ## 14. 版本路线图
 
-| 版本 | 核心交付 | 状态 |
-|------|---------|------|
-| **v1.0** | Phase-Role-Architecture 实现<br>Chat Mode 基础（自由对话 + REPL）<br>Memory 三层结构 + 文件系统存储<br>Session 生命周期管理<br>Skill 统一格式 + 加载机制 | 规划中 |
-| **v1.1** | Skill Router（意图识别 + 自动激活）<br>自主模式控制（从 chat mode 启停）<br>Phase 切换上下文衔接（摘要传递）<br>向量检索（ChromaDB 启用）<br>Skill 自动进化<br>Tools Invocation 4 层链 | 规划中 |
-| **v1.2** | Multi-Agent 并行协调<br>飞书集成（webhook server + 卡片交互）<br>飞书 session 与 CLI session 统一<br>跨 session 知识聚合<br>Daemon 常驻 + 健康检查 | 规划中 |
-| **v1.3** | Observability 统一日志<br>Error Handling 熔断 + 恢复<br>Report Generation 引擎<br>Notification 多渠道<br>Cost & Budget 追踪<br>Event System 事件总线<br>Knowledge Base 项目上下文 | 规划中 |
-| **v2.0** | 完整 15 模块架构<br>Plugin 工具生态<br>语义检索增强<br>全链路可观测性<br>生产级稳定性和性能 | 远期 |
+| 版本 | 核心交付 | Agent 架构 | 状态 |
+|------|---------|-----------|------|
+| **v1.0** | **3-Agent 自主流水线**<br>Builder + Reviewer + Deployer<br>Plan 解析 → 编码 → 测试 → 审查 → 部署<br>自动门控（lint/type/test/coverage/smoke）<br>结构化 Agent 交接协议<br>阶段级 LLM 路由（不同阶段用不同模型）<br>Adaptive Planning（动态重规划）<br>Code Understanding（tree-sitter AST 集成）<br>Tool-Use Learning（工具调用统计与优化）<br>Tools（read/write/edit/run_command/glob/grep）<br>Memory（纯文件系统，jsonl）<br>Skill Loading（加载 SKILL.md）<br>1-2 个 LLM Provider（DeepSeek + Qwen） | 3 Agent | **规划中** |
+| **v1.1** | Chat Mode 基础（REPL + streaming）<br>多 Provider + fallback + 熔断降级<br>Cost tracking 基础（定价 + 用量记录）<br>Builder 上下文窗口管理优化<br>Adaptive Execution（自适应重规划） | 3 Agent | 规划中 |
+| **v1.2** | 按需拆分 Agent（如 Planner、Debugger）<br>飞书通知（webhook 推送执行结果）<br>基础 Observability（结构化日志 + Trace ID）<br>Error Recovery（重试 + 基本恢复）<br>Checkpoint 保存与恢复 | 3-5 Agent | 规划中 |
+| **v2.0** | 8 专用 Agent + 1 通用 Agent 完整架构<br>Multi-Agent 并行协调 + Worktree 隔离<br>Speculative Execution（best-of-N 探索性执行）<br>Token Budget Manager（精细化 token 分配）<br>消息总线（SQLite 后端）<br>完整事件系统（pub-sub + 死信队列）<br>知识库 + 语义检索（ChromaDB）<br>飞书卡片交互 + 审批通道<br>Daemon 常驻 + Watchdog | 8+1 Agent | 远期 |
+| **v2.x** | 完整 15 模块架构<br>Plugin 工具生态<br>全链路可观测性<br>报告生成引擎<br>生产级稳定性和性能 | 8+1 Agent | 远期 |
 
 ---
 
 ## 15. 关键设计决策
 
-| 决策 | 选择 | 原因 |
-|------|------|------|
-| Agent 数量 | 8 专用 + 1 通用 | 专用保障并行和上下文隔离，通用处理自由请求 |
-| 存储引擎 | 文件系统为主，SQLite/ChromaDB 为索引 | 文件系统可回溯、可审计、可手动编辑 |
-| 会话格式 | jsonl（每行一条 JSON） | 流式写入、不丢失、易追加 |
-| 技能格式 | Claude Code SKILL.md | 自然兼容、开源生态可复用 |
-| CLI 框架 | typer | 与现有 pydantic 自然集成 |
-| Phase 切换 | 摘要传递 + 完整记录 | 信息不丢失 + LLM context 有限 |
-| 自主/对话模式 | 平行入口，共享基础设施 | 不耦合、各自独立演进 |
-| 模块通信 | 事件总线（pub-sub） | 解耦、可扩展、支持事件驱动工作流 |
-| 安全策略 | 5 层递进 | 从拦截到隔离到限制到权限到审计 |
-| 模型选择 | 6 中国 Provider + 自动降级 | 不依赖单一模型，适配中国生态 |
-| 费用控制 | 定价 + 预算 + 预算感知路由 | 自主模式下必须控制成本 |
-| 持久化 | Daemon + Watchdog + Checkpoint | 黑灯工厂需要进程常驻和自动恢复 |
-| 知识管理 | 4 层（常驻→摘要→结构化→语义） | 渐进式复杂度，按需启用 |
+| 决策 | v1.0 选择 | 远期选择 | 原因 |
+|------|----------|---------|------|
+| Agent 数量 | **3 Agent**（Builder/Reviewer/Deployer） | 8 专用 + 1 通用 | v1.0 按上下文耦合度分组，远期按需求驱动拆分 |
+| Agent 分组原则 | 按上下文耦合度 + 审查独立性 | 按 Phase 绑定 | 编码+调试共享上下文，审查必须独立模型 |
+| Agent 间交接 | **结构化数据**（git diff/pytest/coverage） | 消息总线 + 摘要 | 结构化数据不丢信息，摘要是有损压缩 |
+| LLM 路由 | **阶段级配置**（不同阶段不同模型） | Agent 级配置 | 审查用不同模型避免自我认同偏差 |
+| 上下文管理 | **滑动窗口 + 工具结果压缩** | — | Builder 最重 (~60K tokens)，必须主动管理 |
+| 门控机制 | **纯规则自动门控**（exit code/数值） | 人工审批 + 规则门控 | v1.0 全自主，不需要人工确认 |
+| 核心场景 | **Plan → 全自主开发到部署** | 昼夜双模 + 对话模式 | v1.0 聚焦一个场景做到极致 |
+| 存储引擎 | **纯文件系统** | FS + SQLite + ChromaDB | v1.0 不需要索引和向量检索 |
+| 事件系统 | **无**（Agent 串行调用） | Pub-Sub 事件总线 | v1.0 是 3 Agent 串行流水线，不需要事件解耦 |
+| 会话格式 | jsonl（每行一条 JSON） | jsonl | 流式写入、不丢失、易追加 |
+| 技能格式 | Claude Code SKILL.md | SKILL.md | 自然兼容、开源生态可复用 |
+| CLI 框架 | typer | typer | 与现有 pydantic 自然集成 |
+| 安全策略 | 路径白名单 + 命令黑名单 | 5 层递进 | v1.0 最小安全，远期完整安全 |
+| 模型选择 | 2 Provider（DeepSeek + Qwen） | 6 中国 Provider + 自动降级 | v1.0 先跑通，v1.1 加 fallback |
+| 演进策略 | **需求驱动拆分**（数据说话） | 设计驱动 | 先跑 3 Agent → 发现瓶颈 → 按需拆 |
 
 ---
 

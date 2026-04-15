@@ -15,9 +15,9 @@ class CheckpointManager:
     def __init__(self, config: Config):
         self.config = config
 
-        # Checkpoint directory: .sloth-agent/checkpoints/
+        # Checkpoint directory: checkpoints/
         project_root = Path(__file__).parent.parent.parent.parent
-        self.checkpoint_dir = project_root / ".sloth-agent" / "checkpoints"
+        self.checkpoint_dir = project_root / "checkpoints"
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     def save_checkpoint(self, task: TaskContext) -> str:

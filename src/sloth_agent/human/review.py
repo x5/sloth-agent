@@ -207,7 +207,7 @@ Reply with APPROVE or REJECT
         """Check if a request has been approved."""
         # TODO: Implement status checking (file/db based for now)
         project_root = Path(__file__).parent.parent.parent.parent
-        status_file = project_root / ".sloth-agent" / "approval_status" / f"{request_id}.json"
+        status_file = project_root / "approval_status" / f"{request_id}.json"
 
         if status_file.exists():
             return json.loads(status_file.read_text()).get("status", "pending")

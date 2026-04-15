@@ -1,13 +1,9 @@
-# Sloth Agent Framework (全局安装目录)
-~/.sloth-agent/memory/
-~/.sloth-agent/checkpoints/
-~/.sloth-agent/logs/
-~/.sloth-agent/.env
-~/.sloth-agent/workspace/
-
-# 项目级配置（由 sloth init 生成）
-.sloth/
+# Sloth Agent Runtime Data
+memory/
+checkpoints/
+logs/
 .env
+workspace/
 
 # Python
 __pycache__/

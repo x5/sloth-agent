@@ -23,22 +23,22 @@
 # 方式一：从零开始
 git clone <sloth-agent-repo> your-project
 cd your-project
-python .sloth-agent/run.py  # 自动检测并安装 uv
+python run.py  # 自动检测并安装 uv
 
 # 方式二：集成到已有项目
 cd /path/to/your-existing-project
-git clone <sloth-agent-repo> .sloth-agent
-python .sloth-agent/run.py
+git clone <sloth-agent-repo> .
+python run.py
 ```
 
 ### 1.2 配置 API 密钥
 
 ```bash
 # 复制环境变量模板
-cp .sloth-agent/configs/.env.example .sloth-agent/configs/.env
+cp configs/.env.example configs/.env
 
 # 编辑填入密钥
-vim .sloth-agent/configs/.env
+vim configs/.env
 ```
 
 ```bash
@@ -58,7 +58,7 @@ FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook
 ### 1.3 验证安装
 
 ```bash
-python .sloth-agent/run.py --help
+python run.py --help
 ```
 
 ---
@@ -69,7 +69,7 @@ python .sloth-agent/run.py --help
 
 ```
 my-project/
-├── .sloth-agent/              # 框架全部文件
+├── src/                   # 框架源代码
 │   ├── src/                    # 框架源码
 │   ├── configs/               # 配置
 │   ├── skills/                # 技能库
@@ -121,7 +121,7 @@ vim docs/specs/project-spec.md
 ### 2.3 启动框架
 
 ```bash
-python .sloth-agent/run.py
+python run.py
 ```
 
 框架会自动：
@@ -135,7 +135,7 @@ python .sloth-agent/run.py
 ```
 Night Phase (22:00)
 ├── 框架读取 docs/specs/project-spec.md
-├── 检索 .sloth-agent/memory/ 中的经验
+├── 检索 memory/ 中的经验
 ├── 生成 docs/plans/plan-2026-04-15.json
 │   ├── Task 1: 初始化项目结构
 │   ├── Task 2: 实现用户认证
@@ -163,11 +163,11 @@ Day Phase (09:00)
 cd /path/to/existing-project
 
 # 添加框架
-git clone <sloth-agent-repo> .sloth-agent
+git clone <sloth-agent-repo> .
 
 # 配置
-cp .sloth-agent/configs/.env.example .sloth-agent/configs/.env
-vim .sloth-agent/configs/.env
+cp configs/.env.example configs/.env
+vim configs/.env
 
 # 创建规格目录
 mkdir -p docs/specs docs/plans docs/reports
@@ -176,12 +176,12 @@ mkdir -p docs/specs docs/plans docs/reports
 vim docs/specs/existing-project-spec.md
 
 # 启动
-cd .sloth-agent && python run.py
+python run.py
 ```
 
 ### 3.2 重要配置
 
-编辑 `.sloth-agent/configs/agent.yaml`：
+编辑 `configs/agent.yaml`：
 
 ```yaml
 agent:
@@ -195,11 +195,11 @@ agent:
 
 ```gitignore
 # Sloth Agent（不要提交框架数据）
-.sloth-agent/memory/
-.sloth-agent/checkpoints/
-.sloth-agent/logs/
-.sloth-agent/.env
-.sloth-agent/workspace/
+memory/
+checkpoints/
+logs/
+.env
+workspace/
 .env
 ```
 
@@ -230,10 +230,10 @@ cat docs/plans/plan-$(date +%Y-%m-%d).json
 
 ```bash
 # 查看当前进度
-cat .sloth-agent/checkpoints/latest.json
+cat checkpoints/latest.json
 
 # 查看执行日志
-tail -f .sloth-agent/logs/agent.log
+tail -f logs/agent.log
 ```
 
 ### 4.4 傍晚查看报告
@@ -265,13 +265,13 @@ cat docs/reports/report-$(date +%Y-%m-%d).json
 
 ```bash
 # 查看所有技能
-ls .sloth-agent/skills/*/
+ls skills/*/
 
 # 查看特定技能
-cat .sloth-agent/skills/error-recovery/debug-network-errors.md
+cat skills/error-recovery/debug-network-errors.md
 
 # 手动编辑
-vim .sloth-agent/skills/error-recovery/debug-network-errors.md
+vim skills/error-recovery/debug-network-errors.md
 ```
 
 ---
@@ -282,9 +282,9 @@ vim .sloth-agent/skills/error-recovery/debug-network-errors.md
 
 | 文件 | 说明 |
 |------|------|
-| `.sloth-agent/configs/agent.yaml` | 主配置 |
-| `.sloth-agent/configs/llm_providers.yaml` | 模型配置 |
-| `.sloth-agent/configs/.env` | API 密钥（不提交） |
+| `configs/agent.yaml` | 主配置 |
+| `configs/llm_providers.yaml` | 模型配置 |
+| `configs/.env` | API 密钥（不提交） |
 
 ### 5.2 关键配置项
 
@@ -315,7 +315,7 @@ tdd:
 # 框架会自动重启（Watchdog 机制）
 # 手动重启
 pkill -f "agent_evolve"
-python .sloth-agent/run.py
+python run.py
 ```
 
 ### Q: 如何跳过某些任务？

@@ -316,7 +316,7 @@ class LLMProviderManager:
 
     def __init__(self, config_path: str | Path | None = None):
         if config_path is None:
-            # Look for config in .sloth-agent/configs/
+            # Look for config in configs/
             config_path = Path(__file__).parent.parent.parent / "configs" / "llm_providers.yaml"
 
         self.config = self._load_config(config_path)

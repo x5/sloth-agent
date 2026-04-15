@@ -1,6 +1,6 @@
 # 37 个技能路由表
 
-| 阶段 | 阶段名称 | Superpowers (自动触发，14个) | gstack (手动命令，23个) |
+| 阶段 | 阶段名称 | Superpowers (auto+manual，14个) | gstack (manual，23个) |
 | :--- | :--- | :--- | :--- |
 | 阶段一 | 需求分析 | `brainstorming` (需求精炼) | `/office-hours` (产品方向诊断) |
 | 阶段二 | 计划制定 | `writing-plans` (可执行实施计划) | `/autoplan` (CEO -> 设计 -> 工程三阶段自动审查) |
@@ -13,4 +13,4 @@
 
 **总结：**
 * 总技能：14 Superpowers + 23 gstack = 37
-* 洞察：Superpowers 专注编码质量（14 个自动触发技能）；gstack 专注产品全流程（23 个手动触发命令）。Superpowers 主要分布于编码实现阶段；gstack 主要分布于质量验证与发布阶段。
+* 洞察：Superpowers 专注编码质量（14 个 auto+manual 技能）；gstack 专注产品全流程（23 个 manual 命令）。Superpowers 主要分布于编码实现阶段；gstack 主要分布于质量验证与发布阶段。

@@ -22,7 +22,7 @@
 ## 2. 目录结构
 
 ```
-.sloth-agent/
+src/
 ├── src/
 │   └── sloth_agent/
 │       └── tools/

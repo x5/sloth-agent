@@ -25,88 +25,102 @@
 
 Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + Hermes Agent 的组合体，借鉴 Claude Code 和 Codex 的最佳实践，并针对中国开发者生态进行深度定制。
 
-通过 **Phase-Role-Architecture**（阶段-角色-技能架构），将开发流程标准化为 8 个阶段，每个阶段由专门的 Agent 角色执行，可在需要时调用 37 个预定义技能。同时提供一个通用 Agent，可跨阶段自由调用任意技能，处理非结构化任务。
+v1.0 聚焦于 **Plan → 全自主开发 → 部署** 的核心场景：输入一份已完成的 Plan，全自主执行编码、审查、部署，关键节点由自动门控把关质量。
 
 ---
 
 ## 核心特性
 
-### 8 + 1 Agent 架构
-
-| Agent 角色 | 所属 Phase | 推荐模型 | 最大实例 |
-|-----------|-----------|---------|---------|
-| **Analyst** | 需求分析 | qwen-plus | 1 |
-| **Planner** | 计划制定 | qwen-max | 1 |
-| **Engineer** | 编码实现 | deepseek-chat | 3 |
-| **Debugger** | 调试排错 | deepseek-chat | 2 |
-| **Reviewer** | 代码审查 | claude-sonnet | 2 |
-| **QA** | 质量验证 | claude-sonnet | 2 |
-| **Release** | 发布上线 | deepseek-chat | 1 |
-| **Monitor** | 上线监控 | qwen-plus | 1 |
-| **General** | 无（通用） | 可配置 | 1 |
-
-设置专用 Agent 而非单一 Agent 的原因：**并行执行**、**上下文隔离**、**角色专业化**、**模型优化**。
-
-### 两种工作模式
-
-- **自主模式**：昼夜循环，夜间半自主（需求分析→计划制定→人工审批），日间全自主（编码→审查→测试→发布），支持 Persistent Daemon 常驻运行
-- **对话模式**：REPL 交互，自由对话、技能触发、工作流控制，可从对话中启停自主模式
-
-### 8 个 Phase + 8 个场景
+### v1.0：3-Agent 串行流水线
 
 ```
-Phase 1 需求分析 → Phase 2 计划制定 → Phase 3 编码实现
-  → Phase 4 调试排错 → Phase 5 代码审查 → Phase 6 质量验证
-  → Phase 7 发布上线 → Phase 8 上线监控
+Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 ─→ [Deployer Agent] ─→ Gate 3 ─→ Done
+         deepseek-chat       lint      qwen-max/claude      test      deepseek-chat       smoke
+         + reasoner          type      代码审查+质量验证     coverage   部署+验证            test
+         编码+调试+测试
 ```
 
-| 场景 | Phase 序列 | 用途 |
-|------|-----------|------|
-| standard | 1→2→3→4→5→6→7→8 | 标准开发流程 |
-| hotfix | 4→5→6→8 | 紧急修复 |
-| review-only | 5→6→8 | 仅代码审查 |
-| feature | 1→2→3→4→5→6 | 新功能开发（不含发布） |
-| night-analysis | 1→2 | 夜间分析（需审批） |
-| day-execute | 3→4→5→6→7→8 | 日间执行 |
-| deploy | 7→8 | 仅发布 |
-| monitor | 8 | 仅监控 |
+| Agent | 推荐模型 | 职责 | 上下文量级 |
+|-------|---------|------|-----------|
+| **Builder** | deepseek-chat（编码）/ deepseek-reasoner（调试） | Plan 解析、编码、调试、单元测试 | ~50-60K tokens |
+| **Reviewer** | qwen-max 或 claude | 独立审查 Builder 产出（**必须使用不同模型**） | ~10-15K tokens |
+| **Deployer** | deepseek-chat | 执行部署脚本、smoke test、验证上线 | ~3-5K tokens |
+
+核心设计：
+- **Reviewer 必须使用不同于 Builder 的 LLM**（同一模型审自己的代码几乎无价值）
+- **Agent 间通过结构化 Pydantic 模型交接**（git diff、pytest 输出、覆盖率数字，非 LLM 摘要）
+- **自动门控**取代人工审批（lint / type-check / test / coverage / smoke-test）
+
+### v1.0 内置能力
+
+| 能力 | 说明 |
+|------|------|
+| **Reflection + Stuck Detection** | 执行失败自动反思，检测重复错误模式并切换策略 |
+| **Adaptive Planning** | 执行中发现 plan 假设不成立时自动触发 replan |
+| **Code Understanding** | tree-sitter 解析代码结构，精准定位修改范围 |
+| **Tool-Use Learning** | 记录工具调用成功率，自动优化参数和选择 |
+| **Context Window Manager** | 动态 token 分区（system/history/tools/generation），确定性压缩 |
+| **Hallucination Guard** | 路径存在性验证 + 命令白名单 + import 模式检查 |
+| **Streaming** | StreamProcessor: text/tool_call 交织处理 + CLI 实时渲染 |
+| **Git Checkpoint** | 3 级检查点（task/stage/session），门控失败自动回滚 |
+
+### 远期目标：8+1 Agent 架构（v2.0+）
+
+| Agent 角色 | 所属 Phase | 推荐模型 |
+|-----------|-----------|---------|
+| **Analyst** | 需求分析 | qwen-plus |
+| **Planner** | 计划制定 | qwen-max |
+| **Engineer** | 编码实现 | deepseek-chat |
+| **Debugger** | 调试排错 | deepseek-chat |
+| **Reviewer** | 代码审查 | claude-sonnet |
+| **QA** | 质量验证 | claude-sonnet |
+| **Release** | 发布上线 | deepseek-chat |
+| **Monitor** | 上线监控 | qwen-plus |
+| **General** | 无（通用） | 可配置 |
+
+8+1 Agent 扩展后支持并行执行、上下文隔离、角色专业化、多场景编排。
+
+### 工作模式演进
+
+| 版本 | 模式 | 说明 |
+|------|------|------|
+| v1.0 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
+| v1.1+ | + 对话模式 | REPL 交互，技能触发，工作流控制 |
+| v2.0+ | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 
 ---
 
 ## 设计原则
 
-| 原则 | 说明 |
-|------|------|
-| **专用 Agent + 通用 Agent** | 8 个专职 Agent 保障并行能力和上下文隔离；1 个通用 Agent 处理自由形态请求 |
-| **工具优先** | Agent 通过工具层执行操作，不直接写文件或跑命令，所有操作可审计 |
-| **技能即指令** | SKILL.md 就是 prompt 模板，运行时注入，与 Claude Code 生态兼容 |
-| **渐进式记忆** | 文件系统为主（可回溯、可审计、可手动编辑），SQLite 为索引层（可选），ChromaDB 为向量层（可选） |
-| **场景即工作流** | 场景 = Phase 调用序列 + 门控条件，Phase 间通过摘要传递上下文 |
-| **事件驱动** | 模块间通过发布-订阅事件总线通信，而非直接调用 |
-| **安全默认** | 5 层安全防护，沙箱隔离，路径白名单，命令黑名单，资源限制 |
-| **多模型支持** | 6 个 LLM Provider 自动切换 + 熔断降级 |
-| **文件系统即真相** | 所有状态、对话、产出物以 JSON/jsonl 存储于文件系统，可手动编辑 |
+| 原则 | v1.0 | 远期（v2.0+） |
+|------|------|--------------|
+| **Agent 架构** | 3-Agent 串行流水线 | 8+1 Agent 并行执行 |
+| **工具优先** | Agent 通过工具层操作，可审计 | + Plugin 扩展 |
+| **技能即指令** | SKILL.md prompt 模板，兼容 Claude Code | + 自动进化 |
+| **存储** | 纯文件系统（jsonl） | + SQLite 索引 + ChromaDB 向量 |
+| **质量保障** | 自动门控（lint/type/test/coverage/smoke） | + 事件驱动规则 |
+| **模型路由** | Stage 级（deepseek→编码, qwen→审查） | Agent 级配置 + 降级 |
+| **安全默认** | 路径白名单 + 命令黑名单 + 幻觉防护 | 5 层安全 + 沙箱 |
+| **文件系统即真相** | JSON/jsonl，可回溯、可审计、可手动编辑 | 同左 |
 
 ---
 
 ## 与参考框架的对比
 
-| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth Agent** |
+| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v1.0** |
 |------|----------|--------|-------------|-------|----------------|
-| 多 Agent 架构 | ❌ | ✅ 子代理 | ❌ | ❌ | ✅ **8 专用 + 1 通用** |
-| 持久常驻 | ✅ | ✅ | ❌ | ❌ | ✅ Daemon + Watchdog |
+| 多 Agent 架构 | ❌ | ✅ 子代理 | ❌ | ❌ | ✅ **3-Agent Pipeline** |
+| 自动门控 | ❌ | ❌ | ❌ | ❌ | ✅ **lint/type/test/smoke** |
+| Reflection | 部分 | ❌ | 部分 | ❌ | ✅ **Stuck Detection** |
 | 技能系统 | ✅ | ✅ | ✅ | ❌ | ✅ SKILL.md (兼容) |
-| 持久记忆 + 学习 | ✅ | ✅ | Session | Session | ✅ **FS + Learning** |
-| 自进化能力 | ❌ | ✅ | 部分 | ❌ | ✅ 技能进化 |
-| 安全沙箱 | ✅ | ✅ | Risk levels | Risk | ✅ **5 层安全** |
-| 多模型支持 | ✅ | ✅ | ❌ | ❌ | ✅ **6 Provider** |
-| 可观测性 | ✅ | ✅ | ❌ | ❌ | ✅ 日志 + Trace + 指标 |
-| 工作流编排 | ✅ | ❌ | ❌ | ❌ | ✅ Phase + Scenario |
-| 成本控制 | ❌ | ❌ | ❌ | ❌ | ✅ **预算 + 定价 + 预测** |
-| 事件驱动 | ❌ | ❌ | ❌ | ❌ | ✅ Pub-Sub Bus |
-| 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **6 中国 Provider** |
+| 代码理解 | ❌ | ✅ | 部分 | ❌ | ✅ **tree-sitter** |
+| 安全防护 | ✅ | ✅ | Risk levels | Risk | ✅ **幻觉防护 + 白名单** |
+| 模型路由 | ✅ | ✅ | ❌ | ❌ | ✅ **Stage 级路由** |
+| 自动回滚 | ❌ | ❌ | ❌ | ❌ | ✅ **3 级 Git Checkpoint** |
+| 成本控制 | ❌ | ❌ | ❌ | ❌ | ✅ **Token Budget** |
+| 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **DeepSeek/Qwen/Kimi** |
 
-**差异化优势**：多 Agent 并行 + 事件驱动 + 成本控制 + 中国 LLM 生态 + 技能自进化 + 工作流编排。
+**v1.0 差异化**：3-Agent 自动流水线 + Reflection 自纠错 + Stage 级模型路由 + 中国 LLM 原生支持。
 
 ---
 
@@ -185,32 +199,20 @@ sloth init --project ~/my-project
 ## 快速开始
 
 ```bash
-# 运行自主模式（昼夜循环）
-sloth run
+# 初始化项目
+sloth init --project ~/my-project
 
-# 进入对话模式
-sloth chat
+# 执行自主流水线（输入 plan 文件）
+sloth run --plan plan.md
 
-# 常驻运行（Daemon 模式）
-sloth daemon
-
-# 查看状态
+# 查看执行状态
 sloth status
-
-# 查看可用技能
-sloth skills
-
-# 查看可用场景
-sloth scenarios
 
 # 查看日志
 sloth logs --level INFO --limit 50
 
-# 查询 Trace
-sloth logs --trace sloth-nightly-20260416-phase-1
-
-# 生成报告
-sloth report --type daily
+# v1.1+ 对话模式
+sloth chat
 ```
 
 ---
@@ -218,39 +220,41 @@ sloth report --type daily
 ## 架构总览
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              CLI 入口 (typer)                                    │
-│         sloth run | sloth chat | sloth daemon | sloth status | sloth install     │
-└──────────┬──────────────────────────────────────────────┬────────────────────────┘
-           │                                              │
-           ▼                                              ▼
-┌──────────────────────────┐            ┌─────────────────────────────────────────┐
-│    AUTONOMOUS MODE       │            │              CHAT MODE                   │
-│  昼夜循环 / Persistent    │            │         REPL 交互                        │
-│  后台常驻 / 健康检查      │            │         技能触发 / 工作流控制             │
-└──────────┬───────────────┘            └────────────┬────────────────────────────┘
-           └──────────────────────┬──────────────────┘
-                                  ▼
-              ┌──────────────────────────────────────────────────────────┐
-              │                    共享基础设施层                          │
-              ├────────────┬────────────┬────────────┬───────────────────┤
-              │PhaseReg    │SkillReg    │ToolReg     │MemoryStore        │
-              │istry       │istry       │istry       │+ Index (SQLite)   │
-              │8 Phase +   │37 skills   │+ Plugin    │+ Vector (ChromaDB)│
-              │8 Scenarios │SKILL.md    │对齐 CC     │                   │
-              └────────────┴────────────┴────────────┴───────────────────┘
-                                  │
-           ┌──────────────────────┼──────────────────────┐
-           ▼                      ▼                      ▼
-┌──────────────────┐  ┌────────────────────┐  ┌──────────────────────────┐
-│  横切能力层        │  │  事件驱动层         │  │  外部集成层               │
-│ Observability    │  │  Event Bus         │  │ Feishu (webhook + card)  │
-│ Error Recovery   │◄─┤  (pub/sub)         │  │ LLM Providers (6)        │
-│ Report Generator │  │  Workflow Rules    │  │ Email (SMTP)             │
-│ Cost Tracker     │  │  Dead Letter Queue │  │ Generic Webhook          │
-│ Knowledge Base   │  │  Event Replay      │  │ Notification Channels    │
-│ Security Sandbox │  │                    │  │                          │
-└──────────────────┘  └────────────────────┘  └──────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       CLI 入口 (typer)                        │
+│                   sloth run | sloth init                      │
+└─────────────────────────────┬────────────────────────────────┘
+                              │
+                              ▼
+                ┌──────────────────────────┐
+                │       Orchestrator       │
+                │   Plan 解析 → 流水线调度  │
+                └────────────┬─────────────┘
+                             │
+          ┌──────────────────┼──────────────────┐
+          ▼                  ▼                  ▼
+┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+│  Builder Agent │  │ Reviewer Agent │  │ Deployer Agent │
+│  deepseek      │→ │ qwen/claude    │→ │ deepseek       │
+│  编码+调试     │  │ 审查+验证      │  │ 部署+验证      │
+│  Reflection    │  │                │  │                │
+└───────┬────────┘  └───────┬────────┘  └───────┬────────┘
+        │ Gate 1            │ Gate 2            │ Gate 3
+        │ lint+type         │ test+coverage     │ smoke-test
+        └───────────────────┼───────────────────┘
+                            ▼
+              ┌──────────────────────────────┐
+              │        共享基础设施           │
+              ├──────┬───────┬──────┬────────┤
+              │Tools │Skills │Memory│LLM     │
+              │(CC   │(SKILL │(FS/  │Stage   │
+              │对齐)  │.md)   │jsonl)│Route   │
+              ├──────┴───────┴──────┴────────┤
+              │ContextWindowManager          │
+              │HallucinationGuard            │
+              │StreamProcessor               │
+              │Git Checkpoint (3-level)      │
+              └──────────────────────────────┘
 ```
 
 ---
@@ -289,4 +293,4 @@ sloth report --type daily
 ---
 
 *规格版本: v2.0.0*
-*创建日期: 2026-04-16*
+*最后更新: 2026-04-16*
