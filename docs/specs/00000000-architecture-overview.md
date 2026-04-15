@@ -414,8 +414,8 @@ class ContextWindowManager:
 | **Planner** | Phase 2 计划制定 | writing-plans, brainstorming | qwen3-max | 1 |
 | **Engineer** | Phase 3 编码实现 | test-driven-development, subagent-driven-development | deepseek-v3.2 | 3 |
 | **Debugger** | Phase 4 调试排错 | /investigate, /debug | deepseek-r1-0528 | 2 |
-| **Reviewer** | Phase 5 代码审查 | requesting-code-review, /review | glm-4.5 / claude-sonnet | 2 |
-| **QA** | Phase 6 质量验证 | /qa, /cso | glm-4.5 / claude-sonnet | 2 |
+| **Reviewer** | Phase 5 代码审查 | requesting-code-review, /review | glm-5.1 / claude-sonnet | 2 |
+| **QA** | Phase 6 质量验证 | /qa, /cso | glm-5.1 / claude-sonnet | 2 |
 | **Release** | Phase 7 发布上线 | /ship, finishing-a-branch | deepseek-v3.2 | 1 |
 | **Monitor** | Phase 8 上线监控 | /health, /retro | qwen3.5-plus | 1 |
 | **General** | 无（通用） | 任意技能 | 可配置 | 1 |
@@ -972,7 +972,7 @@ Persistent + Learning:
 ├── DeepSeek
 │   ├── deepseek-v3.2          # 最新基础模型（2025-12）
 │   ├── deepseek-r1-0528       # 最新推理模型（2026-01）
-│   └── deepseek-v4            # 编码旗舰（2026-02）
+│   └── deepseek-v4            # 编码旗舰（即将发布，1T MoE 多模态）
 │   [上一代: deepseek-chat, deepseek-reasoner]
 │
 ├── Qwen (通义千问)
@@ -989,13 +989,13 @@ Persistent + Learning:
 │   [上一代: moonshot-v1-8k/32k/128k]
 │
 ├── GLM (智谱)
-│   ├── glm-4.5                # 最新旗舰，Agent 专用（2025-07）
-│   ├── glm-4.5-air            # 轻量版（106B/12B）
+│   ├── glm-5.1                # 最新旗舰，编程+8h持续工作（2026-03）
+│   ├── glm-5                  # 新一代旗舰（2025-07）
 │   └── glm-4.5-flash          # 免费版
 │   [上一代: glm-4]
 │
 ├── MiniMax
-│   ├── minimax-m2.5           # 最新全栈交付（2026）
+│   ├── minimax-m2.7           # 最新旗舰，自进化能力（2026-03）
 │   └── minimax-m1             # MoE 推理模型（2025-06）
 │
 └── Xiaomi (小米)

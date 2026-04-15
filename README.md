@@ -128,11 +128,11 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 
 | Provider | 模型 | 用途 |
 |----------|------|------|
-| **DeepSeek** | deepseek-v3.2 (最新)<br>deepseek-r1-0528 (推理)<br>deepseek-v4 (编码旗舰) | 主力编码与推理 |
+| **DeepSeek** | deepseek-v3.2 (最新)<br>deepseek-r1-0528 (推理)<br>deepseek-v4 (即将发布) | 主力编码与推理 |
 | **Qwen** | qwen3.6-plus (最新旗舰)<br>qwen3.5-plus (多模态)<br>qwen3-max (文本旗舰) | 低成本到高性能全覆盖 |
 | **Kimi** | kimi-k2.5 (最新旗舰)<br>kimi-k2 (上一代)<br>kimi-claw (浏览器Agent) | 视觉编码智能体 |
-| **GLM** | glm-4.5 (最新)<br>glm-4.5-air (轻量)<br>glm-4.5-flash (免费) | 智能体专用 |
-| **MiniMax** | minimax-m2.5 (最新)<br>minimax-m1 (MoE) | 全栈交付 |
+| **GLM** | glm-5.1 (最新)<br>glm-5 (旗舰)<br>glm-4.5-flash (免费) | 编程+8h持续工作 |
+| **MiniMax** | minimax-m2.7 (最新)<br>minimax-m1 (MoE) | 自进化能力 |
 | **Xiaomi** | mimo-v2-pro (最新旗舰)<br>mimo-v2-omni (全模态)<br>mimo-v2-flash (轻量) | 高强度 Agent 工作流 |
 
 自动降级：首选模型不可用时按 fallback 顺序切换，全部 Provider 不可用时队列等待 + 定期重试。连续失败 5 次触发熔断，5 分钟后尝试恢复。
