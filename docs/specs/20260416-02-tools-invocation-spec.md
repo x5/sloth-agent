@@ -2,8 +2,8 @@
 
 > 版本: v1.0.0
 > 日期: 2026-04-16
-> 状态: 新增
-> 依赖: 20260415-tools-design-spec.md（工具清单）, 20260415-workflow-tools-hooks-spec.md（钩子）
+> 状态: 生效中（合并 tools-design-spec 后成为 Module 02 完整工具规范）
+> **权威基准**: 工具定义、分组、权限、调用链路均以本文档为准
 
 ---
 
@@ -648,6 +648,518 @@ class ToolCallLog:
 | `src/sloth_agent/core/tools/rollback.py` | 回滚管理 |
 | `src/sloth_agent/core/tools/models.py` | 数据模型（ToolCallRequest, ToolResult 等） |
 | `logs/tool-calls.jsonl` | 审计日志（运行时生成） |
+
+---
+
+---
+
+## 10. 工具权限级别（从跨模块规范迁入）
+
+| 级别 | 工具 | 风险 | 需要审批 |
+|------|------|------|---------|
+| L1 | Read, Glob, Grep | 低 | 否 |
+| L2 | Write, Edit, Bash (safe) | 中 | 首次 |
+| L3 | Bash (destructive) | 高 | 明确审批 |
+| L4 | git push, rm -rf | 极高 | 每次 |
+
+权限级别与 RiskLevel 的映射关系：
+
+| 权限级别 | 对应 RiskLevel | 审批策略 |
+|---------|---------------|---------|
+| L1 | SAFE (1) | 自动放行 |
+| L2 | LOW_RISK (2) / MODERATE_RISK (3) | 首次需确认，后续在自主窗口内自动 |
+| L3 | MODERATE_RISK (3) / DESTRUCTIVE (4) | 明确审批，每次确认 |
+| L4 | DESTRUCTIVE (4) | 每次明确审批，不可跳过 |
+
+---
+
+---
+
+## 10. 工具定义层（从 20260415-tools-design-spec.md 迁入）
+
+> 本文档合并后成为 Module 02 的完整工具规范：§1-§9 定义"工具怎么调用"，§10 定义"工具是什么"。
+
+### 10.1 设计原则
+
+| 原则 | 说明 |
+|------|------|
+| **YAGNI** | 不构建不需要的工具，按需扩展 |
+| **融合优秀设计** | 继承 Claude Code / Open Claw 的精华 |
+| **Rust 优先** | Rust 项目（卡牌游戏、五行运势 APP）优先 |
+| **风险分级** | 工具按风险分级 + 权限分级，双重门控 |
+
+### 10.2 代码约定
+
+工具类名使用 PascalCase（如 `ReadFileTool`），工具名（`name` 属性）使用 snake_case（如 `read_file`）。
+
+### 10.3 工具分类体系
+
+#### 10.3.1 工具分组（group）
+
+每个工具属于以下分组之一：
+
+```
+group: fs            # 文件系统工具 — Read, Write, Edit, Glob, Grep
+group: runtime       # 运行时/执行工具 — Bash/run_command, exec, TaskRun
+group: code          # 代码智能工具 — LSP, rust_analyzer, typescript_lsp
+group: task          # 任务管理工具 — TaskCreate, TaskList, TaskUpdate, TaskGet
+group: web           # Web 工具 — WebFetch, WebSearch
+group: sloth         # Sloth 特色工具 — Checkpoint, Heartbeat, Skill*, Test*, Coverage*
+group: interaction   # 交互工具 — AskUserQuestion, ApprovalRequest
+```
+
+#### 10.3.2 语义分类（category）
+
+用于工具运行时的语义识别：
+
+```
+category: read       # 读取操作
+category: write      # 写入操作
+category: edit       # 编辑操作
+category: execute    # 执行操作
+category: search     # 搜索操作
+category: vcs        # 版本控制
+category: network    # 网络操作
+category: llm        # LLM 操作
+```
+
+#### 10.3.3 权限分级（permission）
+
+| 等级 | 值 | 说明 | 审批要求 |
+|------|---|------|---------|
+| L1 | `auto` | 只读/低风险 | 自动执行 |
+| L2 | `plan_approval` | 写操作/不破坏性 | 计划审批一次后自动 |
+| L3 | `explicit_approval` | Shell 执行/可能破坏 | 每次逐次审批 |
+| L4 | `high_risk` | 系统级操作 | 明确标注 + 额外审批 |
+
+### 10.4 工具基类定义
+
+#### 10.4.1 Python 实现
+
+```python
+class Tool:
+    """工具基类。所有工具必须继承此类。"""
+    name: str                    # snake_case 工具名，如 "read_file"
+    description: str             # 工具描述
+    group: str                   # 所属分组：fs/runtime/code/task/web/sloth/interaction
+    risk_level: int = 1          # 风险等级 1-4
+    permission: str = "auto"     # auto / plan_approval / explicit_approval / high_risk
+    inherit_from: str | None = None  # 继承来源：ClaudeCode / OpenClaw / Sloth / None
+    params: dict = {}            # 参数定义 {param_name: {type, required, default, description}}
+
+    def execute(self, **kwargs) -> Any:
+        """执行工具。子类必须实现。"""
+        raise NotImplementedError
+
+    def get_schema(self) -> dict:
+        """生成 OpenAI-compatible function calling schema。"""
+        raise NotImplementedError
+```
+
+#### 10.4.2 工具注册表
+
+```python
+class ToolRegistry:
+    """工具注册表。管理所有工具的注册、查询、按组列出。"""
+
+    def __init__(self, config: Config):
+        self._tools: dict[str, Tool] = {}
+
+    def register(self, tool: Tool, group: str | None = None):
+        """注册工具。group 可选，若 tool 已有 group 则忽略。"""
+        self._tools[tool.name] = tool
+
+    def get(self, name: str) -> Tool | None:
+        """按名称获取工具。"""
+        return self._tools.get(name)
+
+    def list_all(self) -> list[Tool]:
+        """列出所有工具。"""
+        return list(self._tools.values())
+
+    def list_by_group(self, group: str) -> list[Tool]:
+        """按分组列出工具。"""
+        return [t for t in self._tools.values() if t.group == group]
+
+    def execute_tool(self, name: str, **kwargs) -> Any:
+        """按名称执行工具。"""
+        tool = self.get(name)
+        if not tool:
+            raise ValueError(f"Unknown tool: {name}")
+        return tool.execute(**kwargs)
+```
+
+### 10.5 核心工具清单
+
+#### 10.5.1 文件系统工具 (group:fs)
+
+| 工具名 | 功能 | risk_level | permission | 继承来源 | 优先级 |
+|--------|------|-----------|-----------|----------|--------|
+| `read_file` | 读取文件内容 | 1 | auto | Claude Code | ✅ 必需 |
+| `write_file` | 创建/覆盖文件 | 2 | plan_approval | Claude Code | ✅ 必需 |
+| `edit_file` | 精准编辑文件 | 2 | plan_approval | Claude Code | ✅ 必需 |
+| `glob` | 按模式匹配文件 | 1 | auto | Claude Code | ✅ 必需 |
+| `grep` | 搜索文件内容 | 1 | auto | Claude Code | ✅ 必需 |
+| `apply_patch` | 多-hunk 批量补丁 | 2 | plan_approval | Open Claw | ⚠️ 建议 |
+
+**read_file**:
+```python
+def read_file(path: str, encoding: str = "utf-8") -> str:
+    """读取文件全部内容。"""
+
+def read_lines(path: str, start: int = 1, end: int | None = None) -> list[str]:
+    """按行读取文件。start 从 1 开始计数。end 为 None 时读到末尾。"""
+```
+
+**write_file**:
+```python
+def write_file(path: str, content: str, encoding: str = "utf-8") -> str:
+    """创建或覆盖文件。自动创建父目录。返回写入字节数摘要。"""
+```
+
+**edit_file**:
+```python
+def edit_file(file_path: str, old_string: str, new_string: str, encoding: str = "utf-8") -> str:
+    """精确替换文件中唯一出现的 old_string。
+    若 old_string 不出现或出现多次，抛出 ValueError。
+    """
+```
+
+**glob**:
+```python
+def glob(pattern: str, root: str = ".") -> list[str]:
+    """按 glob 模式匹配文件，返回匹配的文件路径列表。"""
+```
+
+**grep**:
+```python
+def grep(pattern: str, root: str = ".", file_pattern: str = "*", max_results: int = 100) -> list[dict]:
+    """正则搜索文件内容。返回 [{file, line, content}]。"""
+```
+
+**apply_patch**:
+```python
+def apply_patch(patch: str, root: str = ".") -> str:
+    """应用多-hunk 统一 diff 格式的补丁。支持批量修改多个文件。"""
+```
+
+#### 10.5.2 运行时工具 (group:runtime)
+
+| 工具名 | 功能 | risk_level | permission | 继承来源 | 优先级 |
+|--------|------|-----------|-----------|----------|--------|
+| `run_command` | 执行 Shell 命令 | 3 | explicit_approval | Claude Code | ✅ 必需 |
+| `exec` | 带进程管理的 Shell | 3 | explicit_approval | Open Claw | ⚠️ 增强 |
+| `task_run` | 运行任务 (cargo/npm) | 2 | auto_after_plan | Sloth | ✅ 必需 |
+
+**run_command**:
+```python
+def run_command(command: str, timeout: int = 300) -> dict:
+    """执行 Shell 命令。返回 {returncode, stdout, stderr}。
+    别名: bash（与 Claude Code 兼容）。
+    """
+```
+
+**exec**:
+```python
+def exec(command: str, background: bool = False, timeout: int | None = None) -> dict:
+    """执行命令并管理进程。支持后台运行、终止进程、列出进程。"""
+```
+
+**task_run**:
+```python
+def task_run(task: str, project_type: str = "auto") -> dict:
+    """在 workspace 中执行任务（Rust cargo / npm / pytest 等）。
+    project_type: "rust" | "node" | "python" | "auto"
+    """
+```
+
+#### 10.5.3 代码智能工具 (group:code)
+
+| 工具名 | 功能 | risk_level | permission | 继承来源 | 优先级 |
+|--------|------|-----------|-----------|----------|--------|
+| `lsp` | 语言服务器（跳转定义/类型检查） | 1 | auto | Claude Code | ✅ 必需 |
+| `rust_analyzer` | Rust 代码分析 | 1 | auto | Sloth | ✅ 必需 |
+| `typescript_lsp` | TS/JS 代码分析 | 1 | auto | Sloth | ⚠️ React 需要 |
+
+#### 10.5.4 任务管理工具 (group:task)
+
+| 工具名 | 功能 | risk_level | permission | 继承来源 | 优先级 |
+|--------|------|-----------|-----------|----------|--------|
+| `task_create` | 创建任务 | 1 | auto | Claude Code | ✅ 必需 |
+| `task_list` | 列出任务 | 1 | auto | Claude Code | ✅ 必需 |
+| `task_update` | 更新任务状态 | 1 | auto | Claude Code | ✅ 必需 |
+| `task_get` | 获取任务详情 | 1 | auto | Claude Code | ⚠️ 建议 |
+
+#### 10.5.5 Web 工具 (group:web)
+
+| 工具名 | 功能 | risk_level | permission | 继承来源 | 优先级 |
+|--------|------|-----------|-----------|----------|--------|
+| `web_fetch` | 获取 URL 内容 | 2 | plan_approval | Claude Code | ✅ 必需 |
+| `web_search` | 网络搜索 | 2 | plan_approval | Claude Code | ⚠️ 建议 |
+
+#### 10.5.6 交互工具 (group:interaction)
+
+| 工具名 | 功能 | risk_level | permission | 继承来源 | 优先级 |
+|--------|------|-----------|-----------|----------|--------|
+| `ask_user_question` | 向用户提问 | 1 | auto | Claude Code | ✅ 必需 |
+| `approval_request` | 发送审批请求 | 1 | auto | Sloth | ✅ 必需 |
+
+#### 10.5.7 Sloth 特色工具 (group:sloth)
+
+**可靠性工具**:
+
+| 工具名 | 功能 | risk_level | permission | 优先级 |
+|--------|------|-----------|-----------|--------|
+| `checkpoint_save` | 保存执行状态 | 1 | auto | ✅ 必需 |
+| `checkpoint_load` | 恢复执行状态 | 1 | auto | ✅ 必需 |
+| `heartbeat` | 发送心跳 | 1 | auto | ✅ 必需 |
+
+**技能进化工具**:
+
+| 工具名 | 功能 | risk_level | permission | 优先级 |
+|--------|------|-----------|-----------|--------|
+| `skill_generate` | 从错误生成新技能 | 1 | auto | ✅ 必需 |
+| `skill_revise` | 修正已有技能 | 1 | auto | ✅ 必需 |
+| `skill_search` | 搜索相关技能 | 1 | auto | ✅ 必需 |
+
+**TDD 工具**:
+
+| 工具名 | 功能 | risk_level | permission | 优先级 |
+|--------|------|-----------|-----------|--------|
+| `test_runner` | 运行测试 | 2 | plan_approval | ✅ 必需 |
+| `coverage_check` | 检查覆盖率 | 1 | auto | ✅ 必需 |
+| `coverage_gate` | 覆盖率门槛检查 | 1 | auto | ✅ 必需 |
+
+### 10.6 权限与风险门控
+
+#### 10.6.1 双重门控
+
+工具调用需同时通过两层检查：
+
+1. **Permission 层**（本规范定义）：基于 `permission` 字段的静态策略
+2. **RiskGate 层**（§4.2 定义）：基于 `risk_level` + 运行时的动态决策
+
+两层检查串联执行，任何一层拒绝则调用被拦截。
+
+#### 10.6.2 Permission 层策略
+
+| permission | 策略 |
+|-----------|------|
+| `auto` | 始终自动放行 |
+| `plan_approval` | 计划审批一次后自动放行；无计划时需确认 |
+| `explicit_approval` | 每次都需要用户明确确认 |
+| `high_risk` | 每次都需要明确标注 + 额外审批 |
+
+#### 10.6.3 风险等级矩阵
+
+| risk_level | 名称 | Permission 层 | RiskGate 层 |
+|-----------|------|-------------|-----------|
+| 1 | SAFE | auto | 自动放行 |
+| 2 | LOW_RISK | plan_approval | 自动放行，结果可回滚 |
+| 3 | MODERATE_RISK | explicit_approval | 自主模式自动；交互需确认 |
+| 4 | DESTRUCTIVE | high_risk | 始终需要人工确认 |
+
+### 10.7 配置
+
+#### 10.7.1 configs/tools.yaml
+
+```yaml
+tools:
+  groups:
+    fs:
+      - read_file
+      - write_file
+      - edit_file
+      - glob
+      - grep
+    runtime:
+      - run_command
+      - exec
+      - task_run
+    code:
+      - lsp
+      - rust_analyzer
+    task:
+      - task_create
+      - task_list
+      - task_update
+    web:
+      - web_fetch
+    interaction:
+      - ask_user_question
+      - approval_request
+    sloth:
+      - checkpoint_save
+      - checkpoint_load
+      - heartbeat
+      - skill_generate
+      - skill_revise
+      - test_runner
+      - coverage_check
+```
+
+#### 10.7.2 configs/permissions.yaml
+
+```yaml
+permissions:
+  default_policy: ask  # 默认需要确认
+
+  auto:
+    - read_file
+    - glob
+    - grep
+    - task_create
+    - task_list
+    - task_update
+    - heartbeat
+    - checkpoint_save
+    - checkpoint_load
+    - skill_generate
+    - skill_revise
+    - ask_user_question
+    - lsp
+    - rust_analyzer
+    - coverage_check
+    - coverage_gate
+
+  plan_approval:
+    - write_file
+    - edit_file
+    - apply_patch
+    - test_runner
+    - web_fetch
+    - web_search
+
+  explicit_approval:
+    - run_command
+    - exec
+    - task_run
+
+  high_risk:
+    - delete_file
+    - git_force_push
+```
+
+### 10.8 项目定制配置
+
+#### 10.8.1 通用配置（所有项目）
+
+```yaml
+core_tools:
+  - read_file
+  - write_file
+  - edit_file
+  - glob
+  - grep
+  - run_command
+  - task_create
+  - task_list
+  - task_update
+  - lsp
+  - web_fetch
+  - ask_user_question
+  - checkpoint_save
+  - checkpoint_load
+  - heartbeat
+  - skill_generate
+  - skill_revise
+  - test_runner
+  - coverage_check
+```
+
+#### 10.8.2 Rust 项目配置
+
+```yaml
+rust_tools:
+  cargo: true
+  rust_analyzer: true
+  rustfmt: true
+  clippy: true
+  build_targets:
+    - cargo build
+    - cargo test
+    - cargo clippy
+  extra_tools:
+    - wasm-pack  # 如果需要 WebAssembly
+```
+
+#### 10.8.3 前端 React 配置
+
+```yaml
+react_tools:
+  npm: true
+  typescript_lsp: true
+  eslint: true
+  build_targets:
+    - npm run build
+    - npm test
+    - npm run lint
+```
+
+### 10.9 工具注册机制
+
+工具通过 `ToolRegistry.register(tool)` 注册，通过 `get(name)` 获取，通过 `list_by_group(group)` 按组查询（见 §3.2 ToolRegistry 定义）。
+
+### 10.10 扩展机制
+
+#### 10.10.1 MCP 工具适配（后续）
+
+```yaml
+mcp:
+  enabled: false
+  servers: []
+```
+
+#### 10.10.2 自定义工具注册
+
+```yaml
+custom_tools:
+  - name: my_tool
+    command: "python scripts/my_tool.py"
+    risk_level: 2
+    group: runtime
+    permission: explicit_approval
+```
+
+### 10.11 实现优先级
+
+**第一阶段（核心必需）**:
+```
+✅ read_file, write_file, edit_file, glob, grep
+✅ run_command, task_create, task_list, task_update
+✅ checkpoint_save, checkpoint_load, heartbeat
+✅ web_fetch, ask_user_question
+✅ skill_generate, skill_revise
+```
+
+**第二阶段（建议）**:
+```
+⚠️ apply_patch (多文件编辑)
+⚠️ test_runner, coverage_check
+⚠️ lsp (rust_analyzer)
+⚠️ web_search
+```
+
+**第三阶段（按需）**:
+```
+⚠️ exec (进程管理)
+⚠️ code_execution (沙箱执行)
+⚠️ typescript_lsp
+⚠️ wasm-pack, xcodebuild, android_sdk
+```
+
+### 10.12 参考来源
+
+| 来源 | 工具 | 说明 |
+|------|------|------|
+| Claude Code | read_file, write_file, edit_file, glob, grep, run_command, task*, lsp | 核心必需 |
+| Claude Code | web_fetch, web_search, ask_user_question | Web + 交互 |
+| Open Claw | apply_patch | 多-hunk 补丁 |
+| Open Claw | exec | 进程管理 |
+| Open Claw | code_execution | 沙箱执行 |
+| Sloth 设计 | checkpoint, heartbeat | 可靠性 |
+| Sloth 设计 | skill_generate/revise | 自进化 |
+| Sloth 设计 | coverage_check/gate | TDD |
 
 ---
 

@@ -19,7 +19,7 @@
 ### Task A1 [P0]: Draft narrative structure and message architecture
 
 **Files:**
-- Read: `docs/specs/00000000-architecture-overview.md`
+- Read: `docs/specs/00000000-00-architecture-overview.md`
 - Read: `docs/specs/20260416-sloth-agent-intro-article-spec.md`
 
 **Steps:**

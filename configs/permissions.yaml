@@ -1,0 +1,21 @@
+# Tool Permission Configuration
+# Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.7.2
+
+permissions:
+  default_policy: ask
+
+  auto:
+    - read_file
+    - glob
+    - grep
+    - search
+
+  plan_approval:
+    - write_file
+    - edit_file
+
+  explicit_approval:
+    - run_command
+    - git
+
+  high_risk: []

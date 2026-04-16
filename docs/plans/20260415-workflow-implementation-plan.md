@@ -2,7 +2,7 @@
 
 > 版本: v0.1.0
 > 日期: 2026-04-15
-> 基于: docs/specs/20260415-workflow-process-spec.md
+> 基于: docs/specs/20260416-01-phase-role-architecture-spec.md（流程内容已并入模块 01）
 
 ---
 

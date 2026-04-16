@@ -8,12 +8,44 @@ console = Console()
 
 
 @app.command()
-def run():
-    """Run in autonomous mode (day/night cycle)."""
-    from sloth_agent.core.agent import AgentEvolve
+def run(plan: str | None = typer.Argument(None, help="Plan file path")):
+    """Run in autonomous mode (Plan → Builder → Reviewer → Deployer)."""
+    import uuid
 
-    agent = AgentEvolve()
-    agent.run()
+    from rich.console import Console
+    from sloth_agent.core.config import load_config
+    from sloth_agent.core.orchestrator import ProductOrchestrator
+    from sloth_agent.core.runner import Runner
+
+    console = Console()
+    config = load_config()
+    orchestrator = ProductOrchestrator(config)
+    runner = Runner(config, orchestrator.tool_registry)
+
+    # Create run state
+    run_id = uuid.uuid4().hex[:12]
+    state = orchestrator.create_run_state(run_id=run_id)
+    state.current_agent = "builder"
+    state.current_phase = "plan_parsing"
+
+    console.print(f"[bold]Sloth Agent v1.0[/bold]")
+    console.print(f"Run ID: {run_id}")
+    console.print(f"Plan: {plan or '(none)'}")
+
+    try:
+        final_state = runner.run(state)
+        if final_state.phase == "completed":
+            console.print("[green]Pipeline completed successfully![/green]")
+            if final_state.output:
+                console.print(final_state.output)
+        else:
+            console.print(f"[red]Pipeline ended: {final_state.phase}[/red]")
+            if final_state.errors:
+                for err in final_state.errors:
+                    console.print(f"  - {err}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise SystemExit(1)
 
 
 @app.command()

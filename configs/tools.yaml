@@ -1,0 +1,19 @@
+# Tool Group Configuration
+# Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.7.1
+
+tools:
+  groups:
+    fs:
+      - read_file
+      - write_file
+      - edit_file
+      - glob
+      - grep
+    runtime:
+      - run_command
+      - git
+    code: []
+    task: []
+    web: []
+    interaction: []
+    sloth: []

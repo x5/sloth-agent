@@ -523,5 +523,138 @@ Support: ...
 
 ---
 
+---
+
+## 10. 全局安装与多项目架构（从跨模块规范迁入）
+
+### 10.1 设计理念
+
+Sloth Agent 作为**全局工具**安装，一次安装，所有项目通用（类似 OpenClaw/Hermes Agent）。
+
+### 10.2 目录结构
+
+```
+~/.sloth-agent/                  # 全局安装目录（~/.sloth-agent/）
+├── src/                        # 框架源码（全局一份）
+├── configs/                    # 全局配置
+│   ├── agent.yaml              # Agent 配置
+│   └── llm_providers.yaml      # LLM 提供商配置
+├── skills/                     # 全局 Skills 库（所有项目共享）
+├── memory/                     # 全局记忆数据
+├── checkpoints/                # 全局断点快照
+├── logs/                       # 全局日志
+└── run.py                      # 入口脚本
+
+[项目目录]/
+├── .sloth/                     # 项目配置（轻量）
+│   ├── project.yaml            # 项目名、路径、SPEC/PLAN 目录
+│   └── local_skills/          # 项目专属 Skills（可选）
+├── docs/                       # 文档（项目内）
+│   ├── specs/
+│   ├── plans/
+│   └── reports/
+├── TODO.md                     # 项目任务
+└── [项目源代码...]
+```
+
+### 10.3 项目初始化（sloth init）
+
+```bash
+sloth init --project ~/my-project
+```
+
+初始化后创建完整项目结构：
+
+```
+~/my-project/
+├── .sloth/                     # Sloth Agent 项目配置
+│   └── project.yaml
+├── docs/                       # 文档（框架生成）
+│   ├── specs/                  # 设计规格
+│   ├── plans/                  # 实现计划
+│   └── reports/                # 工作报告
+├── src/                        # 源代码
+│   └── (your code)
+├── tests/                      # 测试代码
+│   └── (your tests)
+├── scripts/                    # 辅助脚本（如有）
+├── README.md                   # 项目说明
+├── LICENSE                     # 许可证（如有）
+├── .gitignore                  # Git 忽略规则
+├── pyproject.toml              # Python: uv 项目配置
+│   # 或 Cargo.toml (Rust)
+│   # 或 package.json (Node.js)
+│   # 或 go.mod (Go)
+└── TODO.md                     # 项目任务清单
+```
+
+### 10.4 安装方式
+
+```bash
+# 1. 克隆到全局目录
+git clone git@github.com:x5/sloth-agent.git ~/.sloth-agent
+
+# 2. 使用 uv 安装（与项目一致）
+cd ~/.sloth-agent
+uv venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -e .
+
+# 3. 添加到 PATH（可选，或使用绝对路径）
+echo 'export PATH="$HOME/.sloth-agent:$PATH"' >> ~/.bashrc
+```
+
+### 10.5 project.yaml 格式
+
+```yaml
+project:
+  name: my-project
+  path: /home/user/my-project
+  docs_dir: docs                    # 文档目录（相对于项目根）
+  spec_dir: docs/specs
+  plan_dir: docs/plans
+  report_dir: docs/reports
+
+skills:
+  global: ~/.sloth-agent/skills     # 全局 Skills
+  local: .sloth/local_skills        # 项目专属 Skills
+
+workflow:
+  night_phase_time: "22:00"
+  day_phase_time: "09:00"
+  heartbeat_interval: 180          # 3 分钟
+
+llm:
+  default_provider: deepseek
+  node_mapping:                    # 可选，覆盖全局配置
+    brainstorming: glm
+    planning: claude
+```
+
+### 10.6 使用方式
+
+```bash
+# 指定项目运行
+sloth run --project ~/my-project --phase night
+sloth run --project ~/my-project --phase day
+
+# 查看状态
+sloth status --project ~/my-project
+
+# 查看帮助
+sloth --help
+```
+
+### 10.7 与 OpenClaw/Hermes Agent 对比
+
+| 特性 | OpenClaw | Hermes Agent | Sloth Agent |
+|------|----------|--------------|-------------|
+| 安装位置 | `~/.openclaw/` | `~/.hermes/` | `~/.sloth-agent/` |
+| 安装方式 | `npm install -g` | Shell 脚本 | `git clone` + `uv pip install -e` |
+| 项目配置 | `~/.openclaw/openclaw.json` | 无 | `[项目]/.sloth/project.yaml` |
+| Skills 位置 | `~/.openclaw/skills/` | `~/.hermes/skills/` | `~/.sloth-agent/skills/` + `[项目]/.sloth/local_skills/` |
+| 多项目支持 | 是 | 否 | 是 |
+
+---
+
 *规范版本: v1.0.0*
 *创建日期: 2026-04-16*

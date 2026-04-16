@@ -14,7 +14,7 @@ Where:
         - report (工作报告)
 
 Examples:
-    - 20260415-tools-design-spec.md
+    - 20260416-02-tools-invocation-spec.md
     - 20260415-tools-implementation-plan.md
     - 20260415-card-game-design-spec.md
     - 20260416-wuxing-app-implementation-plan.md
@@ -75,7 +75,7 @@ class DocumentNaming:
             doc_type: One of the valid types
 
         Returns:
-            Formatted filename like "20260415-tools-design-spec.md"
+            Formatted filename like "20260416-02-tools-invocation-spec.md"
 
         Raises:
             ValueError: If doc_type is not valid
@@ -99,7 +99,7 @@ class DocumentNaming:
         Parse a filename to extract components.
 
         Args:
-            filename: Filename like "20260415-tools-design-spec.md"
+            filename: Filename like "20260416-02-tools-invocation-spec.md"
 
         Returns:
             Dict with keys: date, description, type, or None if invalid
@@ -258,7 +258,7 @@ class DocumentEnforcer:
                 f"Invalid document name: {filename}\n"
                 f"Expected format: YYYYMMDD-description-type.md\n"
                 f"Examples:\n"
-                f"  20260415-tools-design-spec.md\n"
+                f"  20260416-02-tools-invocation-spec.md\n"
                 f"  20260415-tools-implementation-plan.md\n"
                 f"  20260415-daily-report.md"
             )
@@ -316,7 +316,7 @@ class DocumentEnforcer:
                 "## Naming Convention\n"
                 "Format: YYYYMMDD-event-description-type.md\n"
                 "\n"
-                "Example: 20260415-tools-design-spec.md\n"
+                "Example: 20260416-02-tools-invocation-spec.md\n"
             )
 
         # Create type-specific files

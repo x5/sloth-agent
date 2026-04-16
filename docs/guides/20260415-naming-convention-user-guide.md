@@ -43,7 +43,7 @@ YYYYMMDD-event-description-type.md
 
 ```
 # 设计规格
-20260415-tools-design-spec.md
+20260416-02-tools-invocation-spec.md
 20260415-card-game-design-spec.md
 20260416-wuxing-app-design-spec.md
 
@@ -84,7 +84,7 @@ tools-design-spec.md
 ```
 docs/
 ├── specs/           # 设计规格文档
-│   ├── 20260415-tools-design-spec.md
+│   ├── 20260416-02-tools-invocation-spec.md
 │   └── 20260416-card-game-design-spec.md
 │
 ├── plans/           # 实现计划
@@ -118,11 +118,11 @@ filename = DocumentNaming.make_filename(
 # 结果: "20260415-tools-design-design-spec.md"
 
 # 检查文件名是否合法
-DocumentNaming.is_valid("20260415-tools-design-spec.md")
+DocumentNaming.is_valid("20260416-02-tools-invocation-spec.md")
 # 结果: True
 
 # 解析文件名
-DocumentNaming.parse_filename("20260415-tools-design-spec.md")
+DocumentNaming.parse_filename("20260416-02-tools-invocation-spec.md")
 # 结果: {"date": "20260415", "description": "tools-design", "type": "design-spec"}
 
 # 获取某类型最新文档
@@ -143,8 +143,8 @@ latest = DocumentNaming.get_latest(Path("docs/specs"), doc_type="design-spec")
 ## 7. 版本控制
 
 - 同一事件的后续版本使用同一日期
-- 如需更新：`20260415-tools-design-spec.md` → 保持原名，更新内容
-- 重大变更：创建新的 spec，如 `20260420-tools-design-spec-v2.md`
+- 如需更新：`20260416-02-tools-invocation-spec.md` → 保持原名，更新内容
+- 重大变更：创建新的 spec，如 `20260420-tools-invocation-spec-v2.md`
 
 ---
 

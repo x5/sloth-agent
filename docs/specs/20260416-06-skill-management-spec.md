@@ -324,5 +324,194 @@ tests/
 
 ---
 
+---
+
+## 10. Skill 自动进化机制（从跨模块规范迁入）
+
+### 10.1 触发机制（4 种）
+
+| 触发类型 | 条件 | 优先级 |
+|---------|------|--------|
+| **Error-Driven** | 执行出错时 | P0 |
+| **Experience-Accumulation** | 连续成功执行 10+ 次后 | P2 |
+| **Periodic-Audit** | 每周一 09:00 自动审计 | P1 |
+| **Knowledge-Gap** | 发现无对应 Skill 处理的任务类型 | P2 |
+
+### 10.2 进化流程
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  SkillEvolutionEngine                                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  [触发] ──▶ [诊断] ──▶ [生成/修正] ──▶ [验证] ──▶ [存储]   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Phase 1: 触发诊断 (Diagnosis)                              │
+├─────────────────────────────────────────────────────────────┤
+│  - Error-Driven: 分析错误类型和上下文                        │
+│  - Experience: 统计成功模式，提取可复用流程                  │
+│  - Audit: 对比 Skill 库与实际使用率                          │
+│  - Gap: 发现新任务类型无对应 Skill                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Phase 2: 生成/修正 (Generation/Revision)                   │
+├─────────────────────────────────────────────────────────────┤
+│  SkillGenerator:                                            │
+│    - 根据错误上下文生成新 Skill                              │
+│    - 输出: YAML 格式 Skill 定义                              │
+│                                                              │
+│  SkillReviser:                                             │
+│    - 修正已有 Skill 的错误描述                               │
+│    - 扩展 Skill 的适用范围                                  │
+│    - 更新过时的示例或命令                                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Phase 3: 验证 (Validation)                                 │
+├─────────────────────────────────────────────────────────────┤
+│  SkillValidator:                                            │
+│    - frontmatter 完整性                                       │
+│    - required_sections 存在                                 │
+│    - 无占位符 (TBD/TODO/未完成)                              │
+│    - 无重复 Skill 定义                                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Phase 4: 存储 (Storage)                                    │
+├─────────────────────────────────────────────────────────────┤
+│  SkillRepository:                                           │
+│    - 保存到 skills/ 目录                                    │
+│    - 更新 skills/index.md                                   │
+│    - 触发 SkillManager 重新加载                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 10.3 Skill 结构定义
+
+```yaml
+---
+name: skill-name
+description: One-line description
+trigger: error-driven|experience|periodic-audit|knowledge-gap
+frequency: high|medium|low
+last_revised: YYYYMMDD
+version: x.y.z
+---
+
+# Trigger Context
+- 错误类型:
+- 错误消息:
+
+# Resolution
+## Steps
+1. step 1
+2. step 2
+
+## Commands
+- command 1
+- command 2
+
+## Validation
+- 验证命令
+
+# Examples
+- example 1
+- example 2
+```
+
+### 10.4 SkillValidator 验证规则
+
+| 检查项 | 条件 | 不通过则 |
+|--------|------|---------|
+| frontmatter | 必须包含 name, trigger, version | 拒绝保存 |
+| required_sections | 必须有 Trigger Context, Resolution | 拒绝保存 |
+| 占位符 | 不能有 TBD/TODO/未完成 | 拒绝保存 |
+| 重复检测 | 不能与已有 Skill 描述重复 | 拒绝保存 |
+
+### 10.5 进化记录
+
+每次 Skill 进化生成报告：
+```
+docs/reports/
+└── YYYYMMDD-skill-evolution-report.md
+```
+
+---
+
+---
+
+## 11. 37 技能路由表（从 20260416-37-skills-route-table.md 迁入）
+
+> 参考: Superpowers (14 skills) + gstack (23 skills) = 37 skills
+
+### 11.1 Superpowers 技能（14 个，auto+manual）
+
+| 技能 | 阶段 | 说明 |
+|------|------|------|
+| `brainstorming` | 阶段一 | 通过提问精炼需求，分段呈现设计方案 |
+| `writing-plans` | 阶段二 | 将工作分解为 2-5 分钟微任务，包含文件路径、测试、验证步骤 |
+| `test-driven-development` | 阶段三 | RED-GREEN-REFACTOR 循环 |
+| `subagent-driven-development` | 阶段三 | 每个子任务创建独立子代理执行 |
+| `using-git-worktrees` | 阶段三 | 隔离工作空间 |
+| `systematic-debugging` | 阶段四 | 四阶段根因分析 |
+| `requesting-code-review` | 阶段五 | 独立 reviewer 通道 |
+| `verification-before-completion` | 阶段五 | 完成前收集证据 |
+| `finishing-a-development-branch` | 阶段七 | 分支收尾，合并/PR 决策 |
+| `receiving-code-review` | - | 接收审查反馈 |
+| `executing-plans` | - | 批量执行计划，带 checkpoint |
+| `dispatching-parallel-agents` | - | 并发子代理工作流 |
+| `writing-skills` | - | 创建/修改技能 |
+| `using-superpowers` | - | 技能系统介绍 |
+
+### 11.2 gstack 命令（23 个手动命令）
+
+| 技能 | 阶段 | 说明 |
+|------|------|------|
+| `/office-hours` | 阶段一 | 6 个强制问题诊断产品方向 |
+| `/autoplan` | 阶段二 | CEO → 设计 → 工程三阶段自动审查 |
+| `/browse` | 阶段四 | 真实 Chromium 浏览器 |
+| `/investigate` | 阶段四 | 浏览器级系统调试 |
+| `/review` | 阶段五 | 发现通过 CI 但生产会炸的 bug |
+| `/codex` | 阶段五 | 通过 OpenAI Codex CLI 交叉分析 |
+| `/qa` | 阶段六 | 真实浏览器端到端测试 |
+| `/cso` | 阶段六 | OWASP Top 10 + STRIDE 威胁模型 |
+| `/plan-design-review` | 阶段六 | 80 项设计审计 |
+| `/ship` | 阶段七 | 测试 + 覆盖率 + PR |
+| `/land-and-deploy` | 阶段七 | CI + 部署验证 |
+| `/canary` | 阶段八 | 控制台错误 + 性能回归监控 |
+| `/qa-only` | 阶段六 | 报告模式（不修改代码） |
+| `/plan-ceo-review` | 阶段二 | 重新思考问题，4 种模式 |
+| `/plan-eng-review` | 阶段二 | 锁定架构、数据流、边界条件 |
+| `/plan-devex-review` | 阶段二 | 交互式 DX 审查 |
+| `/design-consultation` | 阶段一 | 从零构建设计系统 |
+| `/design-shotgun` | 阶段一 | 生成 4-6 个 AI 方案变体 |
+| `/design-html` | - | 生成生产级 HTML/CSS |
+| `/design-review` | - | 审计 + 修复 |
+| `/devex-review` | - | 实时审计 onboarding 流程 |
+| `/retro` | - | 每周团队回顾 |
+
+### 11.3 技能与阶段映射
+
+| 阶段 | Superpowers | gstack | 时段 |
+| :--- | :--- | :--- | :--- |
+| 阶段一 需求分析 | `brainstorming` | `/office-hours` | 晚上 |
+| 阶段二 计划制定 | `writing-plans` | `/autoplan` | 晚上 |
+| 阶段三 编码实现 | `TDD`, `subagent`, `git-worktrees` | | 白天 |
+| 阶段四 调试排错 | `systematic-debugging` | `/browse`, `/investigate` | 白天 |
+| 阶段五 代码审查 | `requesting-code-review`, `verification` | `/review`, `/codex` | 白天 |
+| 阶段六 质量验证 | | `/qa`, `/cso`, `/plan-design-review` | 白天 |
+| 阶段七 发布上线 | `finishing-a-branch` | `/ship`, `/land-and-deploy` | 白天 |
+| 阶段八 上线监控 | | `/canary` | 白天 |
+
+---
+
 *规格版本: v1.1.0*
 *创建日期: 2026-04-16*

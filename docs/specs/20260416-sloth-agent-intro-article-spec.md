@@ -8,7 +8,7 @@
 
 ## 1. 目标
 
-基于 [docs/specs/00000000-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-architecture-overview.md) 输出一篇面对开发者与技术决策者的 Sloth Agent 介绍文章，并交付为可直接打开的精美静态 HTML。
+基于 [docs/specs/00000000-00-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-00-architecture-overview.md) 输出一篇面对开发者与技术决策者的 Sloth Agent 介绍文章，并交付为可直接打开的精美静态 HTML。
 
 文章目标不是逐段复述架构文档，而是用更适合传播的方式解释：
 - Sloth Agent 为什么存在

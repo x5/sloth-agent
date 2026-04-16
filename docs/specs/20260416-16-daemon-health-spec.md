@@ -541,5 +541,53 @@ recovery:
 
 ---
 
+---
+
+## 10. 工作流心跳机制（从跨模块规范迁入）
+
+### 10.1 心跳间隔
+
+```yaml
+watchdog:
+  heartbeat_interval: 180  # 3 分钟
+  max_missed_heartbeats: 3  # 最多丢 3 次
+  recovery_action: checkpoint_restore
+```
+
+### 10.2 Checkpoint 内容
+
+```python
+@dataclass
+class Checkpoint:
+    timestamp: datetime
+    workflow_state: WorkflowState
+    current_task: str
+    pending_approvals: list[str]
+    recent_commits: list[str]
+    memory_summary: str
+```
+
+---
+
+## 11. Git Hooks 配置（从跨模块规范迁入）
+
+### 11.1 客户端 Hooks
+
+```yaml
+# .git/hooks/pre-commit
+- run_lint: ruff check src/
+- run_type: mypy src/
+- run_tests: pytest tests/
+
+# .git/hooks/commit-msg
+- validate_commit_format: <type>(<scope>): <subject>
+
+# .git/hooks/pre-push
+- run_full_test_suite: pytest
+- check_branch_status
+```
+
+---
+
 *规范版本: v1.0.0*
 *创建日期: 2026-04-16*

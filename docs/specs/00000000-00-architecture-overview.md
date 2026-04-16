@@ -175,29 +175,31 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
 
 ### 4.1 模块总览
 
+每个功能模块有唯一编号（01-99），用于全文引用、TODO 映射和 spec 文档命名。
+
 | # | 模块 | Spec 文件 | 优先级 | 核心职责 |
 |---|------|-----------|--------|---------|
-| 1 | Phase-Role Architecture | `phase-role-architecture-spec.md` | P0 | 8 专职 Agent + 1 通用 Agent、8 阶段、37 技能、8 场景编排 |
-| 2 | Tools Invocation | `tools-invocation-spec.md` | P0 | 4 层调用链（Intent→Risk→Execute→Format）、Plugin 架构 |
-| 3 | Multi-Agent Coordination | `multi-agent-coordination-spec.md` | P0 | 任务分发、Worktree 隔离、结果合并、冲突解决 |
-| 4 | Memory Management | `memory-management-spec.md` | P0 | 三层记忆（FS 主 + SQLite 索引 + ChromaDB 向量） |
-| 5 | Session Management | `session-management-spec.md` | P0 | 会话生命周期、checkpoint、摘要传递 |
-| 6 | Skill Management | `skill-management-spec.md` | P0 | SKILL.md 加载、路由匹配、自动进化 |
-| 7 | Chat Mode | `chat-mode-spec.md` | P0 | REPL 交互、斜杠命令、上下文管理 |
-| 8 | Observability & Logging | `observability-logging-spec.md` | P0 | 统一日志、Trace ID、日志查询 CLI、健康诊断 |
-| 9 | Error Handling & Recovery | `error-handling-recovery-spec.md` | P0 | 4 级错误分类、熔断器、优雅降级、人工介入 |
-| 10 | Report Generation | `report-generation-spec.md` | P0 | 7 种报告类型、模板引擎、多渠道交付 |
-| 11 | Notification & Integration | `notification-integration-spec.md` | P1 | 飞书/邮件/Webhook 适配器、通知路由、去重限流 |
-| 12 | Cost & Budget Tracking | `cost-budget-spec.md` | P1 | 6 Provider 定价（含 mimo）、预算软硬停机、费用预测 |
-| 13 | Session Lifecycle | `session-lifecycle-spec.md` | P1 | 会话创建/暂停/恢复、分支映射、序列化 |
-| 14 | Event System | `event-system-spec.md` | P1 | 发布-订阅事件总线、工作流触发、死信队列 |
-| 15 | Knowledge Base | `knowledge-base-spec.md` | P2 | 项目上下文、代码库摘要、语义检索 |
-| 16 | Daemon & Health | `daemon-health-spec.md` | P1 | Persistent Daemon、心跳检查、看门狗、自动恢复 |
-| 17 | Sandbox Security | `sandbox-security-spec.md` | P0 | 5 层安全、路径白名单、资源限制、审计日志 |
-| 18 | Installation | `installation-onboarding-spec.md` | P1 | 交互式安装、环境检查、配置引导 |
-| 19 | Feishu Integration | `feishu-integration-spec.md` | P2 | Webhook 服务器、卡片交互、审批通道 |
+| 01 | Phase-Role Architecture | `20260416-01-phase-role-architecture-spec.md` | P0 | 8 专职 Agent + 1 通用 Agent、8 阶段、37 技能、8 场景编排 |
+| 02 | Tools Invocation | `20260416-02-tools-invocation-spec.md` | P0 | 4 层调用链（Intent→Risk→Execute→Format）、Plugin 架构 |
+| 03 | Multi-Agent Coordination | `20260416-03-multi-agent-coordination-spec.md` | P0 | 任务分发、Worktree 隔离、结果合并、冲突解决 |
+| 04 | Memory Management | `20260416-04-memory-management-spec.md` | P0 | 三层记忆（FS 主 + SQLite 索引 + ChromaDB 向量） |
+| 05 | Session Management | `20260416-05-session-management-spec.md` | P0 | 会话生命周期、checkpoint、摘要传递 |
+| 06 | Skill Management | `20260416-06-skill-management-spec.md` | P0 | SKILL.md 加载、路由匹配、自动进化 |
+| 07 | Chat Mode | `20260416-07-chat-mode-spec.md` | P0 | REPL 交互、斜杠命令、上下文管理 |
+| 08 | Observability & Logging | `20260416-08-observability-logging-spec.md` | P0 | 统一日志、Trace ID、日志查询 CLI、健康诊断 |
+| 09 | Error Handling & Recovery | `20260416-09-error-handling-recovery-spec.md` | P0 | 4 级错误分类、熔断器、优雅降级、人工介入 |
+| 10 | Report Generation | `20260416-10-report-generation-spec.md` | P0 | 7 种报告类型、模板引擎、多渠道交付 |
+| 11 | Notification & Integration | `20260416-11-notification-integration-spec.md` | P1 | 飞书/邮件/Webhook 适配器、通知路由、去重限流 |
+| 12 | Cost & Budget Tracking | `20260416-12-cost-budget-spec.md` | P1 | 6 Provider 定价（含 mimo）、预算软硬停机、费用预测 |
+| 13 | Session Lifecycle | `20260416-13-session-lifecycle-spec.md` | P1 | 会话创建/暂停/恢复、分支映射、序列化 |
+| 14 | Event System | `20260416-14-event-system-spec.md` | P1 | 发布-订阅事件总线、工作流触发、死信队列 |
+| 15 | Knowledge Base | `20260416-15-knowledge-base-spec.md` | P2 | 项目上下文、代码库摘要、语义检索 |
+| 16 | Daemon & Health | `20260416-16-daemon-health-spec.md` | P1 | Persistent Daemon、心跳检查、看门狗、自动恢复 |
+| 17 | Sandbox Security | `20260416-17-sandbox-security-spec.md` | P0 | 5 层安全、路径白名单、资源限制、审计日志 |
+| 18 | Installation | `20260416-18-installation-onboarding-spec.md` | P1 | 交互式安装、环境检查、配置引导 |
+| 19 | Feishu Integration | `20260416-19-feishu-integration-spec.md` | P2 | Webhook 服务器、卡片交互、审批通道 |
 
-> 注：模块编号 1-15 为核心模块，16-19 为辅助模块。
+> 注：模块编号 01-15 为核心模块，16-19 为辅助模块。
 
 ### 4.2 模块依赖关系
 
@@ -226,7 +228,7 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
    ┌────────────┐ ┌────────────┐ ┌────────────┐
    │  Phase-    │ │  Multi-    │ │  Session   │
    │  Role Arch │ │  Agent     │ │  Lifecycle │
-   │  (#1)      │ │  Coord (#3)│ │  (#13)     │
+   │  (#01)     │ │  Coord (#03)│ │ (#13)     │
    └─────┬──────┘ └─────┬──────┘ └─────┬──────┘
          │              │              │
          └──────────────┼──────────────┘
@@ -234,10 +236,10 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
                ┌─────────────────┐
                │  Core Services  │
                │                 │
-               │  #2 Tools       │
-               │  #4 Memory      │
-               │  #5 Session     │
-               │  #6 Skills      │
+               │  #02 Tools      │
+               │  #04 Memory     │
+               │  #05 Session    │
+               │  #06 Skills     │
                │  #15 Knowledge  │
                │  #17 Security   │
                └───────┬─────────┘
@@ -245,7 +247,7 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
               ┌────────┼────────┐
               ▼        ▼        ▼
         ┌────────┐ ┌────────┐ ┌────────┐
-        │ #8 Obs │ │ #9 Err │ │ #12 Cost│
+        │ #08 Obs│ │ #09 Err│ │ #12 Cost│
         │ #10 Rep│ │ #14 Ev │ │ #11 Not │
         │ #16 Dmn│ │        │ │ #18 Inst│
         │ #19 Fei│ │        │ │         │
@@ -2031,29 +2033,31 @@ sloth eval --compare        # 对比最近两次 eval 结果
 
 ## 13. 规格文档索引
 
+规格编号与 §4.1 模块编号一一对应。
+
 | # | 规格 | 文件 | 状态 |
 |---|------|------|------|
-| 1 | 总体架构 | `00000000-architecture-overview.md` | 本文件 |
-| 2 | Phase-Role Architecture | `20260416-phase-role-architecture-spec.md` | 待审批 |
-| 3 | Tools Invocation | `20260416-tools-invocation-spec.md` | 待审批 |
-| 4 | Multi-Agent Coordination | `20260416-multi-agent-coordination-spec.md` | 待审批 |
-| 5 | Memory Management | `20260416-memory-management-spec.md` | 待审批 |
-| 6 | Session Management | `20260416-session-management-spec.md` | 待审批 |
-| 7 | Skill Management | `20260416-skill-management-spec.md` | 待审批 |
-| 8 | Chat Mode | `20260416-chat-mode-spec.md` | 待审批 |
-| 9 | Observability & Logging | `20260416-observability-logging-spec.md` | 已记录 |
-| 10 | Error Handling & Recovery | `20260416-error-handling-recovery-spec.md` | 已记录 |
-| 11 | Report Generation | `20260416-report-generation-spec.md` | 已记录 |
-| 12 | Notification & Integration | `20260416-notification-integration-spec.md` | 已记录 |
-| 13 | Cost & Budget | `20260416-cost-budget-spec.md` | 已记录 |
-| 14 | Session Lifecycle | `20260416-session-lifecycle-spec.md` | 已记录 |
-| 15 | Event System | `20260416-event-system-spec.md` | 已记录 |
-| 16 | Knowledge Base | `20260416-knowledge-base-spec.md` | 已记录 |
-| 17 | Daemon & Health | `20260416-daemon-health-spec.md` | 已记录 |
-| 18 | Sandbox Security | `20260416-sandbox-security-spec.md` | 已记录 |
-| 19 | Installation | `20260416-installation-onboarding-spec.md` | 已记录 |
-| 20 | Feishu Integration | `20260416-feishu-integration-spec.md` | 待审批 |
-| 21 | Architecture v2 | `archive/20260416-architecture-v2.md` | 已合并归档 |
+| 00 | 总体架构 | `00000000-00-architecture-overview.md` | 本文件 |
+| 01 | Phase-Role Architecture + Workflow Steps | `20260416-01-phase-role-architecture-spec.md` | 待审批 |
+| 02 | Tools Definition + Invocation | `20260416-02-tools-invocation-spec.md` | 待审批 |
+| 03 | Multi-Agent Coordination | `20260416-03-multi-agent-coordination-spec.md` | 待审批 |
+| 04 | Memory Management | `20260416-04-memory-management-spec.md` | 待审批 |
+| 05 | Session Management | `20260416-05-session-management-spec.md` | 待审批 |
+| 06 | Skill Management + Evolution | `20260416-06-skill-management-spec.md` | 待审批 |
+| 07 | Chat Mode | `20260416-07-chat-mode-spec.md` | 待审批 |
+| 08 | Observability & Logging | `20260416-08-observability-logging-spec.md` | 已记录 |
+| 09 | Error Handling & Recovery | `20260416-09-error-handling-recovery-spec.md` | 已记录 |
+| 10 | Report Generation | `20260416-10-report-generation-spec.md` | 已记录 |
+| 11 | Notification & Integration | `20260416-11-notification-integration-spec.md` | 已记录 |
+| 12 | Cost & Budget | `20260416-12-cost-budget-spec.md` | 已记录 |
+| 13 | Session Lifecycle | `20260416-13-session-lifecycle-spec.md` | 已记录 |
+| 14 | Event System | `20260416-14-event-system-spec.md` | 已记录 |
+| 15 | Knowledge Base | `20260416-15-knowledge-base-spec.md` | 已记录 |
+| 16 | Daemon & Health | `20260416-16-daemon-health-spec.md` | 已记录 |
+| 17 | Sandbox Security | `20260416-17-sandbox-security-spec.md` | 已记录 |
+| 18 | Installation + Global Setup | `20260416-18-installation-onboarding-spec.md` | 已记录 |
+| 19 | Feishu Integration | `20260416-19-feishu-integration-spec.md` | 待审批 |
+| — | Architecture v2（归档） | `archive/20260416-architecture-v2.md` | 已合并归档 |
 
 ---
 
