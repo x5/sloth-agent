@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <title>Introducing Sloth Agent</title>
+  <meta name="description" content="Sloth Agent 是一个面向中国开发者生态的产品级 AI 开发执行系统，聚焦从 Plan 到开发、审查、部署的可靠闭环。" />
+  <style>
+    :root {
+      --bg: #111111;
+      --bg-deep: #161616;
+      --bg-soft: #1a1a1a;
+      --code-bg: #0a0a0a;
+      --paper: rgba(26, 26, 26, 0.85);
+      --paper-solid: #1a1a1a;
+      --ink: #ffffff;
+      --ink-soft: #e8e0d8;
+      --muted: #8a8078;
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(245, 158, 11, 0.3);
+      --accent: #F59E0B;
+      --accent-2: #F97316;
+      --accent-soft: rgba(245, 158, 11, 0.12);
+      --success: #22c55e;
+      --danger: #ef4444;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      --radius-xl: 32px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --content: min(1120px, calc(100vw - 32px));
+      --font-display: "Space Grotesk", "Noto Sans SC", sans-serif;
+      --font-body: "Noto Sans SC", "Segoe UI Variable", sans-serif;
+      --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink-soft);
+      background:
+        radial-gradient(circle at 30% 0%, rgba(245, 158, 11, 0.06), transparent 40%),
+        radial-gradient(circle at 80% 10%, rgba(249, 115, 22, 0.04), transparent 30%),
+        linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 8%, var(--bg) 100%);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 90%);
+      opacity: 0.5;
+    }
+
+    .progress {
+      position: fixed;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transform-origin: left center;
+      transform: scaleX(0);
+      z-index: 50;
+    }
+
+    .shell {
+      width: var(--content);
+      margin: 0 auto;
+      padding-bottom: 72px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .brand-text {
+      font-family: var(--font-display);
+      letter-spacing: 0.12em;
+    }
+
+    .brand-mark {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.92fr);
+      gap: 28px;
+      align-items: start;
+      grid-auto-rows: min-content;
+      margin-top: 10px;
+    }
+
+    .hero-card,
+    .panel,
+    .quote,
+    .roadmap,
+    .footer-card {
+      backdrop-filter: blur(18px);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 34px;
+      border-radius: var(--radius-xl);
+      position: relative;
+      overflow: hidden;
+      align-self: start;
+      height: fit-content;
+      min-height: 0;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -70px auto;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, var(--accent-soft), transparent 66%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: var(--accent-2);
+    }
+
+    h1 {
+      font-size: clamp(3rem, 6vw, 5.8rem);
+      max-width: 12ch;
+    }
+
+    .subtitle {
+      margin-top: 18px;
+      max-width: 56ch;
+      font-size: 1.12rem;
+      color: var(--ink-soft);
+    }
+
+    .lede {
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .lede p,
+    .metric p,
+    .section-copy p,
+    .quote p,
+    .footer-card p {
+      margin: 0;
+    }
+
+    .lede strong,
+    .section-copy strong {
+      color: var(--ink);
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+      align-self: start;
+      height: fit-content;
+    }
+
+    .hero-visual {
+      padding: 18px;
+      border-radius: var(--radius-xl);
+      background:
+        radial-gradient(circle at top right, var(--accent-soft), transparent 34%),
+        linear-gradient(180deg, rgba(26, 26, 26, 0.95), rgba(22, 22, 22, 0.86));
+      border: 1px solid var(--line);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .hero-visual svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .hero-visual-copy {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-content: start;
+    }
+
+    .metric {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, var(--paper), var(--bg-soft));
+      border: 1px solid var(--line);
+      min-height: 144px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
+    }
+
+    .metric.featured {
+      grid-column: 1 / -1;
+      min-height: 168px;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top right, var(--accent-soft), transparent 36%),
+        linear-gradient(180deg, var(--paper), var(--bg-soft));
+    }
+
+    .metric .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric .value {
+      font-family: var(--font-display);
+      font-size: clamp(1.55rem, 2.4vw, 2.35rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+      margin-bottom: 4px;
+    }
+
+    .metric.featured .value {
+      font-size: clamp(2.4rem, 4vw, 3.5rem);
+    }
+
+    .metric .desc {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    main {
+      margin-top: 28px;
+      display: grid;
+      gap: 22px;
+    }
+
+    .panel {
+      padding: 32px;
+      border-radius: var(--radius-xl);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel.alt {
+      background: linear-gradient(180deg, rgba(26, 26, 26, 0.92), rgba(22, 22, 22, 0.82));
+    }
+
+    .kicker {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-weight: 700;
+    }
+
+    .panel-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      gap: 26px;
+      align-items: start;
+      margin-bottom: 24px;
+    }
+
+    .panel-head p,
+    .aside-note {
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      min-height: 196px;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, var(--accent-soft), rgba(249, 115, 22, 0.08));
+      border: 1px solid var(--line);
+      flex: 0 0 auto;
+    }
+
+    .card-icon svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--ink-soft);
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--line-strong);
+      background: var(--paper);
+    }
+
+    .card h3 {
+      font-size: 1.28rem;
+      margin-bottom: 12px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .diagram {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 8px;
+    }
+
+    .flow-visual {
+      margin-top: 20px;
+      padding: 24px 22px 20px;
+      border-radius: var(--radius-xl);
+      background:
+        radial-gradient(circle at top right, var(--accent-soft), transparent 24%),
+        linear-gradient(180deg, rgba(26, 26, 26, 0.74), rgba(22, 22, 22, 0.72));
+      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .flow-visual::before {
+      content: "";
+      position: absolute;
+      left: 36px;
+      right: 36px;
+      top: 58px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      opacity: 0.9;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .flow-node {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-height: 174px;
+    }
+
+    .flow-top {
+      display: grid;
+      justify-items: start;
+      gap: 10px;
+    }
+
+    .flow-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--line-strong);
+      background: linear-gradient(135deg, var(--bg-soft), var(--accent-soft));
+      box-shadow: 0 0 0 6px rgba(26, 26, 26, 0.6);
+    }
+
+    .flow-panel {
+      min-height: 128px;
+      padding: 16px;
+      border-radius: 18px;
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .flow-step {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .flow-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      line-height: 1.1;
+    }
+
+    .flow-copy {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--code-bg);
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+      font: 500 13px/1.65 var(--font-mono);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .inline-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .inline-item {
+      padding: 18px 20px;
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      color: var(--muted);
+    }
+
+    .quote {
+      padding: 28px 32px;
+      border-radius: var(--radius-xl);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .quote-mark {
+      font-family: var(--font-display);
+      font-size: 4rem;
+      line-height: 0.8;
+      color: var(--accent);
+    }
+
+    .quote p:first-child {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+
+    .quote .meta {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .roadmap {
+      padding: 28px;
+      border-radius: var(--radius-xl);
+    }
+
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .roadmap-step {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-soft);
+      border: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+    }
+
+    .roadmap-step .version {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+    }
+
+    .roadmap-step .state {
+      display: inline-block;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid var(--line-strong);
+    }
+
+    .roadmap-step ul {
+      padding-left: 18px;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .footer-card {
+      border-radius: var(--radius-xl);
+      padding: 34px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-top: 4px;
+      color: var(--ink-soft);
+      background:
+        radial-gradient(circle at top right, var(--accent-soft), transparent 26%),
+        radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.08), transparent 30%),
+        linear-gradient(135deg, #0d0d0d 0%, #111111 52%, #161616 100%);
+      border: 1px solid var(--line);
+      box-shadow: 0 26px 80px rgba(0, 0, 0, 0.5);
+    }
+
+    .footer-card .kicker {
+      color: var(--accent);
+    }
+
+    .footer-card h2 {
+      font-size: clamp(2rem, 3vw, 3.15rem);
+      max-width: none;
+      margin-bottom: 14px;
+    }
+
+    .footer-copy {
+      display: grid;
+      align-content: start;
+      gap: 0;
+    }
+
+    .footer-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(240px, 300px);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .footer-text {
+      display: grid;
+      align-content: start;
+    }
+
+    .footer-side {
+      display: grid;
+      align-content: stretch;
+    }
+
+    .footer-badge {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      min-height: 100%;
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+        radial-gradient(circle at top right, var(--accent-soft), transparent 45%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .footer-badge-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+    }
+
+    .footer-badge-title {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      line-height: 1.15;
+      color: var(--ink);
+    }
+
+    .footer-badge-copy {
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .footer-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 700;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .footer-action:hover {
+      transform: translateY(-2px);
+    }
+
+    .footer-action.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #111111;
+      border: 1px solid var(--line);
+    }
+
+    .footer-action.secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .source-note {
+      margin-top: 18px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .footer-card .muted,
+    .footer-card .source-note {
+      color: rgba(232, 224, 216, 0.72);
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .panel-head,
+      .diagram,
+      .footer-body {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-visual {
+        padding-top: 22px;
+      }
+
+      .flow-visual::before {
+        left: 30px;
+        right: 30px;
+      }
+
+      .flow-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .cards,
+      .roadmap-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100vw - 20px, 1120px);
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-card,
+      .panel,
+      .quote,
+      .roadmap,
+      .footer-card {
+        padding: 22px;
+      }
+
+      .metric-grid,
+      .cards,
+      .lede,
+      .roadmap-grid,
+      .flow-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .flow-visual::before {
+        display: none;
+      }
+
+      h1 {
+        font-size: clamp(2.4rem, 13vw, 4rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark"></span>
+        <span class="brand-text">SLOTH AGENT</span>
+      </div>
+      <div>Architecture Preview &bull; April 16, 2026 &bull; Product</div>
+    </header>
+
+    <section class="hero">
+      <article class="hero-card">
+        <div class="eyebrow">Introducing a Product-Grade Agent System</div>
+        <h1>Sloth Agent</h1>
+        <p class="subtitle">
+          一个面向中国开发者生态设计的 AI 开发执行系统。它的目标不是再做一个更会聊天的 coding assistant，
+          而是把 <strong>Plan → 开发 → 审查 → 部署</strong> 变成一条可控、可恢复、可审计的执行闭环。
+        </p>
+
+        <div class="lede">
+          <p>
+            今天的大多数 AI 编码体验，在“生成一段代码”时已经足够惊艳；但一旦任务跨越文件、命令、测试、审查与部署，
+            系统往往开始失去结构。Sloth Agent 的出发点很简单：<strong>不要把 agent 当作一次性回答器，而要把它当作持续执行的软件系统。</strong>
+          </p>
+          <p>
+            这也是为什么 Sloth Agent 把运行时内核、工具调用、技能注入、状态持久化、安全默认和质量门控视为同一问题的不同侧面。
+            真正可用的 agent，不只是“会做”，更要“做得稳、做得清楚、出了问题还能接着做”。
+          </p>
+        </div>
+      </article>
+
+      <aside class="hero-side">
+        <div class="hero-visual">
+          <svg viewBox="0 0 380 220" role="img" aria-label="Sloth Agent system illustration">
+            <defs>
+              <linearGradient id="heroStroke" x1="0" x2="1">
+                <stop offset="0%" stop-color="#F59E0B" />
+                <stop offset="50%" stop-color="#F97316" />
+                <stop offset="100%" stop-color="#F59E0B" />
+              </linearGradient>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <rect x="18" y="28" width="344" height="164" rx="28" fill="rgba(20,20,20,0.7)" stroke="rgba(255,255,255,0.06)"/>
+            <!-- Builder node -->
+            <circle cx="92" cy="108" r="38" fill="rgba(245,158,11,0.08)" stroke="url(#heroStroke)" stroke-width="2.5" filter="url(#glow)"/>
+            <text x="92" y="105" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#F59E0B">Builder</text>
+            <text x="92" y="120" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#8a8078">编码</text>
+            <!-- Reviewer node -->
+            <circle cx="190" cy="68" r="26" fill="rgba(245,158,11,0.06)" stroke="url(#heroStroke)" stroke-width="2" filter="url(#glow)"/>
+            <text x="190" y="65" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="10" font-weight="600" fill="#F59E0B">Reviewer</text>
+            <text x="190" y="78" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="8" fill="#8a8078">审查</text>
+            <!-- Deployer node -->
+            <circle cx="278" cy="110" r="32" fill="rgba(249,115,22,0.08)" stroke="url(#heroStroke)" stroke-width="2.2" filter="url(#glow)"/>
+            <text x="278" y="107" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#F97316">Deployer</text>
+            <text x="278" y="120" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#8a8078">部署</text>
+            <!-- Runner node -->
+            <rect x="148" y="136" width="86" height="40" rx="18" fill="rgba(26,26,26,0.85)" stroke="url(#heroStroke)" stroke-width="2"/>
+            <text x="191" y="160" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="10" font-weight="600" fill="#e8e0d8">Runner</text>
+            <!-- Connection lines -->
+            <path d="M130 94 C145 82, 160 76, 170 72" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+            <path d="M216 79 C234 84, 247 91, 255 98" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+            <path d="M110 130 C128 140, 142 146, 158 150" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+            <path d="M234 150 C248 144, 260 136, 268 126" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+          </svg>
+          <div class="hero-visual-copy">一条执行回路，把阶段 owner、工具调用与状态持久化串在同一个 runtime 里。</div>
+        </div>
+        <div class="metric-grid">
+          <div class="metric">
+            <div class="label">Runtime Kernel</div>
+            <div class="value">1 Runner</div>
+            <p class="desc">唯一执行内核推进同一个 run，避免多套状态循环与恢复混乱。</p>
+          </div>
+          <div class="metric">
+            <div class="label">System Posture</div>
+            <div class="value">Tool First</div>
+            <p class="desc">所有关键动作经由工具层执行并留下结构化记录，而不是隐式完成。</p>
+          </div>
+          <div class="metric featured">
+            <div class="label">North Star</div>
+            <div class="value">Plan → Ship</div>
+            <p class="desc">输入一份 plan，输出通过测试、经过审查、可部署的结果。</p>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <main>
+      <section class="panel alt">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">Why now</span>
+            <h2>问题不在于模型不够强，而在于执行系统还不够完整</h2>
+          </div>
+          <p>
+            许多 AI coding workflows 已经能写出看起来不错的代码，但它们在长链路任务上仍然容易碎裂：上下文膨胀、工具结果不可追踪、
+            审查和部署沦为手工补丁、错误恢复依赖“再试一次"。对真正的开发流程来说，这些都不是边角问题，而是系统边界本身。
+          </p>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-head">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4.93 4.93l14.14 14.14"/>
+                  <path d="M12 3c4.97 0 9 4.03 9 9 0 1.34-.3 2.6-.82 3.74"/>
+                  <path d="M12 21c-4.97 0-9-4.03-9-9 0-1.34.3-2.6.82-3.74"/>
+                  <path d="M21 12c0 4.97-4.03 9-9 9"/>
+                </svg>
+              </span>
+              <h3>能生成，不能稳定推进</h3>
+            </div>
+            <p>模型可以提出方案，却缺少一个可靠的执行内核来推进任务状态、处理中断、串联工具调用和质量门控。</p>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="2"/>
+                  <circle cx="19" cy="5" r="2"/>
+                  <circle cx="5" cy="19" r="2"/>
+                  <path d="M10.5 10.5L7.5 16"/>
+                  <path d="M13.5 13.5L16.5 7.5"/>
+                </svg>
+              </span>
+              <h3>能调用工具，不能解释系统</h3>
+            </div>
+            <p>文件读写、命令运行、补丁编辑、测试验证常常是分散的能力，缺少统一的审计视图和恢复语义。</p>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <span class="card-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 3l7 4v5c0 4.2-2.4 6.9-7 9-4.6-2.1-7-4.8-7-9V7l7-4z"/>
+                  <path d="m15 9-6 6"/>
+                  <path d="m9 9 6 6"/>
+                </svg>
+              </span>
+              <h3>能写代码，不能承担交付责任</h3>
+            </div>
+            <p>没有结构化交接、自动 gate 和回滚路径时，agent 仍然停留在"副驾驶"而非"执行系统"。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">Execution Harness</span>
+            <h2>Sloth Agent 先定义一条可靠的执行回路，再谈更大的多 agent 世界</h2>
+          </div>
+          <p>
+            Sloth Agent 的 v1.0 不从“8 个 agent 同时登场"开始，而是刻意收敛到一条更可控的主线：
+            输入一份已完成的 plan，由 Builder 负责解析、编码、调试和单元测试，再交给 Reviewer 做独立审查，最后由 Deployer 执行部署与验证。
+          </p>
+        </div>
+
+        <div class="diagram">
+          <pre><span style="color:#F59E0B;">$</span> plan
+  <span style="color:#8a8078;">→</span> Builder
+  <span style="color:#8a8078;">→</span> Gate 1   <span style="color:#22c55e;"># lint / type / test</span>
+  <span style="color:#8a8078;">→</span> Reviewer
+  <span style="color:#8a8078;">→</span> Gate 2   <span style="color:#22c55e;"># blocking issues / coverage</span>
+  <span style="color:#8a8078;">→</span> Deployer
+  <span style="color:#8a8078;">→</span> Gate 3   <span style="color:#22c55e;"># smoke test / rollback</span>
+  <span style="color:#8a8078;">→</span> <span style="color:#F59E0B;">Done ✓</span></pre>
+
+          <pre><span style="color:#F59E0B;">$</span> runtime
+  CLI / Daemon / Chat
+  <span style="color:#8a8078;">→</span> Product Orchestrator
+  <span style="color:#8a8078;">→</span> Runner
+      <span style="color:#8a8078;">│</span> prepare()
+      <span style="color:#8a8078;">│</span> think()
+      <span style="color:#8a8078;">│</span> resolve()
+      <span style="color:#8a8078;">│</span> persist()
+      <span style="color:#8a8078;">└</span> observe()</pre>
+        </div>
+
+        <div class="flow-visual">
+          <div class="flow-grid">
+            <div class="flow-node">
+              <div class="flow-top">
+                <div class="flow-dot"></div>
+                <div class="flow-step">01</div>
+              </div>
+              <div class="flow-panel">
+                <div class="flow-title">Prepare</div>
+                <div class="flow-copy">组装当前 owner、上下文、工具权限和状态快照。</div>
+              </div>
+            </div>
+            <div class="flow-node">
+              <div class="flow-top">
+                <div class="flow-dot"></div>
+                <div class="flow-step">02</div>
+              </div>
+              <div class="flow-panel">
+                <div class="flow-title">Think</div>
+                <div class="flow-copy">模型生成下一步动作，而不是直接把整条任务链压成一次回答。</div>
+              </div>
+            </div>
+            <div class="flow-node">
+              <div class="flow-top">
+                <div class="flow-dot"></div>
+                <div class="flow-step">03</div>
+              </div>
+              <div class="flow-panel">
+                <div class="flow-title">Resolve</div>
+                <div class="flow-copy">把结果归类为 tool、handoff、retry、interrupt 或 final output。</div>
+              </div>
+            </div>
+            <div class="flow-node">
+              <div class="flow-top">
+                <div class="flow-dot"></div>
+                <div class="flow-step">04</div>
+              </div>
+              <div class="flow-panel">
+                <div class="flow-title">Persist & Observe</div>
+                <div class="flow-copy">写回 run state、checkpoint、trace 与 gate 结果，保证可恢复和可审计。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inline-list" style="margin-top:18px;">
+          <div class="inline-item"><strong>单一 Runner 内核</strong>：`Product Orchestrator` 负责入口与恢复，`Runner` 才是唯一推进 run 的执行循环。</div>
+          <div class="inline-item"><strong>结构化 handoff</strong>：Builder 和 Reviewer、Reviewer 和 Deployer 之间传递的是确定性产物，而不是脆弱摘要。</div>
+          <div class="inline-item"><strong>自动门控</strong>：lint、type check、test、coverage、smoke test 都是系统的一部分，不是交付前的补充动作。</div>
+        </div>
+      </section>
+
+      <section class="quote">
+        <div class="quote-mark">“</div>
+        <div>
+          <p>真正的 agent 系统，不该只回答“接下来做什么"，还必须能够回答“现在做到哪一步了、为什么停在这里、如何安全地继续下去"。</p>
+          <p class="meta">这也是 Sloth Agent 把运行时、状态、工具和门控视为同一个产品问题的原因。</p>
+        </div>
+      </section>
+
+      <section class="panel alt">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">Infrastructure</span>
+            <h2>让 agent 真正可落地的，不是更多提示词，而是完整的基础设施约束</h2>
+          </div>
+          <p>
+            在 Sloth Agent 里，Tools、Skills、Memory、Context Window、Checkpoints 和 HallucinationGuard 不是彼此独立的卖点。
+            它们共同构成 agent 的可执行环境：模型能看到什么、能调用什么、调用结果怎样压缩、状态怎样恢复、错误怎样回退，全部需要统一定义。
+          </p>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M14 6 8 12l6 6"/><path d="M10 6l6 6-6 6"/></svg></span><h3>Tools</h3></div>
+            <p>以读写文件、运行命令、补丁编辑、搜索为核心能力，通过工具层执行动作并保留结构化结果，确保系统可审计、可回放。</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M6 5h12v14H6z"/><path d="M9 9h6"/><path d="M9 13h6"/></svg></span><h3>Skills</h3></div>
+            <p>通过 `SKILL.md` 注入针对任务的高阶行为模板，让模型获得渐进式能力，而不是把所有规则一次性塞进主提示词。</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M8 6V4h8v2"/><path d="M4 12h16"/></svg></span><h3>Memory</h3></div>
+            <p>以文件系统为第一真相源，优先保证简单、可读、可编辑，再向索引与语义层扩展，而不是一开始就把状态埋进黑盒服务。</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h7"/></svg></span><h3>Context Control</h3></div>
+            <p>Builder 负责最重的上下文负载，因此需要明确的窗口分区、规则压缩和输出预留，避免长任务在最关键时刻失焦。</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 5v7l4 2"/></svg></span><h3>Checkpoints</h3></div>
+            <p>状态持久化不是为了做日志归档，而是为了让 agent 在失败、中断、审批或环境变化后，仍然能够继续同一个 run。</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4.2-2.4 6.9-7 9-4.6-2.1-7-4.8-7-9V7l7-4z"/><path d="m9.5 12 1.8 1.8 3.2-3.6"/></svg></span><h3>Hallucination Guard</h3></div>
+            <p>路径白名单、命令黑名单、工具结果验证与运行时边界一起工作，把“模型猜测”尽可能限制在可见、可证、可拒绝的范围内。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <span class="kicker">Control Surface</span>
+            <h2>它追求的不是更像人，而是更像一个能被团队托付的系统</h2>
+          </div>
+          <p>
+            生产可用性的核心，不是让 agent 看起来“更聪明”，而是让团队能理解、校验、限制并恢复它的行为。Sloth Agent 的很多设计选择，
+            都是围绕这个控制面展开的。
+          </p>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <h3>安全默认</h3>
+            <p>先假设 prompt injection、误操作和越权调用会发生，再通过白名单、黑名单、边界隔离和审计来缩小破坏面。</p>
+          </div>
+          <div class="card">
+            <h3>文件系统即真相</h3>
+            <p>运行状态、检查点、任务产物优先以普通文件存在，让人可以直接查看、修复和理解，而不是依赖不可见状态机。</p>
+          </div>
+          <div class="card">
+            <h3>阶段级模型路由</h3>
+            <p>编码、调试、审查并不一定适合同一个模型。Sloth Agent 直接把“不同阶段用不同模型”视为系统设计，而不是调参细节。</p>
+          </div>
+          <div class="card">
+            <h3>质量门控</h3>
+            <p>审查不是装饰，部署也不是最后补一刀。lint、coverage、smoke test 都被建模为执行流中的硬边界。</p>
+          </div>
+          <div class="card">
+            <h3>成本意识</h3>
+            <p>从上下文窗口到多 provider 路由，系统设计默认考虑 token 与工具成本，而不是把代价隐藏在“更强模型”的背后。</p>
+          </div>
+          <div class="card">
+            <h3>可恢复性</h3>
+            <p>同一个 run 可以因为 gate failure、tool approval、resume 或环境变化而暂停，但不应该因为这些事件被重新拼装成新任务。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="roadmap">
+        <span class="kicker">Roadmap</span>
+        <h2>Sloth Agent 的路线图，从可用闭环开始，而不是从宏大愿景开始</h2>
+        <div class="roadmap-grid">
+          <div class="roadmap-step">
+            <div class="version">v1.0</div>
+            <div class="state">Planned</div>
+            <ul>
+              <li>3-Agent 自主流水线</li>
+              <li>Tools + Memory + Skill Loading</li>
+              <li>自动门控与结构化交接</li>
+              <li>1-2 个模型提供方</li>
+            </ul>
+          </div>
+          <div class="roadmap-step">
+            <div class="version">v1.1</div>
+            <div class="state">Planned</div>
+            <ul>
+              <li>Chat Mode 基础</li>
+              <li>多 Provider fallback</li>
+              <li>成本跟踪</li>
+              <li>更强的上下文管理</li>
+            </ul>
+          </div>
+          <div class="roadmap-step">
+            <div class="version">v1.2</div>
+            <div class="state">Planned</div>
+            <ul>
+              <li>按需拆分 Planner / Debugger</li>
+              <li>基础 observability</li>
+              <li>更完善的恢复能力</li>
+              <li>checkpoint 增强</li>
+            </ul>
+          </div>
+          <div class="roadmap-step">
+            <div class="version">v2.0+</div>
+            <div class="state">Long-term</div>
+            <ul>
+              <li>8+1 Agent 完整架构</li>
+              <li>事件系统与消息总线</li>
+              <li>知识库与语义检索</li>
+              <li>Daemon、审批、并行协调</li>
+            </ul>
+          </div>
+        </div>
+        <p class="source-note">这条路线图强调一个非常明确的选择：先把最小的执行闭环做对，再逐步扩成完整的 agent 平台。</p>
+      </section>
+
+      <section class="footer-card">
+        <div class="footer-copy">
+          <span class="kicker">Closing</span>
+          <h2>Sloth Agent 想构建的，不是另一种“更会回答”的助手，而是一套更值得托付的软件执行系统。</h2>
+          <div class="footer-body">
+            <div class="footer-text">
+              <p class="muted">
+                它从 Builder、Reviewer、Deployer 这条最朴素的链路出发，把运行时内核、工具系统、记忆结构、安全边界和恢复能力压进同一条设计主线里。
+                如果说下一代 agent 产品的竞争，不再只是模型能力本身，而是谁能把 agent 带入更长、更真实、更可控的工作链路，
+                那么 Sloth Agent 的答案，就是先把执行系统搭起来。
+              </p>
+              <div class="footer-actions">
+                <a class="footer-action primary" href="../specs/00000000-architecture-overview.md">Read the canonical architecture</a>
+                <a class="footer-action secondary" href="../../TODO.md">Track current build priorities</a>
+              </div>
+              <p class="source-note">Source of truth: canonical architecture overview, dated 2026-04-16.</p>
+            </div>
+            <div class="footer-side">
+              <div class="footer-badge">
+                <div class="footer-badge-label">Execution Loop</div>
+                <div class="footer-badge-title">Plan → Build → Review → Deploy</div>
+                <div class="footer-badge-copy">不是一次回答的链式延长，而是一条带有门控、恢复与状态真相源的执行路径。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  const progress = document.getElementById('progress');
+  const updateProgress = () => {
+    const scrollTop = window.scrollY;
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+    progress.style.transform = `scaleX(${Math.min(1, Math.max(0, ratio))})`;
+  };
+
+  updateProgress();
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  window.addEventListener('resize', updateProgress);
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    },
+    { threshold: 0.1 }
+  );
+
+  document.querySelectorAll('.panel, .quote, .roadmap, .footer-card').forEach((el) => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>
