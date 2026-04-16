@@ -19,7 +19,15 @@
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
       "Bash(git push:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(bash start-server.sh --project-dir \"C:/Users/TUF/Workspace/agent-evolve\")",
+      "Bash(cat \"C:/Users/TUF/Workspace/agent-evolve/.superpowers/brainstorm/\"*/server-info)",
+      "Bash(node *)",
+      "WebFetch(domain:getdesign.md)",
+      "Bash(python *)",
+      "Bash(npx serve *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8899/20260416-introducing-sloth-agent.html)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

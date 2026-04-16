@@ -33,6 +33,20 @@
 └──────────────────────────────────────────────────────────────┘
 ```
 
+### 1.1 Runtime 语义补充
+
+Phase-Role-Architecture 是业务编排层，不是底层执行循环。
+
+系统运行时遵循以下约束：
+
+1. 顶层只有一个 `Runner` 执行循环
+2. `current_phase` 与 `current_agent` 只是 `RunState` 的当前所有权指针
+3. Phase 切换 = `phase_handoff`，代表控制权转移
+4. Skill 调用 = `skill-as-tool`，默认不转移控制权
+5. gate failure / approval / resume 仍属于同一个 run，而不是新任务
+
+换言之，Phase 用来定义“谁负责什么”，Runner 用来定义“系统怎么继续跑”。
+
 ---
 
 ## 2. Phase 定义
@@ -68,6 +82,30 @@ class Phase:
     # 场景
     scenarios: list[str]       # 属于哪些 Scenario
 ```
+
+### 2.1.1 Phase Ownership Contract
+
+每个 Phase 除了输入输出和技能集合，还必须回答一个运行时问题：
+
+**当前 Phase 是否拥有下一轮执行权？何时把执行权交给后续 Phase？**
+
+因此，Phase 的运行时合同补充如下：
+
+```python
+@dataclass
+class PhaseOwnershipContract:
+    phase_id: str
+    owner_agent_id: str
+    handoff_on: list[str]          # 哪些条件满足后触发 phase_handoff
+    retains_control_for_skills: bool = True
+    requires_structured_output: bool = True
+```
+
+默认规则：
+
+- Phase 内技能调用不转移控制权
+- 只有进入后续 Phase 时才触发 `phase_handoff`
+- handoff 必须携带结构化输出合同，不能只传自由文本摘要
 
 ### 2.2 完整 Phase 定义
 
@@ -215,6 +253,40 @@ class Agent:
     llm_config: LLMConfig      # LLM 配置
     description: str           # 角色描述
 ```
+
+### 3.1.1 Agent 的两种协作方式
+
+在 Phase-Role-Architecture 中，Agent 协作必须区分两种语义：
+
+#### 1. Phase handoff
+
+适用场景：
+
+- 从 `planner` 进入 `engineer`
+- 从 `engineer` 进入 `reviewer`
+- 从 `reviewer` 进入 `qa-engineer`
+
+语义：
+
+- 控制权转移
+- `current_phase` 和 `current_agent` 更新
+- 下一个 turn 默认由新 owner 负责
+
+#### 2. Skill-as-tool
+
+适用场景：
+
+- `engineer` 在编码阶段触发 `codex` 做 second opinion
+- `debugger` 调用 `investigate` 或 `browse`
+- `reviewer` 调用 `verification-before-completion`
+
+语义：
+
+- 当前 phase owner 不变
+- 调用结果作为受限能力输出回流到当前 phase
+- 不创建新的 phase，不接管下一轮执行权
+
+这一区分是必要的，否则系统会把所有 skill 调用误建模成 agent takeover，导致上下文和控制权混乱。
 
 ### 3.2 Agent 列表
 
@@ -366,6 +438,48 @@ class ScenarioValidator:
         return len(errors) == 0, errors
 ```
 
+### 5.4 Structured Handoff Contract
+
+Scenario 验证不能只检查 schema 名字相等，还必须检查 phase 交接合同是否完整。
+
+```python
+@dataclass
+class PhaseHandoffContract:
+    from_phase: str
+    to_phase: str
+    decisions: list[str]            # 本 phase 做出的关键决策
+    artifacts: list[str]            # 产物引用（文件、报告、diff、测试结果）
+    open_questions: list[str]       # 留给后续 phase 的未决问题
+    gate_snapshot: dict             # 当前 gate 通过/失败快照
+    next_phase_payload: dict        # 下一 phase 必需结构化输入
+```
+
+最低要求：
+
+- `planner -> engineer` 必须交付可执行计划、约束、开放问题
+- `engineer -> reviewer` 必须交付代码变更、测试结果、已知风险
+- `reviewer -> qa-engineer` 必须交付阻塞问题状态、验证建议、审查结论
+- `release-engineer -> sre` 必须交付部署产物、版本标识、回滚信息、smoke 结果
+
+这条规则直接替代“自由文本摘要即可”的弱交接方式。
+
+### 5.5 Runtime State 映射
+
+Phase-Role-Architecture 在运行时映射到统一 `RunState`：
+
+```python
+@dataclass
+class PhaseRuntimeView:
+    scenario_id: str
+    current_phase: str
+    current_agent: str
+    completed_phases: list[str]
+    pending_phases: list[str]
+    latest_handoff: PhaseHandoffContract | None
+```
+
+它不是独立状态源，而是 `RunState` 的一个投影视图。系统真相源仍然是 runtime kernel 维护的 `RunState`。
+
 ---
 
 ## 6. Memory 设计
@@ -442,6 +556,43 @@ class WorkflowEngine:
         
         return ScenarioResult(scenario_id, memory)
 ```
+
+### 7.1.1 与统一 Runner 的关系
+
+上面的 `WorkflowEngine` 负责场景编排，但不应直接拥有底层执行循环。优化后的职责边界应为：
+
+- `WorkflowEngine` 选择 Scenario、决定入口 Phase、维护业务级 phase 顺序
+- `Runner` 执行单个 run loop，负责 tool call、handoff、retry、resume、interruptions
+- `WorkflowEngine` 通过 `Runner.run(state)` 推进 phase，而不是直接调用 `agent.execute(...)`
+
+推荐的调用关系：
+
+```python
+class WorkflowEngine:
+    def execute(self, scenario_id: str, input_data: dict) -> ScenarioResult:
+        state = self.run_state_store.create_from_scenario(scenario_id, input_data)
+
+        while not state.is_finished:
+            result = self.runner.run(state)
+            state = result.state
+
+            if state.pending_interruptions:
+                return ScenarioResult.paused(state)
+
+        return ScenarioResult.completed(state)
+```
+
+### 7.1.2 Gate failure 不再视为普通异常
+
+在 Phase-Role-Architecture 中，gate failure 必须直接映射到 runtime `NextStep`：
+
+- gate pass -> `phase_handoff` 或 `final_output`
+- gate fail + 可微调 -> `retry_same`
+- gate fail + 需换方案 -> `retry_different`
+- gate fail + 计划失真 -> `replan`
+- gate fail + 无法恢复 -> `abort`
+
+这样，Phase 语义就能与 runtime 状态机对齐，而不是停留在文档级别的流程图。
 
 ### 7.2 Gate 验证
 

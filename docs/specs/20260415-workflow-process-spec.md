@@ -9,6 +9,7 @@
 ## 0. 开发流程规范：Spec → Plan → Todo → Execute
 
 > **核心原则：先想清楚，再动手。不写 spec 不写 plan 不写代码。**
+> **强制规则：Spec 必须先确认，Plan 必须后确认，TODO 必须与 Plan 一一对应，执行时只能从 TODO 中选择最高优先级任务。**
 
 ### 0.1 三步流程
 
@@ -23,9 +24,18 @@
 | 步骤 | 文件位置 | 内容 | 谁写 | 审批 |
 |------|---------|------|------|------|
 | 1. Spec | `docs/specs/YYYYMMDD-feature-spec.md` | 需求分析、架构设计、模块定义、接口约定 | Agent 起草，Human 确认 | Human 审批 |
-| 2. Plan | `docs/plans/YYYYMMDD-feature-plan.md` | 任务拆解、文件路径、代码片段、测试用例、命令 | Agent 基于 Spec 生成 | Human 审批 |
-| 3. Todo | `TODO.md` | 可追踪的任务清单（含依赖、状态） | Agent 自动记录 | — |
-| 4. Execute | 代码+测试 | TDD 红绿循环，逐任务执行 | Agent | 自动验证 |
+| 2. Plan | `docs/plans/YYYYMMDD-feature-implementation-plan.md` | 任务拆解、优先级、文件路径、测试用例、验证命令 | Agent 基于 Spec 生成 | Human 审批 |
+| 3. Todo | `TODO.md` | 来自 Plan 的高优先级任务清单，逐项映射 | Agent 自动记录 | — |
+| 4. Execute | 代码+测试 | 仅按 TODO 当前最高优先级任务执行 | Agent | 自动验证 |
+
+### 0.1 强制约束
+
+1. **先 Spec，后 Plan**：任何功能开发、需求开发、架构变更，都必须先有 spec；spec 未确认前，禁止写 implementation plan 或开始实现。
+2. **Plan 必须带优先级**：implementation plan 中的任务必须带明确优先级（至少 P0 / P1 / P2，或等价排序）。
+3. **TODO 与 Plan 一一对应**：`TODO.md` 中每一项都必须能映射到 implementation plan 中的某一项任务，不能凭空新增执行项。
+4. **TODO 默认只记录高优先级任务**：若无特别说明，`TODO.md` 只提升和维护 implementation plan 中当前高优先级任务。
+5. **执行只看 TODO 最高优先级项**：开始实现时，必须先从 `TODO.md` 选择当前最高优先级任务，再回到对应 implementation plan 查看该任务的详细执行要求。
+6. **未建映射不得执行**：如果 plan 与 `TODO.md` 尚未建立一一对应关系，必须先补文档映射，再开始编码。
 
 ### 0.2 Spec 规格
 
@@ -36,12 +46,13 @@
 
 **触发时机：** 用户提出新功能需求时
 
-**审批：** 用户确认 spec 后，才能进入下一步
+**审批：** 用户确认 spec 后，才能进入下一步；未确认前不得进入 implementation plan
 
 ### 0.3 Plan 计划
 
 **包含内容：**
 - 任务拆解（每个任务 2-5 分钟）
+- 任务优先级（P0 / P1 / P2 或明确顺序）
 - 具体文件路径、代码片段
 - 测试用例设计
 - 验证命令
@@ -49,25 +60,49 @@
 
 **触发时机：** Spec 审批通过后
 
-**审批：** 用户确认 plan 后，才能开始执行
+**审批：** 用户确认 plan 后，才能更新 `TODO.md` 并开始执行
+
+**强制要求：**
+- implementation plan 中每个可执行任务必须具备唯一任务名或编号
+- 这些任务名/编号必须被 `TODO.md` 引用，用于建立一一对应关系
 
 ### 0.4 Todo 记录
 
 **触发时机：** Plan 审批通过后
 
 **内容：**
-- 将 plan 中的任务记录到 `TODO.md`
+- 将 implementation plan 中的任务同步到 `TODO.md`
+- 默认只记录当前高优先级任务
+- 每个 TODO 项必须能回溯到 plan 中的唯一任务
 - 标注依赖关系和优先级
+
+**记录规则：**
+- `TODO.md` 不是独立计划文件，而是 implementation plan 的执行视图
+- 若 plan 优先级发生变化，必须先更新 plan，再同步更新 `TODO.md`
+- 若 TODO 项无法对应到 plan，则该项无效，不得执行
 
 ### 0.5 适用范围
 
 - 新功能开发
 - 架构变更
 - 复杂 bug 修复
+- 需求重构或多步骤增强
 
 **不适用于：**
 - 单行修复（typo、格式）
 - 文档补充（已有结构的 README 更新）
+
+### 0.6 Execute 执行选择规则
+
+开始执行任何任务前，按以下顺序检查：
+
+1. 是否已有已确认 spec
+2. 是否已有已确认 implementation plan
+3. `TODO.md` 是否已与 plan 建立一一对应
+4. 当前准备执行的是否为 `TODO.md` 中最高优先级任务
+5. 是否已回看该任务在 implementation plan 中的详细说明
+
+只要以上任一项不满足，就先补文档，不进入代码实现。
 
 ---
 

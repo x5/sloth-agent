@@ -22,7 +22,7 @@
 ## 2. 架构总览
 
 ```
-Phase/Skill/Chat
+Runner / Phase / Skill / Chat
     │
     ▼
 ┌──────────────────────────────────────────┐
@@ -38,6 +38,25 @@ Phase/Skill/Chat
                ▼
          ToolRegistry  （已有注册表）
 ```
+
+### 2.1 与 Runtime Kernel 的集成关系
+
+`ToolOrchestrator` 不是独立流程，而是 `Runner.resolve_next_step()` 的一个分支执行器。
+
+推荐调用关系：
+
+```python
+class Runner:
+    def resolve_next_step(self, state: RunState, next_step: NextStep) -> None:
+        if next_step.type == "tool_call":
+            self.tool_orchestrator.execute(state, next_step.request)
+```
+
+因此，工具层必须遵循三条约束：
+
+1. 工具结果必须写回 `RunState.tool_history`
+2. 高风险工具审批必须返回 `interruption`，而不是直接抛异常结束任务
+3. 工具执行失败必须转译成结构化结果，让 runtime 决定是 retry、replan 还是 abort
 
 ---
 
@@ -359,8 +378,21 @@ class ToolOrchestrator:
         self.formatter = ResultFormatter()
         self.call_history: list[dict] = []
 
+    def execute(self, state: RunState, request: ToolCallRequest) -> ToolResult | Interruption:
+        """由 Runner 调用的工具执行入口。"""
+        decision = self.risk_gate.evaluate(request)
+        if not decision.approved:
+            interruption = Interruption.from_risk_decision(decision, request)
+            state.pending_interruptions.append(interruption)
+            return interruption
+
+        result = self.executor.execute(request)
+        state.tool_history.append(ToolExecutionRecord.from_result(request, result))
+        self.call_history.append(self.formatter.for_log(result))
+        return result
+
     def invoke(self, intent: str) -> ToolResult:
-        """同步调用链。"""
+        """兼容入口：供简单脚本或单元测试直接调用。"""
         # 1. 意图解析
         request = self.intent_resolver.resolve(intent)
         if not request:
@@ -413,6 +445,75 @@ class ToolOrchestrator:
             return f"{intent}\n[Previous output: {context['last_output'][:500]}]"
         return intent
 ```
+
+### 5.1 Tool Execution Record
+
+工具调用后，最小写回记录应为：
+
+```python
+@dataclass
+class ToolExecutionRecord:
+    tool_name: str
+    request_params: dict
+    success: bool
+    output_summary: str | None
+    error: str | None
+    duration_ms: int
+    approved_by: str | None = None
+    interruption_id: str | None = None
+```
+
+这份记录进入 `RunState.tool_history`，供后续：
+
+- LLM 下一轮思考
+- reflection 分析
+- 审计与 observability
+- Tool-Use 学习
+
+### 5.2 审批暂停与恢复语义
+
+高风险工具调用不应被建模成“执行失败”，而应被建模成“当前 run 暂停”。
+
+```python
+@dataclass
+class Interruption:
+    id: str
+    type: Literal["tool_approval"]
+    tool_name: str
+    request_params: dict
+    reason: str
+```
+
+生命周期：
+
+1. `Runner` 收到 `tool_call`
+2. `ToolOrchestrator` 调用 `RiskGate`
+3. 若需审批，返回 `Interruption`
+4. `RunState.pending_interruptions` 写入该中断
+5. 外部系统批准/拒绝后，从原 `RunState` 恢复执行
+
+恢复原则：
+
+- 恢复的是同一个 run，不是新任务
+- 不能重新生成新的 tool request 覆盖旧请求
+- 审批记录必须进入 `ToolExecutionRecord.approved_by`
+
+### 5.3 链式与并行调用的运行时约束
+
+`invoke_parallel()` 与 `invoke_chain()` 只有在 runtime 合同允许时才能使用：
+
+#### 并行调用
+
+- 仅允许无写写冲突、无顺序依赖、无共享可变状态的工具组合
+- 若任一工具需要审批，整个并行批次必须拆分成可恢复子批次
+
+#### 链式调用
+
+- 每一步结果都必须写回 `RunState`
+- 任一步失败都必须显式交给 runtime 决定：继续、重试、重规划、终止
+- 不允许把链式失败静默吞掉后继续构造下一步请求
+
+因此，更推荐的做法是由 `Runner` 规划链式/并行策略，`ToolOrchestrator` 只负责执行。
 
 ---
 

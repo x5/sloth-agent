@@ -4,6 +4,8 @@
 > 日期: 2026-04-16
 > 状态: 草案
 
+> 规范状态说明：本文件是唯一 canonical architecture spec。此前 `archive/20260416-architecture-v2.md` 中已采纳的运行时内核设计已合并入本文件；该文档后续仅作为归档/导读，不再承载独立规范。
+
 ---
 
 ## 1. 产品定位
@@ -99,6 +101,32 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
              │ HookManager (lifecycle hooks) │
              └──────────────────────────────┘
 ```
+
+          #### 3.1.1 Runtime Kernel：产品入口与执行内核分离
+
+          v1.0 虽然采用 3-Agent 串行流水线，但运行时层面不应理解为“3 个 Agent 各自拥有独立循环”。顶层必须只有一个执行内核。
+
+          ```
+          CLI / Daemon / Chat
+            │
+            ▼
+          Product Orchestrator（产品层入口）
+            │
+            ▼
+          Runner（唯一运行时内核）
+            │
+            ├── prepare()   组装 active agent / phase / context
+            ├── think()     调模型得到 next step
+            ├── resolve()   final / tool / handoff / retry / interrupt
+            ├── persist()   写回 RunState / session / memory
+            └── observe()   hooks / tracing / gate / reflection
+          ```
+
+          边界规则：
+          - `Product Orchestrator` 只负责模式入口、创建/恢复 `RunState`、调用 `Runner.run(...)`
+          - `Runner` 是唯一执行循环，推进同一个 run 直到完成、中断或终止
+          - `current_agent`、`current_phase` 只是 `RunState` 中的当前所有权指针，而不是独立真相源
+          - gate failure、tool approval、resume 都发生在同一个 run 内，而不是被重新拼装成新任务
 
 ### 3.2 远期架构（v2.0+）
 
@@ -265,6 +293,44 @@ class ReviewerOutput(BaseModel):
     suggestions: list[str]         # 非阻塞建议
 ```
 
+#### 5.1.1.1 Ownership Contract：handoff 与 skill-as-tool 必须区分
+
+Agent 协作必须区分两种不同语义：
+
+1. `phase_handoff`
+当前阶段结束，控制权正式转移给下一个 owner。`current_agent` 与 `current_phase` 更新，下一轮执行默认由新的 owner 接管。
+
+2. `skill-as-tool`
+当前 owner 调用一个受限能力来辅助决策或执行，但控制权不转移。返回值进入当前 agent 的上下文，继续由当前 owner 决定下一步。
+
+在 v1.0 的 3-Agent 架构里：
+- Builder → Reviewer = `phase_handoff`
+- Reviewer → Deployer = `phase_handoff`
+- Builder 内调用 investigate / browse / codex 类能力 = `skill-as-tool`
+
+#### 5.1.1.2 Runtime NextStep 协议
+
+为了让 reflection、gate、approval、phase transition 共用一套语义，运行时统一使用 `NextStep` 协议：
+
+```python
+class NextStep(BaseModel):
+  type: Literal[
+    "final_output",
+    "tool_call",
+    "phase_handoff",
+    "retry_same",
+    "retry_different",
+    "replan",
+    "interruption",
+    "abort",
+  ]
+  output: str | None = None
+  request: ToolRequest | None = None
+  next_agent: str | None = None
+  next_phase: str | None = None
+  reason: str | None = None
+```
+
 #### 5.1.2 Builder 内部上下文管理
 
 Builder 是最重的 Agent，内部采用滑动窗口 + 压缩策略：
@@ -349,6 +415,39 @@ class ContextWindowManager:
                 fitted.append(summary)
                 budget -= count_tokens(summary)
         return fitted, budget
+
+      #### 5.1.3 Context Boundary：模型上下文、运行时上下文、持久化状态必须分层
+
+      上下文分层是 v1.0 避免 prompt 污染和恢复混乱的关键约束：
+
+      ```python
+      class ModelVisibleContext(BaseModel):
+        history: list[MessageItem]
+        retrieved_memory: list[str]
+        current_task: str | None
+        handoff_payload: dict | None
+
+      @dataclass
+      class RuntimeOnlyContext:
+        config: Config
+        tool_registry: ToolRegistry
+        skill_registry: SkillRegistry
+        logger: Logger
+        budget_tracker: BudgetTracker
+        workspace_handle: WorkspaceHandle
+        secrets: SecretStore
+
+      @dataclass
+      class PersistedRunState:
+        run_state: RunState
+        snapshots: list[str]
+        session_refs: list[str]
+      ```
+
+      规则：
+      - 只有 `ModelVisibleContext` 能进入 prompt
+      - `RuntimeOnlyContext` 只供代码与工具层使用，不直接发给模型
+      - `PersistedRunState` 用于恢复、审计、回放，不等价于对话历史
 
     @staticmethod
     def _compress_tool_result(result: ToolResult) -> str:
@@ -766,18 +865,18 @@ Speculative Execution (best-of-N):
 ```
 Phase N 完成 → Phase N+1 开始：
 
-1. 生成摘要（ContextSummarizer）
-   从 Phase N 的 output.json + chat.jsonl 提取关键信息
+1. 生成结构化交接物（Handoff Contract）
+  从 Phase N 的 output.json + gate 结果 + artifacts 提取确定性数据
 
-2. 保存摘要
-   追加到 session context.json
+2. 保存交接物
+  追加到 session context.json，并保留 output.json 作为真相源
 
 3. 创建 Phase N+1 目录
    scenarios/{scenario}/phase-N+1/
 
 4. 构建系统提示
    ├── Phase N+1 角色定义
-   ├── 前序摘要（从 context.json 读取）
+  ├── 前序结构化交接物（从 context.json 读取）
    └── Phase N+1 可用技能列表
 
 5. 执行 Phase N+1
@@ -785,9 +884,14 @@ Phase N 完成 → Phase N+1 开始：
 
 三层信息保证：
 ├── 完整层：所有原始对话在 chat.jsonl（永不丢失）
-├── 摘要层：context.json 供 LLM 快速理解
+├── 交接层：context.json 中的 handoff contract 供下游 Phase 快速理解
 └── 结构层：output.json 供后续 Phase 结构化使用
 ```
+
+补充约束：
+- 下游 Phase 不得只依赖自由文本摘要开始执行
+- `planner -> engineer`、`engineer -> reviewer`、`reviewer -> deployer` 的交接必须包含结构化 payload
+- 摘要可以存在，但只能作为辅助理解层，不能替代 handoff contract
 
 ---
 
@@ -821,6 +925,22 @@ Plugin 架构:
 ├── Level 4: 执行命令（run_command）— 黑名单检查 + 资源限制
 └── Level 5: 高危操作（git push --force 等）— 必须人工审批
 ```
+
+#### 7.1.0 与 Runner 的集成关系
+
+`ToolOrchestrator` 不是独立流程，而是 `Runner.resolve_next_step()` 的一个分支执行器：
+
+```python
+class Runner:
+  def resolve_next_step(self, state: RunState, next_step: NextStep) -> None:
+    if next_step.type == "tool_call":
+      result = self.tool_orchestrator.execute(state, next_step.request)
+```
+
+因此工具层必须满足三条运行时约束：
+1. 工具结果必须写回 `RunState.tool_history`
+2. 审批型工具必须返回 `interruption`，而不是直接用异常中止整个任务
+3. 工具失败必须被结构化记录，让 runtime 决定是 retry、replan 还是 abort
 
 #### 7.1.1 Code Understanding 深度集成（v1.0）
 
@@ -929,6 +1049,38 @@ RejectedCall 处理:
 ├── 连续 3 次 rejected → 触发 Reflection
 └── 所有 rejection 记录到 tool_stats.jsonl（供 Tool-Use Learning 分析）
 ```
+
+#### 7.1.4 Tool Approval / Interruption / Resume
+
+高风险工具调用不应被建模成“执行失败”，而应被建模成“当前 run 暂停”。
+
+```python
+@dataclass
+class Interruption:
+  id: str
+  type: Literal["tool_approval"]
+  tool_name: str
+  request_params: dict
+  reason: str
+
+@dataclass
+class ToolExecutionRecord:
+  tool_name: str
+  request_params: dict
+  success: bool
+  output_summary: str | None
+  error: str | None
+  duration_ms: int
+  approved_by: str | None = None
+  interruption_id: str | None = None
+```
+
+生命周期：
+1. `Runner` 收到 `tool_call`
+2. `ToolOrchestrator` 调用 `RiskGate`
+3. 若需审批，返回 `Interruption`
+4. `RunState.pending_interruptions` 写入该中断
+5. 外部系统批准/拒绝后，从原 `RunState` 恢复执行
 
 ### 7.2 记忆层（Memory）
 
@@ -1043,10 +1195,33 @@ class HookManager:
     def emit(self, event: str, data: Any): ...
 
 # 内置 hook 点:
-# - "stage.pre"  / "stage.post"   — 阶段执行前后
-# - "gate.pass"  / "gate.fail"    — 自动门禁结果
+# - "run.start" / "run.end"       — run 生命周期
+# - "phase.start" / "phase.end"   — 当前 owner/phase 生命周期
+# - "model.start" / "model.end"   — 模型调用前后
+# - "tool.start" / "tool.end"     — 工具调用前后
+# - "handoff"                      — ownership transfer
+# - "gate.pass" / "gate.fail"     — 自动门禁结果
+# - "reflection"                   — 结构化反思产出
+# - "resume"                       — interruption 恢复
 # - "budget.warn" / "budget.over" — 预算警告/超支
 ```
+
+v1.x tracing 的最小粒度应覆盖：run、turn、model call、tool call、handoff、gate failure、interruption / resume。Hook 与 tracing 都是 runtime 的观察面，不应侵入业务执行逻辑。
+
+#### 7.4.1 Continuation：恢复优先依赖自有 RunState
+
+系统允许多种 continuation 来源，但 `RunState` 始终是第一真相源：
+
+```python
+class ContinuationState(BaseModel):
+  session_id: str | None = None
+  snapshot_id: str | None = None
+  provider_name: str | None = None
+  provider_token: str | None = None
+  daemon_thread_id: str | None = None
+```
+
+其中 provider token 只是优化层，不能成为系统规范中的真相源。
 
 #### v2.0 — 完整事件总线（远期需求）
 
@@ -1878,7 +2053,7 @@ sloth eval --compare        # 对比最近两次 eval 结果
 | 18 | Sandbox Security | `20260416-sandbox-security-spec.md` | 已记录 |
 | 19 | Installation | `20260416-installation-onboarding-spec.md` | 已记录 |
 | 20 | Feishu Integration | `20260416-feishu-integration-spec.md` | 待审批 |
-| 21 | Architecture v2 | `20260416-architecture-v2.md` | 参考 |
+| 21 | Architecture v2 | `archive/20260416-architecture-v2.md` | 已合并归档 |
 
 ---
 
@@ -1907,6 +2082,8 @@ sloth eval --compare        # 对比最近两次 eval 结果
 | 核心场景 | **Plan → 全自主开发到部署** | 昼夜双模 + 对话模式 | v1.0 聚焦一个场景做到极致 |
 | 存储引擎 | **纯文件系统** | FS + SQLite + ChromaDB | v1.0 不需要索引和向量检索 |
 | 事件系统 | **无**（Agent 串行调用） | Pub-Sub 事件总线 | v1.0 是 3 Agent 串行流水线，不需要事件解耦 |
+| 运行时内核 | **单 Runner + RunState** | 单 Runner + 更丰富的 owner/continuation | 避免控制流散落在多个组件中 |
+| 恢复真相源 | **RunState / checkpoint** | RunState + session + provider 优化 | provider continuation 不能成为唯一真相源 |
 | 会话格式 | jsonl（每行一条 JSON） | jsonl | 流式写入、不丢失、易追加 |
 | 技能格式 | Claude Code SKILL.md | SKILL.md | 自然兼容、开源生态可复用 |
 | CLI 框架 | typer | typer | 与现有 pydantic 自然集成 |

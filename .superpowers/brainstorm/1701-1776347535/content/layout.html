@@ -1,0 +1,63 @@
+<h2>选择页面布局结构</h2>
+<p class="subtitle">暗色+琥珀的基础上，整体排版偏好哪种节奏感？</p>
+
+<div class="cards">
+  <div class="card" data-choice="layout1" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="height:200px; border-radius:10px; background:#111; padding:16px; display:flex; gap:12px;">
+        <div style="flex:1.2; display:flex; flex-direction:column; gap:8px;">
+          <div style="height:24px; width:60%; background:#f59e0b; border-radius:4px; opacity:0.7;"></div>
+          <div style="height:32px; width:80%; background:#333; border-radius:4px;"></div>
+          <div style="height:12px; width:100%; background:#222; border-radius:3px;"></div>
+          <div style="height:12px; width:90%; background:#222; border-radius:3px;"></div>
+          <div style="height:12px; width:70%; background:#222; border-radius:3px;"></div>
+          <div style="margin-top:auto; height:60px; background:#1a1a1a; border:1px solid #333; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Diagram Area</div>
+        </div>
+        <div style="flex:0.8; display:flex; flex-direction:column; gap:8px;">
+          <div style="height:40px; background:#1a1a1a; border:1px solid #333; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Card</div>
+          <div style="height:40px; background:#1a1a1a; border:1px solid #333; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Card</div>
+          <div style="height:40px; background:#1a1a1a; border:1px solid #333; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Card</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>紧凑信息密度</h3>
+      <p>双栏 Hero + 多卡片网格 + 紧凑间距。信息量大，适合深度阅读的技术受众。类似 Linear/Notion 发布页。</p>
+    </div>
+  </div>
+  <div class="card" data-choice="layout2" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="height:200px; border-radius:10px; background:#111; padding:16px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+        <div style="height:24px; width:30%; background:#f59e0b; border-radius:4px; opacity:0.7;"></div>
+        <div style="height:40px; width:50%; background:#333; border-radius:4px;"></div>
+        <div style="height:12px; width:40%; background:#222; border-radius:3px;"></div>
+        <div style="height:12px; width:35%; background:#222; border-radius:3px;"></div>
+        <div style="height:80px; width:80%; background:#1a1a1a; border:1px solid #333; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Large Diagram / Visual</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>单栏大留白</h3>
+      <p>居中单栏 + 大标题 + 大量留白 + 每屏聚焦一个概念。更有气势，节奏感强。类似 Apple/Vercel 产品页。</p>
+    </div>
+  </div>
+  <div class="card" data-choice="layout3" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="height:200px; border-radius:10px; background:#111; padding:16px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; gap:10px; align-items:end;">
+          <div style="height:24px; width:25%; background:#f59e0b; border-radius:4px; opacity:0.7;"></div>
+          <div style="height:36px; width:50%; background:#333; border-radius:4px;"></div>
+          <div style="height:36px; width:12%; background:#1a1a1a; border:1px solid #333; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#555; font-size:8px;">CTA</div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+          <div style="height:100px; background:#1a1a1a; border:1px solid #222; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Feature</div>
+          <div style="height:100px; background:#1a1a1a; border:1px solid #222; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Feature</div>
+          <div style="height:100px; background:#1a1a1a; border:1px solid #222; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#555; font-size:10px;">Feature</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>混合模块化</h3>
+      <p>Hero 区大字 + 3 列卡片网格穿插 + 全宽 Diagram 区交替。信息密度和呼吸感平衡。类似 Stripe 文档/发布页。</p>
+    </div>
+  </div>
+</div>

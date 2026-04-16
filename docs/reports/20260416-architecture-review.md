@@ -208,5 +208,68 @@ class HookManager:
 
 ---
 
+## 五、架构优化 TODO List（执行清单）
+
+> 目标：把本次评审里提出的 7 个借鉴点 + 4 个直接建议，收敛成可落地的运行时架构优化项，并同步回核心 spec，避免 review 与 spec 长期分叉。
+
+### 5.1 Runtime Kernel（P0）
+
+- [x] 在架构层引入统一 `Runner`，替代当前“AgentEvolve + Executor + Reflector + Reporter` 分散驱动”的执行方式
+- [x] 定义 `RunState` 作为唯一运行时状态载体，统一承接 phase、task、gate、reflection、tool history、interruptions
+- [x] 定义 `NextStep` 协议，至少覆盖 `final_output / tool_call / phase_handoff / retry_same / retry_different / replan / interruption / abort`
+- [x] 明确一次 run 的语义：顶层只有一个执行循环，active agent / phase 只是当前控制权的持有者
+- [x] 同步文档到 [docs/specs/00000000-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-architecture-overview.md)
+
+### 5.2 Ownership & Orchestration（P0）
+
+- [x] 明确 `Phase handoff` 与 `Skill-as-tool` 的边界：phase 切换代表控制权转移，skill 调用代表受限能力调用
+- [x] 定义 phase 输出合同，禁止 phase 间靠自由文本摘要传递关键状态
+- [x] 在 Phase-Role-Architecture 中补充“谁拥有下一轮回复/执行权”的约束
+- [x] 同步文档到 [docs/specs/20260416-phase-role-architecture-spec.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/20260416-phase-role-architecture-spec.md)
+
+### 5.3 Failure, Resume, Human Review（P0）
+
+- [x] 将 gate failure 从普通异常升级为可恢复运行态的一部分
+- [x] 定义 interruption / approval / resume 的统一生命周期，而不是把审批视为新一轮任务
+- [x] 规定恢复时沿用原 run state，而不是重新拼装上下文
+- [x] 将 reflection action 与 runtime `NextStep` 直接映射
+- [x] 同步文档到 [docs/specs/00000000-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-architecture-overview.md) 和 [docs/specs/20260416-tools-invocation-spec.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/20260416-tools-invocation-spec.md)
+
+### 5.4 Context Boundary（P0）
+
+- [x] 明确区分 `model-visible history`、`runtime-only context`、`persisted run state`
+- [x] 规定 secret、logger、registry、budget、workspace handle 等仅存在于 runtime context，不直接进入模型上下文
+- [x] 规定 phase/skill/tool 在读取上下文时分别能看到哪些层
+- [x] 同步文档到 [docs/specs/00000000-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-architecture-overview.md)
+
+### 5.5 Hooks, Tracing, Observability（P1）
+
+- [x] 为运行时定义统一 hooks 面：`on_run_start/end`、`on_phase_start/end`、`on_model_start/end`、`on_tool_start/end`、`on_handoff`、`on_gate_failed`、`on_reflection`、`on_resume`
+- [x] 明确 tracing 应围绕 run / turn / tool / handoff / guardrail 建立结构化事件记录
+- [x] 避免 observability 直接耦合业务执行逻辑
+- [x] 同步文档到 [docs/specs/00000000-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-architecture-overview.md)
+
+### 5.6 Continuation & Session（P1）
+
+- [x] 抽象 continuation interface，统一支持本地 session、run snapshot、provider continuation token、daemon-owned thread
+- [x] 禁止将 provider-specific continuation ID 设计为系统真相源
+- [x] 规定恢复优先依赖自有 `RunState`，provider continuation 仅作优化层
+- [x] 同步文档到 [docs/specs/00000000-architecture-overview.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/00000000-architecture-overview.md)
+
+### 5.7 Tool Runtime Integration（P1）
+
+- [x] 将 ToolOrchestrator 明确挂接到 Runner，而不是独立于运行时循环存在
+- [x] 补充工具执行后的状态写回、失败语义、审批暂停语义、链式/并行调用的状态约束
+- [x] 明确工具层与 hallucination guard / risk gate / resume state 的集成点
+- [x] 同步文档到 [docs/specs/20260416-tools-invocation-spec.md](c:/Users/TUF/Workspace/agent-evolve/docs/specs/20260416-tools-invocation-spec.md)
+
+### 5.8 Migration Path（P1）
+
+- [x] 给出现有 [src/sloth_agent/core/agent.py](c:/Users/TUF/Workspace/agent-evolve/src/sloth_agent/core/agent.py) 与 [src/sloth_agent/core/executor.py](c:/Users/TUF/Workspace/agent-evolve/src/sloth_agent/core/executor.py) 向新运行时的迁移映射
+- [x] 明确哪些组件保留为产品层入口，哪些下沉为 runtime/kernel 层
+- [x] 确保优化后的文档仍兼容当前 v1.0 三段式交付目标（Builder → Reviewer → Deployer）
+
+---
+
 *评审人: AI Architecture Reviewer*
 *日期: 2026-04-16*
