@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <title>Introducing Sloth Agent</title>
   <meta name="description" content="Sloth Agent 是一个面向中国开发者生态的产品级 AI 开发执行系统，聚焦从 Plan 到开发、审查、部署的可靠闭环。" />
   <style>
@@ -24,6 +24,9 @@
       --accent: #F59E0B;
       --accent-2: #F97316;
       --accent-soft: rgba(245, 158, 11, 0.12);
+      --accent-glow: rgba(245, 158, 11, 0.15);
+      --accent-2-soft: rgba(249, 115, 22, 0.08);
+      --bg-darker: #0d0d0d;
       --success: #22c55e;
       --danger: #ef4444;
       --shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
@@ -119,7 +122,7 @@
       height: 10px;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+      box-shadow: 0 0 0 4px var(--accent-glow);
     }
 
     .hero {
@@ -388,7 +391,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(180deg, var(--accent-soft), rgba(249, 115, 22, 0.08));
+      background: linear-gradient(180deg, var(--accent-soft), var(--accent-2-soft));
       border: 1px solid var(--line);
       flex: 0 0 auto;
     }
@@ -530,6 +533,10 @@
       gap: 14px;
     }
 
+    .panel .inline-list {
+      margin-top: 18px;
+    }
+
     .inline-item {
       padding: 18px 20px;
       border-left: 3px solid var(--accent);
@@ -623,8 +630,8 @@
       color: var(--ink-soft);
       background:
         radial-gradient(circle at top right, var(--accent-soft), transparent 26%),
-        radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.08), transparent 30%),
-        linear-gradient(135deg, #0d0d0d 0%, #111111 52%, #161616 100%);
+        radial-gradient(circle at bottom left, var(--accent-2-soft), transparent 30%),
+        linear-gradient(135deg, var(--bg-darker) 0%, #111111 52%, #161616 100%);
       border: 1px solid var(--line);
       box-shadow: 0 26px 80px rgba(0, 0, 0, 0.5);
     }
@@ -719,6 +726,11 @@
 
     .footer-action:hover {
       transform: translateY(-2px);
+    }
+
+    .footer-action:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
     .footer-action.primary {
@@ -1038,7 +1050,7 @@
           </div>
         </div>
 
-        <div class="inline-list" style="margin-top:18px;">
+        <div class="inline-list">
           <div class="inline-item"><strong>单一 Runner 内核</strong>：`Product Orchestrator` 负责入口与恢复，`Runner` 才是唯一推进 run 的执行循环。</div>
           <div class="inline-item"><strong>结构化 handoff</strong>：Builder 和 Reviewer、Reviewer 和 Deployer 之间传递的是确定性产物，而不是脆弱摘要。</div>
           <div class="inline-item"><strong>自动门控</strong>：lint、type check、test、coverage、smoke test 都是系统的一部分，不是交付前的补充动作。</div>
