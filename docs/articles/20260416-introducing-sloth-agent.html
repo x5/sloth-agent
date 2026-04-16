@@ -5,43 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
   <title>Introducing Sloth Agent</title>
   <meta name="description" content="Sloth Agent 是一个面向中国开发者生态的产品级 AI 开发执行系统，聚焦从 Plan 到开发、审查、部署的可靠闭环。" />
   <style>
     :root {
-      --bg: #111111;
-      --bg-deep: #161616;
-      --bg-soft: #1a1a1a;
-      --code-bg: #0a0a0a;
-      --paper: rgba(26, 26, 26, 0.85);
-      --paper-solid: #1a1a1a;
-      --ink: #ffffff;
-      --ink-soft: #e8e0d8;
-      --muted: #8a8078;
-      --line: rgba(255, 255, 255, 0.08);
-      --line-strong: rgba(245, 158, 11, 0.3);
-      --accent: #F59E0B;
-      --accent-2: #F97316;
-      --accent-soft: rgba(245, 158, 11, 0.12);
-      --accent-glow: rgba(245, 158, 11, 0.15);
-      --accent-2-soft: rgba(249, 115, 22, 0.08);
-      --bg-darker: #0d0d0d;
-      --success: #22c55e;
-      --danger: #ef4444;
-      --shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-      --radius-xl: 32px;
-      --radius-lg: 24px;
-      --radius-md: 18px;
-      --radius-sm: 12px;
-      --content: min(1120px, calc(100vw - 32px));
-      --font-display: "Space Grotesk", "Noto Sans SC", sans-serif;
-      --font-body: "Noto Sans SC", "Segoe UI Variable", sans-serif;
-      --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+      --bg: #0B0F19;
+      --card: #151B2B;
+      --card-hover: #1a2135;
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139,92,246,0.12);
+      --purple-glow: rgba(139,92,246,0.25);
+      --purple-dim: rgba(139,92,246,0.06);
+      --cyan: #06B6D4;
+      --cyan-soft: rgba(6,182,212,0.12);
+      --green: #22c55e;
+      --green-soft: rgba(34,197,94,0.12);
+      --amber: #F59E0B;
+      --amber-soft: rgba(245,158,11,0.12);
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --muted-dim: #64748B;
+      --border: rgba(255,255,255,0.06);
+      --border-accent: rgba(139,92,246,0.25);
+      --radius-card: 16px;
+      --radius-panel: 24px;
+      --shadow-base: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-hover: 0 8px 40px rgba(139,92,246,0.12);
+      --font-mono: "JetBrains Mono", "Noto Sans SC", monospace;
+      --font-heading: "JetBrains Mono", "Noto Sans SC", sans-serif;
+      --font-body: "Inter", "Noto Sans SC", sans-serif;
+      --font-sc: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+      --font-code: "JetBrains Mono", "Noto Sans SC", monospace;
+      --max-w: 1200px;
     }
 
-    * {
+    *, *::before, *::after {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     html {
@@ -49,17 +51,13 @@
     }
 
     body {
-      margin: 0;
-      color: var(--ink-soft);
-      background:
-        radial-gradient(circle at 30% 0%, rgba(245, 158, 11, 0.06), transparent 40%),
-        radial-gradient(circle at 80% 10%, rgba(249, 115, 22, 0.04), transparent 30%),
-        linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 8%, var(--bg) 100%);
+      background: var(--bg);
+      color: var(--text);
       font-family: var(--font-body);
       line-height: 1.6;
-      letter-spacing: 0.01em;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+      overflow-x: hidden;
     }
 
     body::before {
@@ -68,1192 +66,1347 @@
       inset: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-      background-size: 32px 32px;
-      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 90%);
-      opacity: 0.5;
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%);
+      z-index: 0;
     }
 
-    .progress {
+    /* ---- progress bar ---- */
+    .progress-bar {
       position: fixed;
-      inset: 0 0 auto;
+      top: 0; left: 0;
+      width: 100%;
       height: 3px;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      transform-origin: left center;
+      background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa);
+      transform-origin: left;
       transform: scaleX(0);
-      z-index: 50;
+      z-index: 100;
     }
 
-    .shell {
-      width: var(--content);
-      margin: 0 auto;
-      padding-bottom: 72px;
-      position: relative;
-      z-index: 1;
-    }
-
+    /* ---- top bar ---- */
     .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      padding: 22px 0 16px;
-      color: var(--muted);
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
+      padding: 16px 24px;
+      background: rgba(11,15,25,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      max-width: var(--max-w);
+      margin: 0 auto;
     }
 
     .brand {
       display: inline-flex;
       align-items: center;
       gap: 10px;
+      font-family: var(--font-mono);
       font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.14em;
+      color: var(--text);
     }
 
-    .brand-text {
-      font-family: var(--font-display);
-      letter-spacing: 0.12em;
-    }
-
-    .brand-mark {
-      width: 10px;
-      height: 10px;
+    .brand-dot {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 4px var(--accent-glow);
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15);
     }
 
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.92fr);
-      gap: 28px;
-      align-items: start;
-      grid-auto-rows: min-content;
-      margin-top: 10px;
-    }
-
-    .hero-card,
-    .panel,
-    .quote,
-    .roadmap,
-    .footer-card {
-      backdrop-filter: blur(18px);
-      background: var(--paper);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-    }
-
-    .hero-card {
-      padding: 34px;
-      border-radius: var(--radius-xl);
-      position: relative;
-      overflow: hidden;
-      align-self: start;
-      height: fit-content;
-      min-height: 0;
-    }
-
-    .hero-card::after {
-      content: "";
-      position: absolute;
-      inset: auto -80px -70px auto;
-      width: 220px;
-      height: 220px;
-      background: radial-gradient(circle, var(--accent-soft), transparent 66%);
-      pointer-events: none;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      color: var(--muted);
+    .topbar-date {
+      font-family: var(--font-mono);
       font-size: 12px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      margin-bottom: 22px;
-      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      letter-spacing: 0.08em;
     }
 
-    h1,
-    h2,
-    h3 {
-      margin: 0;
-      font-family: var(--font-display);
+    /* ---- sections ---- */
+    .section {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 64px 24px;
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--purple);
+      margin-bottom: 12px;
+    }
+
+    .section-heading {
+      font-family: var(--font-heading);
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
       font-weight: 700;
-      line-height: 1.08;
-      letter-spacing: -0.02em;
-      color: var(--ink);
-    }
-
-    a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    a:hover {
-      color: var(--accent-2);
-    }
-
-    h1 {
-      font-size: clamp(3rem, 6vw, 5.8rem);
-      max-width: 12ch;
-    }
-
-    .subtitle {
-      margin-top: 18px;
-      max-width: 56ch;
-      font-size: 1.12rem;
-      color: var(--ink-soft);
-    }
-
-    .lede {
-      margin-top: 28px;
-      padding-top: 22px;
-      border-top: 1px solid var(--line);
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .lede p,
-    .metric p,
-    .section-copy p,
-    .quote p,
-    .footer-card p {
+      line-height: 1.25;
+      color: var(--text);
       margin: 0;
     }
 
-    .lede strong,
-    .section-copy strong {
-      color: var(--ink);
-    }
-
-    .hero-side {
-      display: grid;
-      gap: 18px;
-      align-self: start;
-      height: fit-content;
-    }
-
-    .hero-visual {
-      padding: 18px;
-      border-radius: var(--radius-xl);
-      background:
-        radial-gradient(circle at top right, var(--accent-soft), transparent 34%),
-        linear-gradient(180deg, rgba(26, 26, 26, 0.95), rgba(22, 22, 22, 0.86));
-      border: 1px solid var(--line);
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
-      overflow: hidden;
-    }
-
-    .hero-visual svg {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    .hero-visual-copy {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 0.93rem;
-    }
-
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      align-content: start;
-    }
-
-    .metric {
-      padding: 22px;
-      border-radius: var(--radius-lg);
-      background: linear-gradient(180deg, var(--paper), var(--bg-soft));
-      border: 1px solid var(--line);
-      min-height: 144px;
-      display: grid;
-      align-content: start;
-      gap: 8px;
-      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
-    }
-
-    .metric.featured {
-      grid-column: 1 / -1;
-      min-height: 168px;
-      padding: 24px;
-      background:
-        radial-gradient(circle at top right, var(--accent-soft), transparent 36%),
-        linear-gradient(180deg, var(--paper), var(--bg-soft));
-    }
-
-    .metric .label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--muted);
-      margin-bottom: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .metric .value {
-      font-family: var(--font-display);
-      font-size: clamp(1.55rem, 2.4vw, 2.35rem);
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-      white-space: nowrap;
-      margin-bottom: 4px;
-    }
-
-    .metric.featured .value {
-      font-size: clamp(2.4rem, 4vw, 3.5rem);
-    }
-
-    .metric .desc {
+    .section-desc {
       color: var(--muted);
       font-size: 0.95rem;
+      max-width: 72ch;
+      line-height: 1.7;
     }
 
-    main {
-      margin-top: 28px;
-      display: grid;
-      gap: 22px;
+    /* ---- heading with dialect subtitle ---- */
+    .heading-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
-    .panel {
-      padding: 32px;
-      border-radius: var(--radius-xl);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .panel.alt {
-      background: linear-gradient(180deg, rgba(26, 26, 26, 0.92), rgba(22, 22, 22, 0.82));
-    }
-
-    .kicker {
-      display: inline-block;
-      margin-bottom: 16px;
-      color: var(--accent);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      font-weight: 700;
-    }
-
-    .panel-head {
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
-      gap: 26px;
-      align-items: start;
-      margin-bottom: 24px;
-    }
-
-    .panel-head p,
-    .aside-note {
-      color: var(--muted);
-      font-size: 1rem;
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .card {
-      padding: 22px;
-      border-radius: var(--radius-lg);
-      background: var(--bg-soft);
-      border: 1px solid var(--line);
-      min-height: 196px;
-      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
-    }
-
-    .card-head {
+    .heading-dialect {
+      font-family: var(--font-sc);
+      font-size: clamp(0.88rem, 1.8vw, 1.05rem);
+      font-weight: 500;
+      color: var(--amber);
+      line-height: 1.5;
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .dialect-tag {
+      flex-shrink: 0;
+      padding: 1px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--amber);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .section-heading + .section-desc,
+    .heading-group + .section-desc {
+      margin-top: 16px;
+    }
+
+    /* ---- hero ---- */
+    .hero {
+      text-align: center;
+      padding-top: 48px;
+    }
+
+    .hero-logo {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      margin: 0 auto 24px;
+      display: block;
+      border: 2px solid var(--border-accent);
+      box-shadow: 0 0 40px var(--purple-glow), 0 0 80px rgba(139,92,246,0.08);
+    }
+
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: clamp(3.2rem, 8vw, 6rem);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text) 0%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 20px;
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-sc);
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      font-weight: 400;
+      color: var(--muted);
+      max-width: 48ch;
+      margin: 0 auto 24px;
+      line-height: 2;
+    }
+
+    .hero-subtitle strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+    }
+
+    .pill.purple { border-color: var(--border-accent); color: var(--purple); }
+    .pill.cyan { border-color: rgba(6,182,212,0.25); color: var(--cyan); }
+    .pill.amber { border-color: rgba(245,158,11,0.25); color: var(--amber); }
+
+    /* ---- architecture diagram ---- */
+    .arch-section {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    .arch-svg {
+      width: 100%;
+      height: auto;
+      border-radius: var(--radius-panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-base);
+    }
+
+    /* ---- grids ---- */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .grid-3x2 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto auto;
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    /* ---- cards ---- */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      min-height: 200px;
+      display: grid;
+      grid-template-columns: 1fr;
+      align-content: start;
+      gap: 14px;
+      box-shadow: var(--shadow-base);
+      transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-hover);
     }
 
     .card-icon {
       width: 40px;
       height: 40px;
-      border-radius: 14px;
+      border-radius: 12px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(180deg, var(--accent-soft), var(--accent-2-soft));
-      border: 1px solid var(--line);
-      flex: 0 0 auto;
+      background: var(--purple-soft);
+      border: 1px solid var(--border-accent);
     }
 
     .card-icon svg {
       width: 20px;
       height: 20px;
-      stroke: var(--ink-soft);
-      stroke-width: 1.8;
+      stroke: var(--purple);
+      stroke-width: 2;
       fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
 
-    .card:hover {
-      transform: translateY(-4px);
-      border-color: var(--line-strong);
-      background: var(--paper);
-    }
-
     .card h3 {
-      font-size: 1.28rem;
-      margin-bottom: 12px;
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
     }
 
     .card p {
-      margin: 0;
       color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
     }
 
-    .diagram {
+    /* ---- terminal ---- */
+    .terminal {
+      background: #0a0d14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      margin-top: 32px;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #F59E0B; }
+    .terminal-dot.green { background: #22c55e; }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-dim);
+      margin-left: 8px;
+    }
+
+    .terminal-body {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .terminal-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 18px;
-      margin-top: 8px;
+      gap: 1px;
+      background: var(--border);
     }
 
-    .flow-visual {
-      margin-top: 20px;
-      padding: 24px 22px 20px;
-      border-radius: var(--radius-xl);
-      background:
-        radial-gradient(circle at top right, var(--accent-soft), transparent 24%),
-        linear-gradient(180deg, rgba(26, 26, 26, 0.74), rgba(22, 22, 22, 0.72));
-      border: 1px solid var(--line);
-      position: relative;
-      overflow: hidden;
+    .terminal-grid > * {
+      background: #0a0d14;
     }
 
-    .flow-visual::before {
-      content: "";
-      position: absolute;
-      left: 36px;
-      right: 36px;
-      top: 58px;
+    .t-purple { color: #a78bfa; }
+    .t-cyan { color: var(--cyan); }
+    .t-green { color: var(--green); }
+    .t-amber { color: var(--amber); }
+    .t-muted { color: var(--muted-dim); }
+    .t-white { color: var(--text); }
+
+    /* ---- flow steps ---- */
+    .flow-section {
+      margin-top: 40px;
+    }
+
+    .flow-line {
       height: 2px;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      opacity: 0.9;
+      background: linear-gradient(90deg, transparent, var(--purple), transparent);
+      margin: 0 24px 24px;
     }
 
     .flow-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 16px;
-      position: relative;
-      z-index: 1;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
     }
 
     .flow-node {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      min-height: 160px;
       display: grid;
+      grid-template-rows: auto 1fr;
       gap: 12px;
-      align-content: start;
-      min-height: 174px;
     }
 
-    .flow-top {
-      display: grid;
-      justify-items: start;
+    .flow-step-header {
+      display: flex;
+      align-items: center;
       gap: 10px;
     }
 
-    .flow-dot {
-      width: 26px;
-      height: 26px;
+    .flow-dot-ring {
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      border: 2px solid var(--line-strong);
-      background: linear-gradient(135deg, var(--bg-soft), var(--accent-soft));
-      box-shadow: 0 0 0 6px rgba(26, 26, 26, 0.6);
+      border: 2px solid var(--purple);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--purple-soft);
     }
 
-    .flow-panel {
-      min-height: 128px;
-      padding: 16px;
-      border-radius: 18px;
-      background: var(--bg-soft);
-      border: 1px solid var(--line);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
-      display: grid;
-      gap: 8px;
-      align-content: start;
-    }
-
-    .flow-step {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
+    .flow-dot-ring span {
+      font-family: var(--font-mono);
+      font-size: 10px;
       font-weight: 700;
+      color: var(--purple);
     }
 
-    .flow-title {
-      font-family: var(--font-display);
-      font-size: 1.15rem;
-      line-height: 1.1;
+    .flow-step-name {
+      font-family: var(--font-heading);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
     }
 
-    .flow-copy {
+    .flow-step-desc {
       color: var(--muted);
-      font-size: 0.9rem;
-      line-height: 1.45;
+      font-size: 0.85rem;
+      line-height: 1.6;
     }
 
-    pre {
-      margin: 0;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      padding: 22px;
-      border-radius: var(--radius-lg);
-      background: var(--code-bg);
-      color: var(--ink-soft);
-      border: 1px solid var(--line);
-      font: 500 13px/1.65 var(--font-mono);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    }
-
-    .inline-list {
+    /* ---- control surface list ---- */
+    .control-list {
       display: grid;
-      gap: 14px;
+      gap: 12px;
+      margin-top: 32px;
     }
 
-    .panel .inline-list {
-      margin-top: 18px;
-    }
-
-    .inline-item {
+    .control-item {
       padding: 18px 20px;
-      border-left: 3px solid var(--accent);
-      background: var(--accent-soft);
-      border-radius: 0 var(--radius-md) var(--radius-md) 0;
-      color: var(--muted);
+      border-left: 3px solid var(--purple);
+      background: var(--purple-dim);
+      border-radius: 0 var(--radius-card) var(--radius-card) 0;
+      transition: background 200ms ease;
     }
 
-    .quote {
-      padding: 28px 32px;
-      border-radius: var(--radius-xl);
+    .control-item:hover {
+      background: var(--purple-soft);
+    }
+
+    strong {
+      font-family: var(--font-sc);
+    }
+
+    .control-item strong {
+      font-family: var(--font-heading);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .control-item p {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      margin-top: 4px;
+    }
+
+    code {
+      font-family: var(--font-code);
+      font-size: 0.825rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+    }
+
+    /* ---- quote ---- */
+    .quote-panel {
+      background: var(--card);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-panel);
+      padding: 32px;
+      margin-top: 64px;
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: 18px;
+      gap: 20px;
       align-items: start;
     }
 
     .quote-mark {
-      font-family: var(--font-display);
+      font-family: var(--font-mono);
       font-size: 4rem;
+      font-weight: 700;
+      color: var(--purple);
       line-height: 0.8;
-      color: var(--accent);
     }
 
-    .quote p:first-child {
-      font-family: var(--font-display);
-      font-size: 1.4rem;
-      line-height: 1.35;
-      margin-bottom: 10px;
+    .quote-text {
+      font-family: var(--font-sc);
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.7;
     }
 
-    .quote .meta {
+    .quote-text p:last-child {
       color: var(--muted);
-      font-size: 0.94rem;
+      font-size: 0.95rem;
+      margin-top: 10px;
+      font-weight: 400;
     }
 
-    .roadmap {
-      padding: 28px;
-      border-radius: var(--radius-xl);
+    /* ---- roadmap ---- */
+    .roadmap-section {
+      position: relative;
     }
 
     .roadmap-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 18px;
-      margin-top: 18px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 32px;
     }
 
     .roadmap-step {
-      padding: 22px;
-      border-radius: var(--radius-lg);
-      background: var(--bg-soft);
-      border: 1px solid var(--line);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      min-height: 200px;
       display: grid;
+      grid-template-rows: auto auto auto;
       gap: 12px;
+      position: relative;
     }
 
-    .roadmap-step .version {
-      font-family: var(--font-display);
+    .roadmap-version {
+      font-family: var(--font-mono);
       font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--purple);
     }
 
-    .roadmap-step .state {
+    .roadmap-badge {
       display: inline-block;
       width: fit-content;
-      padding: 6px 10px;
+      padding: 4px 10px;
       border-radius: 999px;
-      font-size: 11px;
+      font-family: var(--font-mono);
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.14em;
-      background: var(--accent-soft);
-      color: var(--accent);
-      border: 1px solid var(--line-strong);
+      letter-spacing: 0.12em;
+      background: var(--purple-soft);
+      color: var(--purple);
+      border: 1px solid var(--border-accent);
+    }
+
+    .roadmap-badge.long {
+      background: var(--amber-soft);
+      color: var(--amber);
+      border-color: rgba(245,158,11,0.25);
     }
 
     .roadmap-step ul {
-      padding-left: 18px;
+      list-style: none;
+      padding: 0;
       margin: 0;
+    }
+
+    .roadmap-step li {
       color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      padding-left: 14px;
+      position: relative;
     }
 
-    .footer-card {
-      border-radius: var(--radius-xl);
-      padding: 34px;
+    .roadmap-step li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--purple);
+    }
+
+    .roadmap-connector {
+      position: absolute;
+      top: 36px;
+      right: -12px;
+      width: 24px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--purple), transparent);
+      z-index: 1;
+    }
+
+    .roadmap-step:last-child .roadmap-connector { display: none; }
+
+    /* ---- footer ---- */
+    .footer {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 24px 64px;
+    }
+
+    .footer-panel {
+      background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-panel);
+      padding: 40px;
       display: grid;
-      grid-template-columns: 1fr;
       gap: 24px;
-      align-items: stretch;
-      margin-top: 4px;
-      color: var(--ink-soft);
-      background:
-        radial-gradient(circle at top right, var(--accent-soft), transparent 26%),
-        radial-gradient(circle at bottom left, var(--accent-2-soft), transparent 30%),
-        linear-gradient(135deg, var(--bg-darker) 0%, #111111 52%, #161616 100%);
-      border: 1px solid var(--line);
-      box-shadow: 0 26px 80px rgba(0, 0, 0, 0.5);
+      box-shadow: var(--shadow-base);
     }
 
-    .footer-card .kicker {
-      color: var(--accent);
-    }
-
-    .footer-card h2 {
-      font-size: clamp(2rem, 3vw, 3.15rem);
-      max-width: none;
-      margin-bottom: 14px;
-    }
-
-    .footer-copy {
-      display: grid;
-      align-content: start;
-      gap: 0;
+    .footer-heading {
+      font-family: var(--font-heading);
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      font-weight: 700;
+      line-height: 1.25;
+      color: var(--text);
     }
 
     .footer-body {
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(240px, 300px);
-      gap: 24px;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 32px;
       align-items: stretch;
     }
 
     .footer-text {
-      display: grid;
-      align-content: start;
-    }
-
-    .footer-side {
-      display: grid;
-      align-content: stretch;
-    }
-
-    .footer-badge {
-      display: grid;
-      gap: 14px;
-      align-content: start;
-      min-height: 100%;
-      padding: 22px;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-        radial-gradient(circle at top right, var(--accent-soft), transparent 45%);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .footer-badge-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--accent);
-    }
-
-    .footer-badge-title {
-      font-family: var(--font-display);
-      font-size: 1.5rem;
-      line-height: 1.15;
-      color: var(--ink);
-    }
-
-    .footer-badge-copy {
-      color: var(--ink-soft);
+      color: var(--muted);
       font-size: 0.95rem;
-      line-height: 1.55;
+      line-height: 1.7;
     }
 
     .footer-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-top: 22px;
+      margin-top: 20px;
     }
 
-    .footer-action {
+    .footer-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 46px;
-      padding: 0 18px;
+      padding: 0 20px;
+      height: 44px;
       border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
       text-decoration: none;
-      font-size: 0.95rem;
-      font-weight: 700;
-      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+      transition: transform 200ms ease, box-shadow 200ms ease;
     }
 
-    .footer-action:hover {
+    .footer-btn:hover {
       transform: translateY(-2px);
     }
 
-    .footer-action:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+    .footer-btn.primary {
+      background: linear-gradient(135deg, #7c3aed, var(--purple));
+      color: #fff;
+      border: none;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.3);
     }
 
-    .footer-action.primary {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: #111111;
-      border: 1px solid var(--line);
+    .footer-btn.primary:hover {
+      box-shadow: 0 6px 30px rgba(139,92,246,0.45);
     }
 
-    .footer-action.secondary {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--ink-soft);
-      border: 1px solid var(--line);
-    }
-
-    .muted {
+    .footer-btn.secondary {
+      background: rgba(255,255,255,0.04);
       color: var(--muted);
+      border: 1px solid var(--border);
     }
 
-    .source-note {
-      margin-top: 18px;
-      font-size: 0.92rem;
+    .footer-badge {
+      background: var(--purple-dim);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .footer-badge-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--purple);
+    }
+
+    .footer-badge-title {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .footer-badge-copy {
       color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
     }
 
-    .footer-card .muted,
-    .footer-card .source-note {
-      color: rgba(232, 224, 216, 0.72);
+    .footer-note {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-dim);
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
     }
 
+    /* ---- scroll animation ---- */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ---- responsive ---- */
     @media (max-width: 980px) {
-      .hero,
-      .panel-head,
-      .diagram,
+      .grid-3, .grid-3x2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .grid-4, .roadmap-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .flow-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .terminal-grid {
+        grid-template-columns: 1fr;
+      }
+
       .footer-body {
         grid-template-columns: 1fr;
       }
 
-      .flow-visual {
-        padding-top: 22px;
-      }
-
-      .flow-visual::before {
-        left: 30px;
-        right: 30px;
-      }
-
-      .flow-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .cards,
-      .roadmap-grid {
-        grid-template-columns: 1fr 1fr;
-      }
+      .roadmap-connector { display: none; }
     }
 
     @media (max-width: 720px) {
-      .shell {
-        width: min(100vw - 20px, 1120px);
+      .section {
+        padding: 48px 16px;
+      }
+
+      .grid-3, .grid-4, .grid-3x2, .roadmap-grid, .flow-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-title {
+        font-size: clamp(2.4rem, 12vw, 4rem);
       }
 
       .topbar {
         flex-direction: column;
+        gap: 8px;
         align-items: flex-start;
       }
 
-      .hero-card,
-      .panel,
-      .quote,
-      .roadmap,
-      .footer-card {
-        padding: 22px;
+      .footer-panel {
+        padding: 24px;
       }
 
-      .metric-grid,
-      .cards,
-      .lede,
-      .roadmap-grid,
-      .flow-grid {
-        grid-template-columns: 1fr;
+      .quote-panel {
+        padding: 24px;
       }
 
-      .flow-visual::before {
-        display: none;
-      }
-
-      h1 {
-        font-size: clamp(2.4rem, 13vw, 4rem);
+      .card {
+        min-height: auto;
       }
     }
   </style>
 </head>
 <body>
-  <div class="progress" id="progress"></div>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark"></span>
-        <span class="brand-text">SLOTH AGENT</span>
-      </div>
-      <div>Architecture Preview &bull; April 16, 2026 &bull; Product</div>
-    </header>
+  <div class="progress-bar" id="progress"></div>
 
-    <section class="hero">
-      <article class="hero-card">
-        <div class="eyebrow">Introducing a Product-Grade Agent System</div>
-        <h1>Sloth Agent</h1>
-        <p class="subtitle">
-          一个面向中国开发者生态设计的 AI 开发执行系统。它的目标不是再做一个更会聊天的 coding assistant，
-          而是把 <strong>Plan → 开发 → 审查 → 部署</strong> 变成一条可控、可恢复、可审计的执行闭环。
-        </p>
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      SLOTH AGENT
+    </div>
+    <div class="topbar-date">2026-04-16 &middot; Product Architecture</div>
+  </header>
 
-        <div class="lede">
-          <p>
-            今天的大多数 AI 编码体验，在“生成一段代码”时已经足够惊艳；但一旦任务跨越文件、命令、测试、审查与部署，
-            系统往往开始失去结构。Sloth Agent 的出发点很简单：<strong>不要把 agent 当作一次性回答器，而要把它当作持续执行的软件系统。</strong>
-          </p>
-          <p>
-            这也是为什么 Sloth Agent 把运行时内核、工具调用、技能注入、状态持久化、安全默认和质量门控视为同一问题的不同侧面。
-            真正可用的 agent，不只是“会做”，更要“做得稳、做得清楚、出了问题还能接着做”。
-          </p>
-        </div>
-      </article>
+  <!-- Hero -->
+  <section class="section hero">
+    <img class="hero-logo" src="../assets/sloth-agent-logo.png" alt="Sloth Agent Logo" />
+    <h1 class="hero-title">Sloth Agent</h1>
+    <p class="hero-subtitle">
+      <strong>专替牛马扛累活</strong><br>
+      <strong>你出规划它运作</strong><br>
+      全程闭环不啰嗦<br>
+      不跟你扯技术嗑<br>
+      落地靠谱<strong>没的说</strong>
+    </p>
+    <div class="hero-pills">
+      <span class="pill purple">Plan &rarr; Build &rarr; Review &rarr; Deploy</span>
+      <span class="pill cyan">Tool First</span>
+      <span class="pill amber">3-Agent Pipeline</span>
+      <span class="pill">v1.0 Planned</span>
+    </div>
+  </section>
 
-      <aside class="hero-side">
-        <div class="hero-visual">
-          <svg viewBox="0 0 380 220" role="img" aria-label="Sloth Agent system illustration">
-            <defs>
-              <linearGradient id="heroStroke" x1="0" x2="1">
-                <stop offset="0%" stop-color="#F59E0B" />
-                <stop offset="50%" stop-color="#F97316" />
-                <stop offset="100%" stop-color="#F59E0B" />
-              </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="2" result="blur" />
-                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-              </filter>
-            </defs>
-            <rect x="18" y="28" width="344" height="164" rx="28" fill="rgba(20,20,20,0.7)" stroke="rgba(255,255,255,0.06)"/>
-            <!-- Builder node -->
-            <circle cx="92" cy="108" r="38" fill="rgba(245,158,11,0.08)" stroke="url(#heroStroke)" stroke-width="2.5" filter="url(#glow)"/>
-            <text x="92" y="105" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#F59E0B">Builder</text>
-            <text x="92" y="120" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#8a8078">编码</text>
-            <!-- Reviewer node -->
-            <circle cx="190" cy="68" r="26" fill="rgba(245,158,11,0.06)" stroke="url(#heroStroke)" stroke-width="2" filter="url(#glow)"/>
-            <text x="190" y="65" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="10" font-weight="600" fill="#F59E0B">Reviewer</text>
-            <text x="190" y="78" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="8" fill="#8a8078">审查</text>
-            <!-- Deployer node -->
-            <circle cx="278" cy="110" r="32" fill="rgba(249,115,22,0.08)" stroke="url(#heroStroke)" stroke-width="2.2" filter="url(#glow)"/>
-            <text x="278" y="107" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="11" font-weight="600" fill="#F97316">Deployer</text>
-            <text x="278" y="120" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#8a8078">部署</text>
-            <!-- Runner node -->
-            <rect x="148" y="136" width="86" height="40" rx="18" fill="rgba(26,26,26,0.85)" stroke="url(#heroStroke)" stroke-width="2"/>
-            <text x="191" y="160" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="10" font-weight="600" fill="#e8e0d8">Runner</text>
-            <!-- Connection lines -->
-            <path d="M130 94 C145 82, 160 76, 170 72" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
-            <path d="M216 79 C234 84, 247 91, 255 98" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
-            <path d="M110 130 C128 140, 142 146, 158 150" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
-            <path d="M234 150 C248 144, 260 136, 268 126" stroke="url(#heroStroke)" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Architecture Diagram -->
+  <div class="arch-section">
+    <svg class="arch-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sloth Agent System Architecture">
+      <defs>
+        <!-- Grid pattern -->
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+        </pattern>
+
+        <!-- Glow filters -->
+        <filter id="glow-purple" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+
+        <!-- Arrow markers -->
+        <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/>
+        </marker>
+        <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/>
+        </marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
+        </marker>
+        <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#F59E0B"/>
+        </marker>
+
+        <!-- Gradients -->
+        <linearGradient id="pipe-line" x1="0" x2="1">
+          <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.5"/>
+        </linearGradient>
+        <linearGradient id="runner-glow" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Background -->
+      <rect width="1000" height="420" fill="#0B0F19"/>
+      <rect width="1000" height="420" fill="url(#grid)"/>
+
+      <!-- ====== PIPELINE ROW (y center = 140, node r = 50, gate w = 46) ====== -->
+
+      <!-- Builder (cyan circle, cx=150, r=50 → edges: L=100, R=200) -->
+      <circle cx="150" cy="140" r="50" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="2.5" filter="url(#glow-cyan)"/>
+      <text x="150" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#06B6D4">Builder</text>
+      <text x="150" y="155" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">编码 · 调试 · 测试</text>
+
+      <!-- Arrow Builder → Gate 1: from x=200 to x=235 -->
+      <line x1="200" y1="140" x2="233" y2="140" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)"/>
+
+      <!-- Gate 1 (amber rect, x=235, w=46, h=40, rx=8 → edges: L=235, R=281) -->
+      <rect x="235" y="120" width="46" height="40" rx="8" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2" filter="url(#glow-amber)"/>
+      <text x="258" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#F59E0B">G1</text>
+
+      <!-- Arrow Gate 1 → Reviewer: from x=281 to x=380 -->
+      <line x1="281" y1="140" x2="378" y2="140" stroke="#8B5CF6" stroke-width="2" marker-end="url(#arrow-purple)"/>
+
+      <!-- Reviewer (purple circle, cx=430, r=50 → edges: L=380, R=480) -->
+      <circle cx="430" cy="140" r="50" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="2.5" filter="url(#glow-purple)"/>
+      <text x="430" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#8B5CF6">Reviewer</text>
+      <text x="430" y="155" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">独立审查</text>
+
+      <!-- Arrow Reviewer → Gate 2: from x=480 to x=510 -->
+      <line x1="480" y1="140" x2="508" y2="140" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)"/>
+
+      <!-- Gate 2 (amber rect, x=510, w=46, h=40, rx=8 → edges: L=510, R=556) -->
+      <rect x="510" y="120" width="46" height="40" rx="8" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2" filter="url(#glow-amber)"/>
+      <text x="533" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#F59E0B">G2</text>
+
+      <!-- Arrow Gate 2 → Deployer: from x=556 to x=660 -->
+      <line x1="556" y1="140" x2="658" y2="140" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+      <!-- Deployer (green circle, cx=710, r=50 → edges: L=660, R=760) -->
+      <circle cx="710" cy="140" r="50" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="2.5" filter="url(#glow-green)"/>
+      <text x="710" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#22c55e">Deployer</text>
+      <text x="710" y="155" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">部署 · 验证</text>
+
+      <!-- Arrow Deployer → Gate 3: from x=760 to x=795 -->
+      <line x1="760" y1="140" x2="793" y2="140" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)"/>
+
+      <!-- Gate 3 (amber rect, x=795, w=46, h=40, rx=8 → edges: L=795, R=841) -->
+      <rect x="795" y="120" width="46" height="40" rx="8" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2" filter="url(#glow-amber)"/>
+      <text x="818" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#F59E0B">G3</text>
+
+      <!-- ====== RUNNER ROW (y=270, h=60, x=350, w=300, rx=16) ====== -->
+
+      <!-- Runner orchestrator -->
+      <rect x="350" y="270" width="300" height="60" rx="16" fill="rgba(139,92,246,0.08)" stroke="#8B5CF6" stroke-width="2" filter="url(#glow-purple)"/>
+      <rect x="350" y="270" width="300" height="60" rx="16" fill="url(#runner-glow)"/>
+      <text x="500" y="296" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#A78BFA">Runner</text>
+      <text x="500" y="316" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">prepare() · think() · resolve() · persist()</text>
+
+      <!-- Runner → Pipeline connections (dashed, up to y=190 which is pipeline bottom edge) -->
+      <line x1="500" y1="270" x2="500" y2="190" stroke="url(#pipe-line)" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <line x1="420" y1="270" x2="430" y2="190" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <line x1="580" y1="270" x2="570" y2="190" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <line x1="360" y1="280" x2="300" y2="190" stroke="rgba(139,92,246,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
+      <line x1="640" y1="280" x2="710" y2="190" stroke="rgba(139,92,246,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
+
+      <!-- ====== INFRASTRUCTURE ROW (cy=390, r=22) ====== -->
+
+      <circle cx="400" cy="390" r="22" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="400" y="394" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#8B5CF6">Tools</text>
+
+      <circle cx="500" cy="390" r="22" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="1.5"/>
+      <text x="500" y="394" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#06B6D4">Memory</text>
+
+      <circle cx="600" cy="390" r="22" fill="rgba(167,139,250,0.06)" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="600" y="394" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#A78BFA">Skills</text>
+
+      <!-- Infrastructure → Runner connections (from top of circles y=368 to bottom of runner y=330) -->
+      <line x1="400" y1="368" x2="430" y2="330" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <line x1="500" y1="368" x2="500" y2="330" stroke="rgba(139,92,246,0.25)" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <line x1="600" y1="368" x2="570" y2="330" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+      <!-- ====== SECTION LABELS ====== -->
+      <text x="30" y="30" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em" text-transform="uppercase">PIPELINE</text>
+      <text x="30" y="255" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em" text-transform="uppercase">ORCHESTRATOR</text>
+      <text x="30" y="355" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em" text-transform="uppercase">INFRASTRUCTURE</text>
+    </svg>
+  </div>
+
+  <!-- Problem Section -->
+  <section class="section fade-in">
+    <div class="section-label">Why now</div>
+    <div class="heading-group">
+      <h2 class="section-heading">不是模型不够强，是执行系统不够完整</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>孩子学习不好，那是孩子的问题吗？那是老师的问题！</p>
+    </div>
+    <p class="section-desc">
+      许多 AI coding workflows 已经能写出看起来不错的代码，但它们在长链路任务上仍然容易碎裂：上下文膨胀、工具结果不可追踪、
+      审查和部署沦为手工补丁、错误恢复依赖"再试一次"。对真正的开发流程来说，这些都不是边角问题，而是系统边界本身。
+    </p>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 12a9 9 0 1 1-6.2-8.6"/>
+            <path d="M21 3v5h-5"/>
+            <line x1="4" y1="4" x2="20" y2="20"/>
           </svg>
-          <div class="hero-visual-copy">一条执行回路，把阶段 owner、工具调用与状态持久化串在同一个 runtime 里。</div>
         </div>
-        <div class="metric-grid">
-          <div class="metric">
-            <div class="label">Runtime Kernel</div>
-            <div class="value">1 Runner</div>
-            <p class="desc">唯一执行内核推进同一个 run，避免多套状态循环与恢复混乱。</p>
-          </div>
-          <div class="metric">
-            <div class="label">System Posture</div>
-            <div class="value">Tool First</div>
-            <p class="desc">所有关键动作经由工具层执行并留下结构化记录，而不是隐式完成。</p>
-          </div>
-          <div class="metric featured">
-            <div class="label">North Star</div>
-            <div class="value">Plan → Ship</div>
-            <p class="desc">输入一份 plan，输出通过测试、经过审查、可部署的结果。</p>
-          </div>
+        <h3>能生成，不能稳定推进</h3>
+        <p>模型可以提出方案，却缺少一个可靠的执行内核来推进任务状态、处理中断、串联工具调用和质量门控。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <circle cx="7" cy="7" r="2.5"/>
+            <circle cx="17" cy="5" r="2.5"/>
+            <circle cx="12" cy="18" r="2.5"/>
+            <line x1="9" y1="8.5" x2="11" y2="16"/>
+            <line x1="15" y1="7" x2="13" y2="16"/>
+            <line x1="9.5" y1="7" x2="14.5" y2="5.5"/>
+          </svg>
         </div>
-      </aside>
-    </section>
-
-    <main>
-      <section class="panel alt">
-        <div class="panel-head">
-          <div>
-            <span class="kicker">Why now</span>
-            <h2>问题不在于模型不够强，而在于执行系统还不够完整</h2>
-          </div>
-          <p>
-            许多 AI coding workflows 已经能写出看起来不错的代码，但它们在长链路任务上仍然容易碎裂：上下文膨胀、工具结果不可追踪、
-            审查和部署沦为手工补丁、错误恢复依赖“再试一次"。对真正的开发流程来说，这些都不是边角问题，而是系统边界本身。
-          </p>
+        <h3>能调用工具，不能解释系统</h3>
+        <p>文件读写、命令运行、补丁编辑、测试验证常常是分散的能力，缺少统一的审计视图和恢复语义。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+            <line x1="12" y1="8" x2="12" y2="16"/>
+          </svg>
         </div>
+        <h3>能写代码，不能承担交付责任</h3>
+        <p>没有结构化交接、自动 gate 和回滚路径时，Agent 仍然停留在"副驾驶"而非"执行系统"。</p>
+      </div>
+    </div>
+  </section>
 
-        <div class="cards">
-          <div class="card">
-            <div class="card-head">
-              <span class="card-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M4.93 4.93l14.14 14.14"/>
-                  <path d="M12 3c4.97 0 9 4.03 9 9 0 1.34-.3 2.6-.82 3.74"/>
-                  <path d="M12 21c-4.97 0-9-4.03-9-9 0-1.34.3-2.6.82-3.74"/>
-                  <path d="M21 12c0 4.97-4.03 9-9 9"/>
-                </svg>
-              </span>
-              <h3>能生成，不能稳定推进</h3>
-            </div>
-            <p>模型可以提出方案，却缺少一个可靠的执行内核来推进任务状态、处理中断、串联工具调用和质量门控。</p>
+  <!-- Execution Harness -->
+  <section class="section fade-in">
+    <div class="section-label">Execution Harness</div>
+    <div class="heading-group">
+      <h2 class="section-heading">一条可靠的执行回路，胜过十个 Agent 同时登台</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>光靠人多不好使，得有章法！</p>
+    </div>
+    <p class="section-desc">
+      Sloth Agent 的 v1.0 不从"8 个 Agent 同时登场"开始，而是刻意收敛到一条更可控的主线：
+      输入一份已完成的 plan，由 Builder 负责解析、编码、调试和单元测试，再交给 Reviewer 做独立审查，最后由 Deployer 执行部署与验证。
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span>
+        <span class="terminal-dot yellow"></span>
+        <span class="terminal-dot green"></span>
+        <span class="terminal-title">sloth-agent &mdash; execution pipeline</span>
+      </div>
+      <div class="terminal-grid">
+        <div class="terminal-body"><span class="t-amber">$</span> <span class="t-white">plan</span>
+  <span class="t-muted">&rarr;</span> <span class="t-cyan">Builder</span>
+  <span class="t-muted">&rarr;</span> <span class="t-amber">Gate 1</span>   <span class="t-green"># lint / type / test</span>
+  <span class="t-muted">&rarr;</span> <span class="t-purple">Reviewer</span>
+  <span class="t-muted">&rarr;</span> <span class="t-amber">Gate 2</span>   <span class="t-green"># blocking issues / coverage</span>
+  <span class="t-muted">&rarr;</span> <span class="t-green">Deployer</span>
+  <span class="t-muted">&rarr;</span> <span class="t-amber">Gate 3</span>   <span class="t-green"># smoke test / rollback</span>
+  <span class="t-muted">&rarr;</span> <span class="t-amber">Done ✓</span></div>
+        <div class="terminal-body"><span class="t-amber">$</span> <span class="t-white">runtime</span>
+  <span class="t-muted">CLI / Daemon / Chat</span>
+  <span class="t-muted">&rarr;</span> <span class="t-white">Product Orchestrator</span>
+  <span class="t-muted">&rarr;</span> <span class="t-purple">Runner</span>
+      <span class="t-muted">│</span> <span class="t-cyan">prepare()</span>
+      <span class="t-muted">│</span> <span class="t-cyan">think()</span>
+      <span class="t-muted">│</span> <span class="t-cyan">resolve()</span>
+      <span class="t-muted">│</span> <span class="t-cyan">persist()</span>
+      <span class="t-muted">└</span> <span class="t-green">observe()</span></div>
+      </div>
+    </div>
+
+    <div class="flow-section">
+      <div class="flow-line"></div>
+      <div class="flow-grid">
+        <div class="flow-node">
+          <div class="flow-step-header">
+            <div class="flow-dot-ring"><span>01</span></div>
+            <div class="flow-step-name">Prepare</div>
           </div>
-          <div class="card">
-            <div class="card-head">
-              <span class="card-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="2"/>
-                  <circle cx="19" cy="5" r="2"/>
-                  <circle cx="5" cy="19" r="2"/>
-                  <path d="M10.5 10.5L7.5 16"/>
-                  <path d="M13.5 13.5L16.5 7.5"/>
-                </svg>
-              </span>
-              <h3>能调用工具，不能解释系统</h3>
-            </div>
-            <p>文件读写、命令运行、补丁编辑、测试验证常常是分散的能力，缺少统一的审计视图和恢复语义。</p>
+          <div class="flow-step-desc">组装当前 owner、上下文、工具权限和状态快照。</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-step-header">
+            <div class="flow-dot-ring"><span>02</span></div>
+            <div class="flow-step-name">Think</div>
           </div>
-          <div class="card">
-            <div class="card-head">
-              <span class="card-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 3l7 4v5c0 4.2-2.4 6.9-7 9-4.6-2.1-7-4.8-7-9V7l7-4z"/>
-                  <path d="m15 9-6 6"/>
-                  <path d="m9 9 6 6"/>
-                </svg>
-              </span>
-              <h3>能写代码，不能承担交付责任</h3>
-            </div>
-            <p>没有结构化交接、自动 gate 和回滚路径时，agent 仍然停留在"副驾驶"而非"执行系统"。</p>
+          <div class="flow-step-desc">模型生成下一步动作，而不是直接把整条任务链压成一次回答。</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-step-header">
+            <div class="flow-dot-ring"><span>03</span></div>
+            <div class="flow-step-name">Resolve</div>
           </div>
+          <div class="flow-step-desc">把结果归类为 tool、handoff、retry、interrupt 或 final output。</div>
         </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <span class="kicker">Execution Harness</span>
-            <h2>Sloth Agent 先定义一条可靠的执行回路，再谈更大的多 agent 世界</h2>
+        <div class="flow-node">
+          <div class="flow-step-header">
+            <div class="flow-dot-ring"><span>04</span></div>
+            <div class="flow-step-name">Persist &amp; Observe</div>
           </div>
-          <p>
-            Sloth Agent 的 v1.0 不从“8 个 agent 同时登场"开始，而是刻意收敛到一条更可控的主线：
-            输入一份已完成的 plan，由 Builder 负责解析、编码、调试和单元测试，再交给 Reviewer 做独立审查，最后由 Deployer 执行部署与验证。
-          </p>
+          <div class="flow-step-desc">写回 run state、checkpoint、trace 与 gate 结果，保证可恢复和可审计。</div>
         </div>
+      </div>
+    </div>
 
-        <div class="diagram">
-          <pre><span style="color:#F59E0B;">$</span> plan
-  <span style="color:#8a8078;">→</span> Builder
-  <span style="color:#8a8078;">→</span> Gate 1   <span style="color:#22c55e;"># lint / type / test</span>
-  <span style="color:#8a8078;">→</span> Reviewer
-  <span style="color:#8a8078;">→</span> Gate 2   <span style="color:#22c55e;"># blocking issues / coverage</span>
-  <span style="color:#8a8078;">→</span> Deployer
-  <span style="color:#8a8078;">→</span> Gate 3   <span style="color:#22c55e;"># smoke test / rollback</span>
-  <span style="color:#8a8078;">→</span> <span style="color:#F59E0B;">Done ✓</span></pre>
+    <div class="control-list">
+      <div class="control-item">
+        <strong>单一 Runner 内核</strong>
+        <p><code class="t-cyan" style="color:var(--cyan);">Product Orchestrator</code> 负责入口与恢复，<code style="color:var(--purple);">Runner</code> 才是唯一推进 run 的执行循环。</p>
+      </div>
+      <div class="control-item">
+        <strong>结构化 handoff</strong>
+        <p>Builder 和 Reviewer、Reviewer 和 Deployer 之间传递的是确定性产物，而不是脆弱摘要。</p>
+      </div>
+      <div class="control-item">
+        <strong>自动门控</strong>
+        <p>lint、type check、test、coverage、smoke test 都是系统的一部分，不是交付前的补充动作。</p>
+      </div>
+    </div>
+  </section>
 
-          <pre><span style="color:#F59E0B;">$</span> runtime
-  CLI / Daemon / Chat
-  <span style="color:#8a8078;">→</span> Product Orchestrator
-  <span style="color:#8a8078;">→</span> Runner
-      <span style="color:#8a8078;">│</span> prepare()
-      <span style="color:#8a8078;">│</span> think()
-      <span style="color:#8a8078;">│</span> resolve()
-      <span style="color:#8a8078;">│</span> persist()
-      <span style="color:#8a8078;">└</span> observe()</pre>
+  <!-- Quote -->
+  <div class="section fade-in">
+    <div class="quote-panel">
+      <div class="quote-mark">&ldquo;</div>
+      <div class="quote-text">
+        <p>真正的 Agent 系统，不该只回答"接下来做什么"，还必须能够回答"现在做到哪一步了、为什么停在这里、如何安全地继续下去"。</p>
+        <p>这也是 Sloth Agent 把运行时、状态、工具和门控视为同一个产品问题的原因。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Infrastructure -->
+  <section class="section fade-in">
+    <div class="section-label">Infrastructure</div>
+    <div class="heading-group">
+      <h2 class="section-heading">让 Agent 落地的，不是更多提示词，而是完整的基础设施</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>不耍嘴皮子，只靠真本事！</p>
+    </div>
+    <p class="section-desc">
+      在 Sloth Agent 里，Tools、Skills、Memory、Context Window、Checkpoints 和 HallucinationGuard 不是彼此独立的卖点。
+      它们共同构成 Agent 的可执行环境：模型能看到什么、能调用什么、调用结果怎样压缩、状态怎样恢复、错误怎样回退，全部需要统一定义。
+    </p>
+
+    <div class="grid-3x2">
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <polyline points="14 6 8 12 14 18"/>
+            <polyline points="10 6 16 12 10 18"/>
+          </svg>
         </div>
-
-        <div class="flow-visual">
-          <div class="flow-grid">
-            <div class="flow-node">
-              <div class="flow-top">
-                <div class="flow-dot"></div>
-                <div class="flow-step">01</div>
-              </div>
-              <div class="flow-panel">
-                <div class="flow-title">Prepare</div>
-                <div class="flow-copy">组装当前 owner、上下文、工具权限和状态快照。</div>
-              </div>
-            </div>
-            <div class="flow-node">
-              <div class="flow-top">
-                <div class="flow-dot"></div>
-                <div class="flow-step">02</div>
-              </div>
-              <div class="flow-panel">
-                <div class="flow-title">Think</div>
-                <div class="flow-copy">模型生成下一步动作，而不是直接把整条任务链压成一次回答。</div>
-              </div>
-            </div>
-            <div class="flow-node">
-              <div class="flow-top">
-                <div class="flow-dot"></div>
-                <div class="flow-step">03</div>
-              </div>
-              <div class="flow-panel">
-                <div class="flow-title">Resolve</div>
-                <div class="flow-copy">把结果归类为 tool、handoff、retry、interrupt 或 final output。</div>
-              </div>
-            </div>
-            <div class="flow-node">
-              <div class="flow-top">
-                <div class="flow-dot"></div>
-                <div class="flow-step">04</div>
-              </div>
-              <div class="flow-panel">
-                <div class="flow-title">Persist & Observe</div>
-                <div class="flow-copy">写回 run state、checkpoint、trace 与 gate 结果，保证可恢复和可审计。</div>
-              </div>
-            </div>
-          </div>
+        <h3>Tools</h3>
+        <p>以读写文件、运行命令、补丁编辑、搜索为核心能力，通过工具层执行动作并保留结构化结果，确保系统可审计、可回放。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <line x1="8" y1="9" x2="16" y2="9"/>
+            <line x1="8" y1="13" x2="14" y2="13"/>
+          </svg>
         </div>
-
-        <div class="inline-list">
-          <div class="inline-item"><strong>单一 Runner 内核</strong>：`Product Orchestrator` 负责入口与恢复，`Runner` 才是唯一推进 run 的执行循环。</div>
-          <div class="inline-item"><strong>结构化 handoff</strong>：Builder 和 Reviewer、Reviewer 和 Deployer 之间传递的是确定性产物，而不是脆弱摘要。</div>
-          <div class="inline-item"><strong>自动门控</strong>：lint、type check、test、coverage、smoke test 都是系统的一部分，不是交付前的补充动作。</div>
+        <h3>Skills</h3>
+        <p>通过 <code style="color:var(--purple);">SKILL.md</code> 注入针对任务的高阶行为模板，让模型获得渐进式能力，而不是把所有规则一次性塞进主提示词。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <line x1="7" y1="5" x2="7" y2="3"/>
+            <line x1="17" y1="5" x2="17" y2="3"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+          </svg>
         </div>
-      </section>
+        <h3>Memory</h3>
+        <p>以文件系统为第一真相源，优先保证简单、可读、可编辑，再向索引与语义层扩展，而不是一开始就把状态埋进黑盒服务。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="15" y2="12"/>
+            <line x1="3" y1="18" x2="10" y2="18"/>
+          </svg>
+        </div>
+        <h3>Context Control</h3>
+        <p>Builder 负责最重的上下文负载，因此需要明确的窗口分区、规则压缩和输出预留，避免长任务在最关键时刻失焦。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <h3>Checkpoints</h3>
+        <p>状态持久化不是为了做日志归档，而是为了让 Agent 在失败、中断、审批或环境变化后，仍然能够继续同一个 run。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+        </div>
+        <h3>Hallucination Guard</h3>
+        <p>路径白名单、命令黑名单、工具结果验证与运行时边界一起工作，把"模型猜测"尽可能限制在可见、可证、可拒绝的范围内。</p>
+      </div>
+    </div>
+  </section>
 
-      <section class="quote">
-        <div class="quote-mark">“</div>
+  <!-- Control Surface -->
+  <section class="section fade-in">
+    <div class="section-label">Control Surface</div>
+    <div class="heading-group">
+      <h2 class="section-heading">不是更像人，而是更值得托付</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>它是啥不重要，重要的是它得能出活！</p>
+    </div>
+    <p class="section-desc">
+      生产可用性的核心，不是让 Agent 看起来"更聪明"，而是让团队能理解、校验、限制并恢复它的行为。Sloth Agent 的很多设计选择，
+      都是围绕这个控制面展开的。
+    </p>
+
+    <div class="control-list">
+      <div class="control-item">
+        <strong>安全默认</strong>
+        <p>先假设 prompt injection、误操作和越权调用会发生，再通过白名单、黑名单、边界隔离和审计来缩小破坏面。</p>
+      </div>
+      <div class="control-item">
+        <strong>文件系统即真相</strong>
+        <p>运行状态、检查点、任务产物优先以普通文件存在，让人可以直接查看、修复和理解，而不是依赖不可见状态机。</p>
+      </div>
+      <div class="control-item">
+        <strong>阶段级模型路由</strong>
+        <p>编码、调试、审查并不一定适合同一个模型。Sloth Agent 直接把"不同阶段用不同模型"视为系统设计，而不是调参细节。</p>
+      </div>
+      <div class="control-item">
+        <strong>质量门控</strong>
+        <p>审查不是装饰，部署也不是最后补一刀。lint、coverage、smoke test 都被建模为执行流中的硬边界。</p>
+      </div>
+      <div class="control-item">
+        <strong>成本意识</strong>
+        <p>从上下文窗口到多 provider 路由，系统设计默认考虑 token 与工具成本，而不是把代价隐藏在"更强模型"的背后。</p>
+      </div>
+      <div class="control-item">
+        <strong>可恢复性</strong>
+        <p>同一个 run 可以因为 gate failure、tool approval、resume 或环境变化而暂停，但不应该因为这些事件被重新拼装成新任务。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Roadmap -->
+  <section class="section fade-in roadmap-section">
+    <div class="section-label">Roadmap</div>
+    <div class="heading-group">
+      <h2 class="section-heading">从可用闭环开始，不从宏大愿景开始</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>还搁那画饼！饼还没吃够啊~</p>
+    </div>
+
+    <div class="roadmap-grid">
+      <div class="roadmap-step">
+        <div class="roadmap-connector"></div>
+        <div class="roadmap-version">v1.0</div>
+        <div class="roadmap-badge">Planned</div>
+        <ul>
+          <li>3-Agent 自主流水线</li>
+          <li>Tools + Memory + Skill Loading</li>
+          <li>自动门控与结构化交接</li>
+          <li>1-2 个模型提供方</li>
+        </ul>
+      </div>
+      <div class="roadmap-step">
+        <div class="roadmap-connector"></div>
+        <div class="roadmap-version">v1.1</div>
+        <div class="roadmap-badge">Planned</div>
+        <ul>
+          <li>Chat Mode 基础</li>
+          <li>多 Provider fallback</li>
+          <li>成本跟踪</li>
+          <li>更强的上下文管理</li>
+        </ul>
+      </div>
+      <div class="roadmap-step">
+        <div class="roadmap-connector"></div>
+        <div class="roadmap-version">v1.2</div>
+        <div class="roadmap-badge">Planned</div>
+        <ul>
+          <li>按需拆分 Planner / Debugger</li>
+          <li>基础 observability</li>
+          <li>更完善的恢复能力</li>
+          <li>checkpoint 增强</li>
+        </ul>
+      </div>
+      <div class="roadmap-step">
+        <div class="roadmap-version">v2.0+</div>
+        <div class="roadmap-badge long">Long-term</div>
+        <ul>
+          <li>8+1 Agent 完整架构</li>
+          <li>事件系统与消息总线</li>
+          <li>知识库与语义检索</li>
+          <li>Daemon、审批、并行协调</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="color:var(--muted-dim); font-size:0.85rem; margin-top:20px; font-family:var(--font-mono);">
+      这条路线图强调一个非常明确的选择：先把最小的执行闭环做对，再逐步扩成完整的 Agent 平台。
+    </p>
+  </section>
+
+  <!-- Footer -->
+  <div class="footer fade-in">
+    <div class="footer-panel">
+      <div class="section-label">Closing</div>
+      <h2 class="footer-heading">Sloth Agent 想构建的，不是另一种"更会回答"的助手，而是一套更值得托付的软件执行系统。</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>哎呀...还搁这儿墨迹呢，赶紧干活了！</p>
+
+      <div class="footer-body">
         <div>
-          <p>真正的 agent 系统，不该只回答“接下来做什么"，还必须能够回答“现在做到哪一步了、为什么停在这里、如何安全地继续下去"。</p>
-          <p class="meta">这也是 Sloth Agent 把运行时、状态、工具和门控视为同一个产品问题的原因。</p>
-        </div>
-      </section>
-
-      <section class="panel alt">
-        <div class="panel-head">
-          <div>
-            <span class="kicker">Infrastructure</span>
-            <h2>让 agent 真正可落地的，不是更多提示词，而是完整的基础设施约束</h2>
-          </div>
-          <p>
-            在 Sloth Agent 里，Tools、Skills、Memory、Context Window、Checkpoints 和 HallucinationGuard 不是彼此独立的卖点。
-            它们共同构成 agent 的可执行环境：模型能看到什么、能调用什么、调用结果怎样压缩、状态怎样恢复、错误怎样回退，全部需要统一定义。
+          <p class="footer-text">
+            它从 Builder、Reviewer、Deployer 这条最朴素的链路出发，把运行时内核、工具系统、记忆结构、安全边界和恢复能力压进同一条设计主线里。
+            如果说下一代 Agent 产品的竞争，不再只是模型能力本身，而是谁能把 Agent 带入更长、更真实、更可控的工作链路，
+            那么 Sloth Agent 的答案，就是先把执行系统搭起来。
           </p>
+          <div class="footer-actions">
+            <a class="footer-btn primary" href="../specs/00000000-architecture-overview.md">Read the canonical architecture</a>
+            <a class="footer-btn secondary" href="../../TODO.md">Track current build priorities</a>
+          </div>
+          <p class="footer-note">Source of truth: canonical architecture overview, dated 2026-04-16.</p>
         </div>
-
-        <div class="cards">
-          <div class="card">
-            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M14 6 8 12l6 6"/><path d="M10 6l6 6-6 6"/></svg></span><h3>Tools</h3></div>
-            <p>以读写文件、运行命令、补丁编辑、搜索为核心能力，通过工具层执行动作并保留结构化结果，确保系统可审计、可回放。</p>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M6 5h12v14H6z"/><path d="M9 9h6"/><path d="M9 13h6"/></svg></span><h3>Skills</h3></div>
-            <p>通过 `SKILL.md` 注入针对任务的高阶行为模板，让模型获得渐进式能力，而不是把所有规则一次性塞进主提示词。</p>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M8 6V4h8v2"/><path d="M4 12h16"/></svg></span><h3>Memory</h3></div>
-            <p>以文件系统为第一真相源，优先保证简单、可读、可编辑，再向索引与语义层扩展，而不是一开始就把状态埋进黑盒服务。</p>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h7"/></svg></span><h3>Context Control</h3></div>
-            <p>Builder 负责最重的上下文负载，因此需要明确的窗口分区、规则压缩和输出预留，避免长任务在最关键时刻失焦。</p>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 5v7l4 2"/></svg></span><h3>Checkpoints</h3></div>
-            <p>状态持久化不是为了做日志归档，而是为了让 agent 在失败、中断、审批或环境变化后，仍然能够继续同一个 run。</p>
-          </div>
-          <div class="card">
-            <div class="card-head"><span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4.2-2.4 6.9-7 9-4.6-2.1-7-4.8-7-9V7l7-4z"/><path d="m9.5 12 1.8 1.8 3.2-3.6"/></svg></span><h3>Hallucination Guard</h3></div>
-            <p>路径白名单、命令黑名单、工具结果验证与运行时边界一起工作，把“模型猜测”尽可能限制在可见、可证、可拒绝的范围内。</p>
+        <div>
+          <div class="footer-badge">
+            <div class="footer-badge-label">Execution Loop</div>
+            <div class="footer-badge-title">Plan &rarr; Build &rarr; Review &rarr; Deploy</div>
+            <div class="footer-badge-copy">不是一次回答的链式延长，而是一条带有门控、恢复与状态真相源的执行路径。</div>
           </div>
         </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <span class="kicker">Control Surface</span>
-            <h2>它追求的不是更像人，而是更像一个能被团队托付的系统</h2>
-          </div>
-          <p>
-            生产可用性的核心，不是让 agent 看起来“更聪明”，而是让团队能理解、校验、限制并恢复它的行为。Sloth Agent 的很多设计选择，
-            都是围绕这个控制面展开的。
-          </p>
-        </div>
-
-        <div class="cards">
-          <div class="card">
-            <h3>安全默认</h3>
-            <p>先假设 prompt injection、误操作和越权调用会发生，再通过白名单、黑名单、边界隔离和审计来缩小破坏面。</p>
-          </div>
-          <div class="card">
-            <h3>文件系统即真相</h3>
-            <p>运行状态、检查点、任务产物优先以普通文件存在，让人可以直接查看、修复和理解，而不是依赖不可见状态机。</p>
-          </div>
-          <div class="card">
-            <h3>阶段级模型路由</h3>
-            <p>编码、调试、审查并不一定适合同一个模型。Sloth Agent 直接把“不同阶段用不同模型”视为系统设计，而不是调参细节。</p>
-          </div>
-          <div class="card">
-            <h3>质量门控</h3>
-            <p>审查不是装饰，部署也不是最后补一刀。lint、coverage、smoke test 都被建模为执行流中的硬边界。</p>
-          </div>
-          <div class="card">
-            <h3>成本意识</h3>
-            <p>从上下文窗口到多 provider 路由，系统设计默认考虑 token 与工具成本，而不是把代价隐藏在“更强模型”的背后。</p>
-          </div>
-          <div class="card">
-            <h3>可恢复性</h3>
-            <p>同一个 run 可以因为 gate failure、tool approval、resume 或环境变化而暂停，但不应该因为这些事件被重新拼装成新任务。</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="roadmap">
-        <span class="kicker">Roadmap</span>
-        <h2>Sloth Agent 的路线图，从可用闭环开始，而不是从宏大愿景开始</h2>
-        <div class="roadmap-grid">
-          <div class="roadmap-step">
-            <div class="version">v1.0</div>
-            <div class="state">Planned</div>
-            <ul>
-              <li>3-Agent 自主流水线</li>
-              <li>Tools + Memory + Skill Loading</li>
-              <li>自动门控与结构化交接</li>
-              <li>1-2 个模型提供方</li>
-            </ul>
-          </div>
-          <div class="roadmap-step">
-            <div class="version">v1.1</div>
-            <div class="state">Planned</div>
-            <ul>
-              <li>Chat Mode 基础</li>
-              <li>多 Provider fallback</li>
-              <li>成本跟踪</li>
-              <li>更强的上下文管理</li>
-            </ul>
-          </div>
-          <div class="roadmap-step">
-            <div class="version">v1.2</div>
-            <div class="state">Planned</div>
-            <ul>
-              <li>按需拆分 Planner / Debugger</li>
-              <li>基础 observability</li>
-              <li>更完善的恢复能力</li>
-              <li>checkpoint 增强</li>
-            </ul>
-          </div>
-          <div class="roadmap-step">
-            <div class="version">v2.0+</div>
-            <div class="state">Long-term</div>
-            <ul>
-              <li>8+1 Agent 完整架构</li>
-              <li>事件系统与消息总线</li>
-              <li>知识库与语义检索</li>
-              <li>Daemon、审批、并行协调</li>
-            </ul>
-          </div>
-        </div>
-        <p class="source-note">这条路线图强调一个非常明确的选择：先把最小的执行闭环做对，再逐步扩成完整的 agent 平台。</p>
-      </section>
-
-      <section class="footer-card">
-        <div class="footer-copy">
-          <span class="kicker">Closing</span>
-          <h2>Sloth Agent 想构建的，不是另一种“更会回答”的助手，而是一套更值得托付的软件执行系统。</h2>
-          <div class="footer-body">
-            <div class="footer-text">
-              <p class="muted">
-                它从 Builder、Reviewer、Deployer 这条最朴素的链路出发，把运行时内核、工具系统、记忆结构、安全边界和恢复能力压进同一条设计主线里。
-                如果说下一代 agent 产品的竞争，不再只是模型能力本身，而是谁能把 agent 带入更长、更真实、更可控的工作链路，
-                那么 Sloth Agent 的答案，就是先把执行系统搭起来。
-              </p>
-              <div class="footer-actions">
-                <a class="footer-action primary" href="../specs/00000000-architecture-overview.md">Read the canonical architecture</a>
-                <a class="footer-action secondary" href="../../TODO.md">Track current build priorities</a>
-              </div>
-              <p class="source-note">Source of truth: canonical architecture overview, dated 2026-04-16.</p>
-            </div>
-            <div class="footer-side">
-              <div class="footer-badge">
-                <div class="footer-badge-label">Execution Loop</div>
-                <div class="footer-badge-title">Plan → Build → Review → Deploy</div>
-                <div class="footer-badge-copy">不是一次回答的链式延长，而是一条带有门控、恢复与状态真相源的执行路径。</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+      </div>
+    </div>
   </div>
 
   <script>
-  const progress = document.getElementById('progress');
-  const updateProgress = () => {
-    const scrollTop = window.scrollY;
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
-    progress.style.transform = `scaleX(${Math.min(1, Math.max(0, ratio))})`;
-  };
+    // Scroll progress
+    const progress = document.getElementById('progress');
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')';
+    };
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
 
-  updateProgress();
-  window.addEventListener('scroll', updateProgress, { passive: true });
-  window.addEventListener('resize', updateProgress);
+    // IntersectionObserver for fade-in
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }
-      });
-    },
-    { threshold: 0.1 }
-  );
-
-  document.querySelectorAll('.panel, .quote, .roadmap, .footer-card').forEach((el) => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-    observer.observe(el);
-  });
-</script>
+    document.querySelectorAll('.fade-in').forEach((el) => {
+      observer.observe(el);
+    });
+  </script>
 </body>
 </html>
