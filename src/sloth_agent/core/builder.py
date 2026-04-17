@@ -5,12 +5,20 @@ from typing import Any
 
 
 @dataclass
+class CoverageReport:
+    """Test execution summary."""
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+
+
+@dataclass
 class BuilderOutput:
     """Structured output from Builder phase."""
     branch: str
     changed_files: list[str]
     diff_summary: str
-    test_results: dict = field(default_factory=dict)
+    test_results: CoverageReport = field(default_factory=CoverageReport)
     coverage: float = 0.0
     build_log: str | None = None
 
