@@ -197,6 +197,13 @@
 
 ## 近期 Backlog
 
+- [ ] **[P0][v0.3]** Skill 管理机制完善（内置 skill + 路由 + 注入 + 验证）@agent @20260418
+  > Arch: `00000000-00-architecture-overview.md` §6.0
+  > Spec: `20260416-06-skill-management-spec.md`
+  > Plan: `20260418-v0-3-skill-management-plan.md`
+  > 范围: SkillValidator + SkillRouter + 5 内置 skill + SkillInjector + SkillRegistry
+  > 依赖: v0.2 已完成 SkillManager 基础加载能力
+
 - [ ] **[P1][v0.3]** 基础 Observability（结构化日志 + Trace ID）@agent @20260416
   > Arch: §7.4 | Spec: `20260416-08-observability-logging-spec.md` | Plan: 待创建
   > 备注: v0.2 完成后可进入，为 Runner 接入 LogManager + TraceContext
