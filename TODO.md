@@ -1,6 +1,6 @@
 # Project TODO
 
-> 最后更新: 20260417 — Task 4 完成，163 tests pass
+> 最后更新: 20260417 — Task 6 完成，169 tests pass
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
 > 当前目标: 先落地 v1.0 最小可用产品，再进入 v1.1 / v2.0 扩展
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
@@ -74,23 +74,23 @@
   - [x] 对齐 `BuilderOutput` / `ReviewerOutput` 数据结构
   - [x] 打通 gate failure → retry / rollback / interrupt 的运行时流转
 
-- [ ] **Task 5: Reviewer Agent Runtime** ← Task 4
+- [x] **Task 5: Reviewer Agent Runtime** ← Task 4
   > Arch: `00000000-00-architecture-overview.md` §5.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Reviewer 定义）
   > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 15
-  - [ ] 实现 Reviewer phase，要求使用不同于 Builder 的模型路由
-  - [ ] 聚焦代码审查、质量验证、安全/性能 blocking issues 识别
-  - [ ] 生成结构化 `ReviewerOutput`，支持 Reviewer → Deployer handoff
-  - [ ] 补充 reviewer 审查有效性的测试与最小评估用例
+  - [x] 实现 Reviewer phase，要求使用不同于 Builder 的模型路由
+  - [x] 聚焦代码审查、质量验证、安全/性能 blocking issues 识别
+  - [x] 生成结构化 `ReviewerOutput`，支持 Reviewer → Deployer handoff
+  - [x] 补充 reviewer 审查有效性的测试与最小评估用例
 
-- [ ] **Task 6: Deployer Agent Runtime** ← Task 5
+- [x] **Task 6: Deployer Agent Runtime** ← Task 5
   > Arch: `00000000-00-architecture-overview.md` §5.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Deployer 定义）
   > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 16
-  - [ ] 实现部署执行与 smoke test 验证链路
-  - [ ] 支持 Gate3 失败后的自动回滚与通知钩子
-  - [ ] 明确部署产物、部署日志、验证结果的落盘格式
-  - [ ] 补充 end-to-end 部署阶段测试
+  - [x] 实现部署执行与 smoke test 验证链路
+  - [x] 支持 Gate3 失败后的自动回滚与通知钩子
+  - [x] 明确部署产物、部署日志、验证结果的落盘格式
+  - [x] 补充 end-to-end 部署阶段测试
 
 - [ ] **Task 7: FS Memory / Checkpoint / Skill Loading** ← Task 6
   > Arch: `00000000-00-architecture-overview.md` §7.2
