@@ -3,6 +3,11 @@
 > 版本: v1.0.0
 > 日期: 2026-04-16
 > 状态: 生效中（合并 tools-design-spec 后成为 Module 02 完整工具规范）
+> v0.1 实现状态: ToolRegistry / ToolOrchestrator / Executor / HallucinationGuard 已实现
+>   - 实现文件: `src/sloth_agent/core/tools/tool_registry.py`
+>   - 实现文件: `src/sloth_agent/core/tools/executor.py`, `src/sloth_agent/core/tools/hallucination_guard.py`
+>   - 实现文件: `src/sloth_agent/core/tools/builtin/file_ops.py`, `shell.py`, `search.py`
+>   - 测试覆盖: `tests/core/tools/` (58 tests)
 > **权威基准**: 工具定义、分组、权限、调用链路均以本文档为准
 
 ---

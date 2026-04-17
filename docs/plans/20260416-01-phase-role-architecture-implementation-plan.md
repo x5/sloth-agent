@@ -1,6 +1,8 @@
 # Phase-Role-Architecture Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> v0.1 实现状态: §Task 8/9/10/15/16/18/19 已完成 — Runner/RunState/NextStep 内核, Builder/Reviewer/Deployer Agent, Gate 机制, ContextWindowManager, Reflector, BuilderOutput/ReviewerOutput 交接协议
+> v0.1 测试覆盖: 189 tests pass (13 个测试文件)
 
 **Goal:** Implement the 8-phase, 8-agent, 37-skill workflow engine for Sloth Agent black-light factory. Covers: data models (Phase, Agent, Skill, Scenario, Gate) → Registry → Workflow Engine → Gate validation → Memory store → NextStep protocol → ContextWindowManager → Reflection/StuckDetection → Adaptive Planning. Each Phase has 1 Agent, each Agent has N Skills, Scenarios are valid Phase sequences constrained by Pre/Post relationships.
 

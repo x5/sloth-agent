@@ -3,6 +3,8 @@
 > Spec 来源: `docs/specs/20260416-06-skill-management-spec.md`
 > Plan 文件: `docs/plans/20260416-06-skill-management-implementation-plan.md`
 > 对应 Arch: `docs/specs/00000000-00-architecture-overview.md` §7.2 shared/skills
+> v0.1 实现状态: SkillManager (from_markdown / load_all_skills / get_skill_content) 已实现 (3 tests pass)
+> v0.1 实现文件: `src/sloth_agent/memory/skills.py`
 
 ---
 

@@ -1,8 +1,9 @@
 # Project TODO
 
-> 最后更新: 20260417 — Task 8 完成，v1.0 流水线闭环，189 tests pass
+> 最后更新: 20260417 — v0.1 发布，v0.2 规划完成，待执行
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
-> 当前目标: 先落地 v1.0 最小可用产品，再进入 v1.1 / v2.0 扩展
+> 当前目标: v0.2 最小可用扩展（成本管控 + Provider 容错 + Chat 增强）
+> 版本映射: 原 v1.0→v0.1, 原 v1.1→v0.2, 原 v1.2→v0.3, 原 v2.0→v0.5~v1.0
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
 
 ---
@@ -28,10 +29,10 @@
 - [x] **Task A4 [P0]: Final polish and validation**
 - [x] **Task A5 [P0]: Add original visual elements to reduce text heaviness**
 
-### P0: v1.0 自主流水线实现
+### P0: v0.1 自主流水线实现
 
 > Arch: `docs/specs/00000000-00-architecture-overview.md` §3.1, §5.1, §7.1, §7.2, §9.0
-> Spec: 各模块以独立 spec 文件为准，见每项标注；架构总览提供 v1.0 流水线概览
+> Spec: 各模块以独立 spec 文件为准，见每项标注；架构总览提供 v0.1 流水线概览
 > 范围: 3-Agent 串行流水线（Builder → Reviewer → Deployer）
 > 关键约束: 单一 `Runner` 内核 + 结构化交接 + 自动门控 + 文件系统状态
 > 模块映射: 模块 01 (§25 运行时内核定义) 包含 Runner/RunState/NextStep 完整语义
@@ -52,7 +53,7 @@
   > Spec: `20260416-02-tools-invocation-spec.md`（模块 #2）
   > Plan: `20260416-02-tools-invocation-implementation-plan.md`（已合并 v10 tool runtime plan）
   - [x] 统一 `ToolRegistry` / `ToolOrchestrator` 接口，纳入 `Runner.resolve()` 分支
-  - [x] 优先落地 v1.0 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
+  - [x] 优先落地 v0.1 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
   - [x] 接入 `HallucinationGuard`、路径白名单、命令黑名单
   - [x] 为工具调用记录审计信息与结构化结果，便于后续 gate / tracing / replay
 
@@ -101,14 +102,65 @@
   - [x] 打通 `SKILL.md` 加载与按需注入机制
   - [x] 约束模型可见上下文、运行时上下文、持久化状态三层边界
 
-- [x] **Task 8: CLI 集成与 v1.0 验证闭环** ← Task 7
+- [x] **Task 8: CLI 集成与 v0.1 验证闭环** ← Task 7
   > Arch: `00000000-00-architecture-overview.md` §9.0, §11.0
   > Spec: 同上（CLI + 配置定义无独立 spec 文件）
   > Plan: `20260417-20-llm-router-implementation-plan.md` + `20260416-18-installation-onboarding-implementation-plan.md` + `20260417-21-eval-framework-implementation-plan.md`
   - [x] 打通 `sloth run` 主路径，输入 Plan 后可跑完整流水线
-  - [x] 配置 v1.0 阶段级模型路由（Builder / Reviewer / Deployer）
+  - [x] 配置 v0.1 阶段级模型路由（Builder / Reviewer / Deployer）
   - [x] 增加最小 eval / smoke 场景，验证成功率、质量门控、自修复链路
   - [x] 跑通一条真实示例并更新 README / 使用文档
+
+### P1: v0.2 扩展实现
+
+> Arch: `00000000-00-architecture-overview.md` §5, §7.3
+> Plan: `20260417-v1-1-implementation-plan.md`（原 v1.1 计划，重命名为 v0.2）
+> 依赖链: `V0.2-1 → V0.2-2 → V0.2-3 → V0.2-4 → V0.2-5`
+> 范围: 成本管控 + Provider 容错 + Chat 增强 + 上下文优化 + 自适应执行
+
+- [ ] **Task V0.2-1: Cost Tracking 基础** ← v0.1 Task 8
+  > Arch: `00000000-00-architecture-overview.md` §7.3
+  > Spec: `20260416-12-cost-budget-spec.md`
+  > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-1
+  - [ ] 实现 `CostTracker` 数据模型与文件系统存储
+  - [ ] 内置定价表覆盖 spec 中 16 个模型
+  - [ ] `BudgetAwareLLMRouter` 软/硬限额检查
+  - [ ] 在 ToolRuntime 的 LLM 调用路径中接入 `record_call()`
+
+- [ ] **Task V0.2-2: Provider Fallback / 熔断降级** ← Task V0.2-1
+  > Arch: `00000000-00-architecture-overview.md` §7.3
+  > Spec: `20260416-07-chat-mode-spec.md` + `20260416-09-error-handling-recovery-spec.md` §4
+  > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-2
+  - [ ] `CircuitBreaker` 三态机 (closed/open/half_open)
+  - [ ] `ProviderCircuitManager` 多 provider 熔断管理
+  - [ ] LLMRouter 集成 fallback 链
+  - [ ] 全部 provider 不可用时降级到 MockProvider
+
+- [ ] **Task V0.2-3: Chat Mode 增强（REPL + streaming）** ← Task V0.2-2
+  > Arch: `00000000-00-architecture-overview.md` §5 设计原则
+  > Spec: `20260416-07-chat-mode-spec.md`
+  > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-3
+  - [ ] `SessionManager` 创建/加载/保存 chat session
+  - [ ] 对话历史持久化 + 上下文截断策略
+  - [ ] REPL 集成 tool call 执行 + 用户确认
+  - [ ] v0.2 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
+  - [ ] `AutonomousController` 自主模式控制
+
+- [ ] **Task V0.2-4: Builder 上下文窗口管理优化** ← Task V0.2-3
+  > Arch: `00000000-00-architecture-overview.md` §5.1.2
+  > Spec: `20260416-01-phase-role-architecture-spec.md`
+  > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-4
+  - [ ] ContextWindowManager 改进为 token-based 截断
+  - [ ] 增加 summary 压缩: 早期对话生成摘要
+  - [ ] Token 计数器 (tiktoken 或简化估算)
+
+- [ ] **Task V0.2-5: Adaptive Execution（自适应重规划）** ← Task V0.2-4
+  > Arch: `00000000-00-architecture-overview.md` §6.0
+  > Spec: `20260416-01-phase-role-architecture-spec.md`
+  > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-5
+  - [ ] `AdaptiveTrigger` 检测 gate 失败/context 不足/plan 偏离
+  - [ ] `Replanner` 接收当前状态 → 生成 updated plan
+  - [ ] Runner 集成 adaptive trigger 检测
 
 ### 其他活跃任务
 
@@ -121,43 +173,34 @@
 
 ## 近期 Backlog
 
-- [ ] **[P1][v1.1]** Chat Mode 基础（REPL + streaming）@agent @20260416
-  > Arch: §5 设计原则 | Spec: `20260416-07-chat-mode-spec.md` | Plan: 待创建
-- [ ] **[P1][v1.1]** 多 Provider fallback / 熔断降级 @agent @20260416
-  > Arch: §7.3 | Spec: `20260416-07-chat-mode-spec.md` (Provider 部分) | Plan: 待创建
-- [ ] **[P1][v1.1]** Cost tracking 基础（定价 + 用量记录）@agent @20260416
-  > Arch: — | Spec: `20260416-12-cost-budget-spec.md` | Plan: 待创建
-- [ ] **[P1][v1.1]** Builder 上下文窗口管理优化 @agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §5.1.2 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: 待创建
-- [ ] **[P1][v1.1]** Adaptive Execution（自适应重规划）@agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §6.0 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: 待创建
+- [ ] **[P1][v0.3]** 基础 Observability（结构化日志 + Trace ID）@agent @20260416
+  > Arch: §7.4 | Spec: `20260416-08-observability-logging-spec.md` | Plan: 待创建
+  > 备注: v0.2 完成后可进入，为 Runner 接入 LogManager + TraceContext
 
 ## 远期 Backlog
 
-- [ ] **[P2][v1.2]** 基础 Observability（结构化日志 + Trace ID）@agent @20260416
-  > Arch: §7.4 | Spec: `20260416-08-observability-logging-spec.md` | Plan: 待创建
-- [ ] **[P2][v1.2]** Error Recovery（重试 + 基本恢复）@agent @20260416
+- [ ] **[P2][v0.3]** Error Recovery（重试 + 基本恢复）@agent @20260416
   > Arch: — | Spec: `20260416-09-error-handling-recovery-spec.md` | Plan: 待创建
-- [ ] **[P2][v1.2]** Feishu 通知（webhook 推送执行结果）@agent @20260416
+- [ ] **[P2][v0.3]** Feishu 通知（webhook 推送执行结果）@agent @20260416
   > Arch: — | Spec: `20260416-19-feishu-integration-spec.md` | Plan: 待创建
-- [ ] **[P2][v1.2]** Checkpoint 保存与恢复增强 @agent @20260416
+- [ ] **[P2][v0.3]** Checkpoint 保存与恢复增强 @agent @20260416
   > Arch: `00000000-00-architecture-overview.md` §8.3 | Spec: `20260416-04-memory-management-spec.md` | Plan: 待创建
-- [ ] **[P2][v2.0]** Phase-Role-Architecture（8 阶段 × 8+1 Agent × 37 技能）实现 @agent @20260416
-  > Arch: §5.2, §6.1, §6.2 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: `20260416-01-phase-role-architecture-implementation-plan.md`
-- [ ] **[P2][v2.0]** Multi-Agent 并行协调 + Worktree 隔离 @agent @20260416
+- [ ] **[P2][v0.5]** 按需拆分 Agent（Planner / Debugger）@agent @20260416
+  > Arch: §5.2, §6.1, §6.2 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: 待创建
+- [ ] **[P2][v0.5]** Multi-Agent 并行协调 + Worktree 隔离 @agent @20260416
   > Arch: §10.3 | Spec: `20260416-03-multi-agent-coordination-spec.md` | Plan: 待创建
-- [ ] **[P2][v2.0]** 事件总线（pub-sub + dead letter queue）@agent @20260416
+- [ ] **[P2][v0.5]** 事件总线（pub-sub + dead letter queue）@agent @20260416
   > Arch: §7.4.1 v2.0 | Spec: `20260416-14-event-system-spec.md` | Plan: 待创建
-- [ ] **[P2][v2.0]** 知识库 + 语义检索（SQLite / ChromaDB）@agent @20260416
+- [ ] **[P2][v0.5]** 知识库 + 语义检索（SQLite / ChromaDB）@agent @20260416
   > Arch: §7.2 | Spec: `20260416-15-knowledge-base-spec.md` | Plan: 待创建
-- [ ] **[P2][v2.0]** Daemon 常驻 + Watchdog @agent @20260416
+- [ ] **[P2][v0.8]** Daemon 常驻 + Watchdog @agent @20260416
   > Arch: — | Spec: `20260416-16-daemon-health-spec.md` | Plan: 待创建
 
 ## 阻塞
 
-> 无阻塞。v1.0 流水线全部实现完成并验证。
+> 无阻塞。v0.1 流水线全部实现完成并发布。
 
-### P0: v1.0 Plan 创建（已全部完成）
+### P0: v0.1 Plan 创建（已全部完成）
 
 > 规则: 每个 Plan 必须引用 architecture-overview.md 对应章节，且包含具体文件路径/函数/测试
 > 依赖链: `P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8`
@@ -180,6 +223,7 @@
 - [x] **[P0]** Phase-Role-Architecture Spec 编写 @agent @20260416
 - [x] **[P0]** Phase-Role-Architecture Plan 编写 @agent @20260416
 - [x] **[P0]** Architecture v2 内容并入 canonical overview，旧文档归档 @agent @20260416
+- [x] **[P0]** v0.1 发布：3-Agent 流水线 189 tests pass，端到端 smoke 验证 @agent @20260417
 
 ---
 
@@ -190,7 +234,7 @@
 | `P0` | 最高优先级，当前迭代必须完成 |
 | `P1` | 高优先级，当前迭代应该完成 |
 | `P2` | 中优先级，当前迭代可以完成 |
-| `[v1.1] / [v1.2] / [v2.0]` | 对应 roadmap 版本阶段 |
+| `[v0.1] / [v0.2] / [v0.3] / [v0.5] / [v0.8] / [v1.0]` | 对应 roadmap 版本阶段 |
 | `@owner` | 任务负责人（agent/human） |
 | `@YYYYMMDD` | 创建或迁移日期 |
 | `← Task N` | 依赖前置任务 N |
@@ -203,6 +247,10 @@
 |------|---------|
 | 20260415 | 初始版本，创建框架基础任务 |
 | 20260416 | 整合 Phase-Role-Architecture 任务链，建立依赖关系 |
-| 20260416 | 按 canonical architecture 重排 TODO：v1.0 先做 3-Agent 自主流水线，Phase-Role-Architecture 下沉为 v2.0 远期任务 |
-| 20260417 | 创建 Spec → Plan → Execute 流程规范；补齐 v1.0 全部 8 个 implementation plan（Task 1-8），解除阻塞 |
-| 20260417 | 完成 Task 1: Runtime Kernel (25 tests pass) + Task 2: Tool Runtime (120 tests pass) |
+| 20260416 | 按 canonical architecture 重排 TODO：v0.1 先做 3-Agent 自主流水线，Phase-Role-Architecture 下沉为远期任务 |
+| 20260417 | 创建 Spec → Plan → Execute 流程规范；补齐 v0.1 全部 8 个 implementation plan（Task 1-8） |
+| 20260417 | 完成 Task 1-8，189 tests pass，3-Agent 流水线闭环 |
+| 20260417 | 版本重命名：原 v1.0→v0.1, v1.1→v0.2, v1.2→v0.3, v2.0→v0.5~v1.0 |
+| 20260417 | v0.2 规划完成：5 个 Task (V0.2-1~V0.2-5) 纳入活跃区 |
+| 20260417 | 产品路线图更新：architecture-overview.md §14 建立 v0.1→v1.0 六版本完整路线图 |
+| 20260417 | TODO.md 全量版本号对齐，v0.1 发布至 GitHub |

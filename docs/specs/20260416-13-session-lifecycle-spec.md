@@ -2,7 +2,10 @@
 
 > 版本: v1.0.0
 > 日期: 2026-04-16
-> 状态: 新增
+> 状态: v0.1 已实现 Checkpoint 子集
+> v0.1 实现状态: Git CheckpointManager (create_git_checkpoint / rollback_to / auto_commit) 已实现
+>   - 实现文件: `src/sloth_agent/reliability/checkpoint.py`
+>   - 测试覆盖: `tests/reliability/test_checkpoint.py`
 
 ---
 

@@ -3,6 +3,8 @@
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 > **Spec:** `docs/specs/20260416-02-tools-invocation-spec.md`
 > **Module:** #2 — Tools Invocation（工具调用机制）
+> v0.1 实现状态: ToolRegistry / Executor / HallucinationGuard / 6 个内置工具已实现，58 tests pass
+> v0.1 实现文件: `src/sloth_agent/core/tools/` (tool_registry.py, executor.py, hallucination_guard.py, builtin/)
 
 **Goal:** Complete the v1.0 tools invocation runtime — IntentResolver, StreamProcessor, RollbackManager, Function Calling adapter, and second-phase builtin tools. Phase 1 core (Tool base, Registry, HallucinationGuard, RiskGate, Executor, Formatter, Orchestrator, builtin file/shell/search) is already implemented.
 

@@ -2,7 +2,10 @@
 
 > 版本: v1.0.0
 > 日期: 2026-04-17
-> 状态: 新增
+> 状态: v0.1 已实现基础框架
+> v0.1 实现状态: EvalRunner + SmokeTest + 标准任务集已实现，189 tests pass
+>   - 实现文件: `evals/runner.py`, `evals/smoke_test.py`, `evals/tasks.yaml`
+>   - 测试覆盖: `evals/test_runner.py`, `evals/test_smoke.py`
 
 ---
 

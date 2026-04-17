@@ -1576,13 +1576,196 @@ sloth eval --compare        # 对比最近两次 eval 结果
 
 ## 14. 版本路线图
 
-| 版本 | 核心交付 | Agent 架构 | 状态 |
-|------|---------|-----------|------|
-| **v1.0** | **3-Agent 自主流水线**<br>Builder + Reviewer + Deployer<br>Plan 解析 → 编码 → 测试 → 审查 → 部署<br>自动门控（lint/type/test/coverage/smoke）<br>结构化 Agent 交接协议<br>阶段级 LLM 路由（不同阶段用不同模型）<br>Adaptive Planning（动态重规划）<br>Code Understanding（tree-sitter AST 集成）<br>Tool-Use Learning（工具调用统计与优化）<br>Tools（read/write/edit/run_command/glob/grep）<br>Memory（纯文件系统，jsonl）<br>Skill Loading（加载 SKILL.md）<br>1-2 个 LLM Provider（DeepSeek + Qwen） | 3 Agent | **规划中** |
-| **v1.1** | Chat Mode 基础（REPL + streaming）<br>多 Provider + fallback + 熔断降级<br>Cost tracking 基础（定价 + 用量记录）<br>Builder 上下文窗口管理优化<br>Adaptive Execution（自适应重规划） | 3 Agent | 规划中 |
-| **v1.2** | 按需拆分 Agent（如 Planner、Debugger）<br>飞书通知（webhook 推送执行结果）<br>基础 Observability（结构化日志 + Trace ID）<br>Error Recovery（重试 + 基本恢复）<br>Checkpoint 保存与恢复 | 3-5 Agent | 规划中 |
-| **v2.0** | 8 专用 Agent + 1 通用 Agent 完整架构<br>Multi-Agent 并行协调 + Worktree 隔离<br>Speculative Execution（best-of-N 探索性执行）<br>Token Budget Manager（精细化 token 分配）<br>消息总线（SQLite 后端）<br>完整事件系统（pub-sub + 死信队列）<br>知识库 + 语义检索（ChromaDB）<br>飞书卡片交互 + 审批通道<br>Daemon 常驻 + Watchdog | 8+1 Agent | 远期 |
-| **v2.x** | 完整 15 模块架构<br>Plugin 工具生态<br>全链路可观测性<br>报告生成引擎<br>生产级稳定性和性能 | 8+1 Agent | 远期 |
+### 14.0 命名调整
+
+原计划中的版本号偏高，实际产品成熟度需要更诚实的映射。调整如下：
+
+| 原版本 | 新版本 | 原因 |
+|--------|--------|------|
+| v1.0 | **v0.1** | 最小可用原型，3-Agent 串行流水线刚跑通 |
+| v1.1 | **v0.2** | 在 v0.1 基础上加成本管控和容错，仍非成熟产品 |
+| v1.2 | **v0.3** | 可观测性和错误恢复补齐，产品开始可用 |
+| v2.0 | **v0.5~v1.0** | 8-Agent + 昼夜循环 + 知识库，逐步达到市场竞争力 |
+
+### 14.1 v0.1 — 最小可用原型（当前版本）
+
+> 目标：证明 "Plan → 全自主开发 → 部署" 的核心链路能跑通
+> 定位：技术验证品，离可用还有很大距离
+> 状态：**已实现**
+
+**核心能力**：
+- 3-Agent 串行流水线：Builder → Reviewer → Deployer
+- 自动门控：lint / type-check / test / coverage / smoke-test
+- 结构化交接协议：BuilderOutput / ReviewerOutput
+- 阶段级 LLM 路由：DeepSeek（编码）/ Qwen（审查）
+- 文件系统存储：jsonl 格式，无数据库依赖
+- SKILL.md 加载与注入（Claude Code 兼容格式）
+- 三层上下文边界：ModelVisible / RuntimeOnly / PersistedRunState
+- Git 三级 checkpoint：Session / Stage / Task
+- 基础 CLI：`sloth run` 输入 Plan 后跑完整流水线
+- 最小 eval 框架：smoke test + 标准任务集
+
+**关键约束**：
+- 仅 2 个 LLM Provider（DeepSeek + Qwen）
+- 无 fallback / 熔断，Provider 挂了直接报错
+- 无成本追踪，不知道花了多少钱
+- 无可观测性，出了问题只能看终端输出
+- 无错误恢复，失败后需要手动处理
+- 无 Chat Mode，只能跑自主流水线
+
+**已实现 spec**：
+- 模块 #01 Phase-Role Architecture（v0.1 子集）→ `20260416-01-phase-role-architecture-spec.md`
+- 模块 #02 Tools Invocation（v0.1 子集）→ `20260416-02-tools-invocation-spec.md`
+- 模块 #04 Memory Management（v0.1 子集）→ `20260416-04-memory-management-spec.md`
+- 模块 #06 Skill Management（v0.1 子集）→ `20260416-06-skill-management-spec.md`
+- 模块 #20 LLM Provider & Routing（v0.1 子集）→ `20260417-20-llm-router-spec.md`
+- 模块 #21 Eval Framework（v0.1 子集）→ `20260417-21-eval-framework-spec.md`
+
+**测试覆盖**：189 tests pass
+
+---
+
+### 14.2 v0.2 — 成本管控与容错
+
+> 目标：让 v0.1 能用在真实环境中，不被天价账单吓到，不因 Provider 抖动而崩溃
+> 定位：勉强能在自己项目上试用
+> 状态：**规划完成，待实现**
+
+**核心能力**：
+- Cost Tracking：CallRecord 数据模型、16 模型定价表、文件系统存储
+- Budget 检查：软限额（80% 警告）+ 硬限额（100% 阻断）
+- BudgetAwareLLMRouter：预算不足时自动降级到便宜模型
+- CircuitBreaker 熔断器：closed → open → half_open 三态机
+- ProviderCircuitManager：多 Provider 独立熔断管理
+- LLMRouter fallback 链：首选 Provider 熔断时自动切换备选
+- Chat Mode 增强：SessionManager、工具执行集成、自主模式控制
+- 新增 slash commands：`/skill`、`/start autonomous`、`/stop`、`/status`
+- Builder 上下文窗口优化：token-based 截断、summary 压缩
+- Adaptive Execution：gate 失败 / context 不足 / plan 偏离时自动重规划
+
+**预期新增 spec 引用**：
+- 模块 #07 Chat Mode → `20260416-07-chat-mode-spec.md`
+- 模块 #12 Cost & Budget → `20260416-12-cost-budget-spec.md`
+- 模块 #09 Error Handling（CircuitBreaker 部分）→ `20260416-09-error-handling-recovery-spec.md` §4
+
+**实现计划**：`20260417-v1-1-implementation-plan.md`（Task V1-1 ~ V1-5）
+
+---
+
+### 14.3 v0.3 — 可观测性与错误恢复
+
+> 目标：出了问题能知道为什么，能自动恢复而不是手动处理
+> 定位：可以作为日常开发工具使用
+> 状态：**规划中**
+
+**核心能力**：
+- LogManager 统一日志：5 层日志分层（app / tool-calls / security / metrics / conversations）
+- TraceContext Trace ID：`sloth-{session_id}-{phase_id}-{suffix}-{seq}` 全链路追踪
+- LogQuerier 日志查询 CLI：按 level / agent / phase / trace 过滤
+- 基于日志的健康诊断：错误风暴检测、心跳检查、Phase 停滞检测
+- RetryHandler 重试处理器：指数退避 + 随机抖动 + 可配置重试策略
+- ScenarioRecovery 场景恢复：gate 连续失败 / 超时 / 预算超支 / 上下文丢失 / 全 Provider 不可用
+- GracefulDegradation 优雅降级：资源受限时只执行核心动作
+- HumanInterventionManager 人工介入：escalation 通知 + 建议动作 + 处理追踪
+- Feishu 通知（webhook 推送）：执行结果、预算警告、错误上报
+- Checkpoint 增强：自动 checkpoint 触发条件（phase.enter / phase.exit / error.critical）
+
+**预期新增 spec 引用**：
+- 模块 #08 Observability & Logging → `20260416-08-observability-logging-spec.md`
+- 模块 #09 Error Handling & Recovery（全文）→ `20260416-09-error-handling-recovery-spec.md`
+- 模块 #11 Notification & Integration → `20260416-11-notification-integration-spec.md`
+- 模块 #19 Feishu Integration → `20260416-19-feishu-integration-spec.md`
+- 模块 #13 Session Lifecycle（checkpoint 增强）→ `20260416-13-session-lifecycle-spec.md`
+
+---
+
+### 14.4 v0.5 — 多 Agent 与知识库
+
+> 目标：从 3-Agent 扩展到更丰富的角色分工，引入知识库和语义检索
+> 定位：开始具备市场竞争力，能对标部分海外产品
+> 状态：**远期规划**
+
+**核心能力**：
+- 按需求拆分 Agent：Planner / Debugger / QA 从 Builder 中独立
+- Multi-Agent 并行协调：Worktree 隔离、冲突检测、结果合并
+- 消息总线（SQLite 后端）：Agent 间异步通信、依赖就绪通知
+- 完整事件系统：pub-sub 事件总线、工作流触发规则、死信队列、事件回放
+- 知识库：项目上下文、代码库摘要、架构文档摄入
+- 语义检索（ChromaDB）：向量索引、跨 Session 知识聚合
+- Token Budget Manager：精细化 token 分配（System 15% / History 50% / Tools 15% / User 10% / Output 10%）
+- Speculative Execution：best-of-N 探索性执行（不确定性高的任务并行尝试多种方案）
+- SQLite 索引层：MemoryStore 查询性能优化
+
+**预期新增 spec 引用**：
+- 模块 #03 Multi-Agent Coordination → `20260416-03-multi-agent-coordination-spec.md`
+- 模块 #04 Memory Management（完整）→ `20260416-04-memory-management-spec.md`
+- 模块 #05 Session Management → `20260416-05-session-management-spec.md`
+- 模块 #14 Event System → `20260416-14-event-system-spec.md`
+- 模块 #15 Knowledge Base → `20260416-15-knowledge-base-spec.md`
+- 模块 #10 Report Generation → `20260416-10-report-generation-spec.md`
+
+---
+
+### 14.5 v0.8 — 昼夜循环与生产级稳定性
+
+> 目标：支持 Daemon 常驻运行，夜间自动分析 + 日间自主执行，达到生产可用
+> 定位：与 Claude Code / Codex 等国际产品形成差异化竞争
+> 状态：**远期规划**
+
+**核心能力**：
+- Daemon 常驻进程：后台常驻、心跳检查、看门狗监控、自动恢复
+- 昼夜双模：夜间半自主（需求分析 → 计划 → 推送飞书审批）、日间全自主执行
+- 飞书卡片交互：审批通道、执行结果推送、实时状态查看
+- 完整 5 层安全：沙箱隔离 + 资源限制 + 权限控制 + 审计日志 + 异常检测
+- Plugin 扩展机制：自定义工具、MCP 插件、自定义技能
+- 全链路可观测性：结构化日志 + Trace + 指标 + 健康看板
+- 报告生成引擎：日报 / Phase 报告 / 异常报告、多渠道交付
+- LSP 集成：类型系统 + 重构支持（超越 tree-sitter AST）
+
+**预期新增 spec 引用**：
+- 模块 #16 Daemon & Health → `20260416-16-daemon-health-spec.md`
+- 模块 #17 Sandbox Security → `20260416-17-sandbox-security-spec.md`
+- 模块 #18 Installation → `20260416-18-installation-onboarding-spec.md`
+- 模块 #01 Phase-Role Architecture（完整 8 阶段）→ `20260416-01-phase-role-architecture-spec.md`
+
+---
+
+### 14.6 v1.0 — 完整 Phase-Role 架构
+
+> 目标：8 专职 Agent + 1 通用 Agent、8 阶段、37 技能、8 场景编排，全面对标国际一流
+> 定位：有竞争力的产品，能作为团队主力开发工具
+> 状态：**远期愿景**
+
+**核心能力**：
+- 8 专职 Agent（Analyst / Planner / Engineer / Debugger / Reviewer / QA / Release / Monitor）+ 1 通用 Agent
+- 8 阶段完整编排（需求分析 → 计划制定 → 编码实现 → 调试排错 → 代码审查 → 质量验证 → 发布上线 → 上线监控）
+- 37 技能完整生态（自动进化 + 用户自定义）
+- 8 场景编排（standard / hotfix / review-only / feature / night-analysis / day-execute / deploy / monitor）
+- 完整的 19 模块架构全部落地
+- Plugin 工具生态、全链路可观测性、生产级稳定性和性能
+
+**预期覆盖全部 spec**：
+- 所有模块 #01 ~ #21 完整实现
+- 流程规范 `20260417-spec-plan-execute-spec.md`
+
+---
+
+### 14.7 版本对比总览
+
+| 维度 | v0.1 | v0.2 | v0.3 | v0.5 | v0.8 | v1.0 |
+|------|------|------|------|------|------|------|
+| Agent 数量 | 3 | 3 | 3-5 | 5-7 | 8+1 | 8+1 |
+| 核心场景 | Plan→Build→Deploy | +Chat + 自主模式 | + 自动恢复 | + 并行 + 知识库 | + 昼夜循环 | 全场景 |
+| 成本管控 | ❌ | ✅ 定价 + 预算 | ✅ | ✅ | ✅ | ✅ |
+| Provider 容错 | ❌ | ✅ fallback + 熔断 | ✅ | ✅ | ✅ | ✅ |
+| 可观测性 | ❌ | ❌ | ✅ 5 层日志 + Trace | ✅ | ✅ 健康看板 | ✅ |
+| 错误恢复 | ❌ | 部分（重规划） | ✅ 全场景恢复 | ✅ | ✅ | ✅ |
+| 通知集成 | ❌ | ❌ | ✅ Feishu webhook | ✅ | ✅ 卡片交互 | ✅ |
+| 多 Agent 并行 | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 知识库 | ❌ | ❌ | ❌ | ✅ ChromaDB | ✅ | ✅ |
+| Daemon 常驻 | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| 完整 Phase-Role | ❌ | ❌ | ❌ | ❌ | 部分 | ✅ |
+| 目标用户 | 技术验证 | 个人试用 | 日常工具 | 团队可用 | 差异化竞争 | 主力工具 |
 
 ---
 

@@ -2,7 +2,10 @@
 
 > 版本: v1.1.0
 > 日期: 2026-04-16
-> 状态: 待审批
+> 状态: v0.1 已实现 SKILL.md 加载子集
+> v0.1 实现状态: SkillManager (from_markdown / load_all_skills / get_skill_content) 已实现
+>   - 实现文件: `src/sloth_agent/memory/skills.py`
+>   - 测试覆盖: `tests/memory/test_skills.py`
 
 ---
 
