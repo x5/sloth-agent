@@ -151,14 +151,14 @@
   - [x] 配置写入后自动 `sloth config validate` 验证
   - [x] 编写交互向导测试（模拟输入流）
 
-- [ ] **Task V0.2-2: Provider Fallback / 熔断降级** ← Task V0.2-1.6
+- [x] **Task V0.2-2: Provider Fallback / 熔断降级** ← Task V0.2-1.6
   > Arch: `00000000-00-architecture-overview.md` §7.3
   > Spec: `20260416-07-chat-mode-spec.md` + `20260416-09-error-handling-recovery-spec.md` §4
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-2
-  - [ ] `CircuitBreaker` 三态机 (closed/open/half_open)
-  - [ ] `ProviderCircuitManager` 多 provider 熔断管理
-  - [ ] LLMRouter 集成 fallback 链
-  - [ ] 全部 provider 不可用时降级到 MockProvider
+  - [x] `CircuitBreaker` 三态机 (closed/open/half_open)
+  - [x] `ProviderCircuitManager` 多 provider 熔断管理
+  - [x] LLMRouter 集成 fallback 链
+  - [x] 全部 provider 不可用时降级到 MockProvider
 
 - [ ] **Task V0.2-3: Chat Mode 增强（REPL + streaming）** ← Task V0.2-2
   > Arch: `00000000-00-architecture-overview.md` §5 设计原则
@@ -280,3 +280,4 @@
 | 20260418 | 引入 config.json 统一配置管理（模块 #18），安装脚本支持 API Key 模板 + 自动填充 |
 | 20260418 | V0.2-1 Cost Tracking 完成：CostTracker、定价表、BudgetAwareLLMRouter、41 新测试（251 total） |
 | 20260418 | V0.2-1.6 交互式配置向导标记完成（前次 session 实现） |
+| 20260418 | V0.2-2 Provider Fallback 完成：CircuitBreaker、ProviderCircuitManager、LLMRouter 降级集成、33 新测试（284 total） |

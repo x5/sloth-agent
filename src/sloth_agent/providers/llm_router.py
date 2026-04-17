@@ -1,8 +1,13 @@
-"""LLM Router - Route requests to providers based on agent and stage."""
+"""LLM Router - Route requests to providers based on agent and stage.
+
+Supports circuit-breaker-backed fallback chains.
+"""
 
 from __future__ import annotations
 
 from typing import Any
+
+from sloth_agent.errors.circuit_manager import ProviderCircuitManager
 
 
 class MockProvider:
@@ -18,9 +23,16 @@ class MockProvider:
 
 
 class LLMRouter:
-    """Route LLM requests to different providers based on agent + stage."""
+    """Route LLM requests to different providers based on agent + stage.
 
-    def __init__(self, routes: dict[str, Any] | None = None):
+    Supports optional circuit breaker integration for automatic fallback.
+    """
+
+    def __init__(
+        self,
+        routes: dict[str, Any] | None = None,
+        circuit_manager: ProviderCircuitManager | None = None,
+    ):
         """
         Args:
             routes: dict like
@@ -28,20 +40,49 @@ class LLMRouter:
                     "builder": {"stages": {"coding": {"provider": "deepseek"}}},
                     "reviewer": {"stages": {"review": {"provider": "qwen"}}},
                 }
+            circuit_manager: Optional circuit manager for provider health tracking.
         """
         self.routes = routes or {}
         self.providers: dict[str, Any] = {}
+        self.circuit_manager = circuit_manager
 
     def register_provider(self, name: str, provider: Any) -> None:
         """Register a provider instance."""
         self.providers[name] = provider
+        if self.circuit_manager:
+            self.circuit_manager.register(name)
 
     def get_model(self, agent: str, stage: str) -> Any:
-        """Get the provider for a given agent + stage combination."""
+        """Get the provider for a given agent + stage combination.
+
+        If circuit_manager is configured, will fallback to an available
+        provider when the preferred one is tripped.
+        """
         route = self.routes.get(agent, {}).get("stages", {}).get(stage)
         if route is None:
             raise ValueError(f"No route for agent={agent}, stage={stage}")
+
         provider_name = route["provider"]
-        if provider_name not in self.providers:
-            raise ValueError(f"Provider '{provider_name}' not registered")
-        return self.providers[provider_name]
+
+        # Without circuit manager: direct lookup
+        if self.circuit_manager is None:
+            if provider_name not in self.providers:
+                raise ValueError(f"Provider '{provider_name}' not registered")
+            return self.providers[provider_name]
+
+        # With circuit manager: try preferred, then fallback
+        if self.circuit_manager.is_available(provider_name):
+            return self.providers[provider_name]
+
+        # Fallback to any available provider
+        available = self.circuit_manager.get_available_provider()
+        if available and available in self.providers:
+            return self.providers[available]
+
+        # All providers tripped — return mock fallback
+        return MockProvider(response="[all providers unavailable]")
+
+    def record_provider_result(self, provider_name: str, success: bool) -> None:
+        """Forward result to circuit manager."""
+        if self.circuit_manager:
+            self.circuit_manager.record(provider_name, success)
