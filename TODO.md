@@ -144,7 +144,7 @@
 - [ ] **[P2][v1.2]** Checkpoint 保存与恢复增强 @agent @20260416
   > Arch: `00000000-00-architecture-overview.md` §8.3 | Spec: `20260416-04-memory-management-spec.md` | Plan: 待创建
 - [ ] **[P2][v2.0]** Phase-Role-Architecture（8 阶段 × 8+1 Agent × 37 技能）实现 @agent @20260416
-  > Arch: §5.2, §6.1, §6.2 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: `20260416-01-phase-role-architecture.md`
+  > Arch: §5.2, §6.1, §6.2 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: `20260416-01-phase-role-architecture-implementation-plan.md`
 - [ ] **[P2][v2.0]** Multi-Agent 并行协调 + Worktree 隔离 @agent @20260416
   > Arch: §10.3 | Spec: `20260416-03-multi-agent-coordination-spec.md` | Plan: 待创建
 - [ ] **[P2][v2.0]** 事件总线（pub-sub + dead letter queue）@agent @20260416

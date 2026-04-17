@@ -2,9 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Implement the 8-phase, 8-agent, 37-skill workflow engine for Sloth Agent black-light factory.
-
-**Architecture:** Data models (Phase, Agent, Skill, Scenario) → Registry → Workflow Engine → Gate validation → Memory store. Each Phase has 1 Agent, each Agent has N Skills, Scenarios are valid Phase sequences constrained by Pre/Post relationships.
+**Goal:** Implement the 8-phase, 8-agent, 37-skill workflow engine for Sloth Agent black-light factory. Covers: data models (Phase, Agent, Skill, Scenario, Gate) → Registry → Workflow Engine → Gate validation → Memory store → NextStep protocol → ContextWindowManager → Reflection/StuckDetection → Adaptive Planning. Each Phase has 1 Agent, each Agent has N Skills, Scenarios are valid Phase sequences constrained by Pre/Post relationships.
 
 **Tech Stack:** Python 3.10+, pydantic, pytest, pyyaml, sqlite3 (existing)
 
@@ -13,8 +11,8 @@
 ## Task 1: Core Data Models (Phase, Agent, Skill, Scenario, Gate)
 
 **Files:**
-- Create: `src/workflow/models.py`
-- Create: `src/workflow/__init__.py`
+- Create: `src/sloth_agent/workflow/models.py`
+- Create: `src/sloth_agent/workflow/__init__.py`
 - Test: `tests/workflow/test_models.py`
 
 ### Step 1: Write the failing test
@@ -200,8 +198,8 @@ git commit -m "feat: add core data models (Phase, Agent, Skill, Scenario, Gate)"
 ## Task 2: Registry (PhaseRegistry, AgentRegistry, SkillRegistry, ScenarioRegistry)
 
 **Files:**
-- Create: `src/workflow/registry.py`
-- Modify: `src/workflow/__init__.py` (add exports)
+- Create: `src/sloth_agent/workflow/registry.py`
+- Modify: `src/sloth_agent/workflow/__init__.py` (add exports)
 - Test: `tests/workflow/test_registry.py`
 
 ### Step 1: Write the failing test
@@ -648,7 +646,7 @@ git commit -m "feat: add registry system with 8 phases, 8 agents, 37 skills, 8 s
 ## Task 3: Memory Store (Scenario → Phase → Memory)
 
 **Files:**
-- Create: `src/workflow/memory.py`
+- Create: `src/sloth_agent/workflow/memory.py`
 - Test: `tests/workflow/test_memory.py`
 
 ### Step 1: Write the failing test
@@ -787,7 +785,7 @@ git commit -m "feat: add ScenarioMemoryStore for Phase → Memory classification
 ## Task 4: Workflow Engine + Gate Validation
 
 **Files:**
-- Create: `src/workflow/engine.py`
+- Create: `src/sloth_agent/workflow/engine.py`
 - Test: `tests/workflow/test_engine.py`
 
 ### Step 1: Write the failing test
@@ -1007,7 +1005,7 @@ git commit -m "feat: add WorkflowEngine with gate validation and memory persiste
 ## Task 5: YAML Configuration System
 
 **Files:**
-- Modify: `src/core/config.py` (add workflow config)
+- Modify: `src/sloth_agent/core/config.py` (add workflow config)
 - Create: `configs/workflow.yaml`
 - Test: `tests/workflow/test_config.py`
 
@@ -1322,6 +1320,552 @@ git commit -m "feat: export public workflow API"
 
 ---
 
+## Task 8: NextStep Protocol & ContextWindowManager
+
+**Files:**
+- Create: `src/sloth_agent/core/nextstep.py`
+- Create: `src/sloth_agent/core/context_window.py`
+- Test: `tests/core/test_nextstep.py`
+- Test: `tests/core/test_context_window.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/core/test_nextstep.py
+
+from sloth_agent.core.nextstep import NextStep
+
+def test_nextstep_final_output():
+    step = NextStep(type="final_output", output="Done.")
+    assert step.type == "final_output"
+    assert step.output == "Done"
+
+def test_nextstep_phase_handoff():
+    step = NextStep(
+        type="phase_handoff",
+        next_phase="phase-2",
+        next_agent="planner",
+        reason="Phase 1 completed",
+    )
+    assert step.type == "phase_handoff"
+    assert step.next_phase == "phase-2"
+
+def test_nextstep_retry_same():
+    step = NextStep(type="retry_same", reason="Minor tweak needed")
+    assert step.type == "retry_same"
+
+def test_nextstep_abort():
+    step = NextStep(type="abort", reason="Unrecoverable error")
+    assert step.type == "abort"
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/core/test_nextstep.py -v
+```
+
+Expected: FAIL with ModuleNotFoundError
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/core/nextstep.py
+
+"""NextStep protocol for unified runtime semantics."""
+
+from pydantic import BaseModel
+from typing import Literal
+
+
+class ToolRequest(BaseModel):
+    """Tool call request."""
+    tool_name: str
+    arguments: dict = {}
+
+
+class NextStep(BaseModel):
+    """Unified runtime step protocol.
+
+    All runtime events (reflection, gate, approval, phase transition)
+    map to one of these step types.
+    """
+
+    type: Literal[
+        "final_output",
+        "tool_call",
+        "phase_handoff",
+        "retry_same",
+        "retry_different",
+        "replan",
+        "interruption",
+        "abort",
+    ]
+    output: str | None = None
+    request: ToolRequest | None = None
+    next_agent: str | None = None
+    next_phase: str | None = None
+    reason: str | None = None
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/core/test_nextstep.py -v
+```
+
+Expected: PASS
+
+### Step 5: ContextWindowManager test
+
+```python
+# tests/core/test_context_window.py
+
+from sloth_agent.core.context_window import ContextWindowManager
+
+
+def test_build_messages_basic():
+    mgr = ContextWindowManager(max_tokens=128_000, output_reserve=15_000)
+    msgs = mgr.build_messages(
+        system="You are an assistant.",
+        history=[],
+        tools=[],
+        user_msg="Hello",
+    )
+    assert len(msgs) > 0
+
+
+def test_tool_result_compression():
+    mgr = ContextWindowManager(max_tokens=128_000, output_reserve=15_000)
+    # Compression should not raise errors
+    summary = ContextWindowManager._compress_tool_result(
+        type("ToolResult", (), {
+            "tool_name": "read_file",
+            "path": "src/main.py",
+            "line_count": 42,
+        })()
+    )
+    assert "42" in summary
+    assert "read_file" not in summary.lower() or "已读取" in summary
+```
+
+```python
+# src/sloth_agent/core/context_window.py
+
+"""Context window management for Builder Agent."""
+
+
+class ContextWindowManager:
+    """Manage agent context window with precise token counting."""
+
+    def __init__(self, max_tokens: int = 128_000, output_reserve: int = 15_000):
+        self.max_tokens = max_tokens
+        self.output_reserve = output_reserve
+        self.available = max_tokens - output_reserve
+
+    def build_messages(
+        self, system: str, history: list, tools: list, user_msg: str
+    ) -> list:
+        budget = self.available
+        sys_tokens = self._count_tokens(system)
+        budget -= sys_tokens
+        user_tokens = self._count_tokens(user_msg)
+        budget -= user_tokens
+        tool_messages, budget = self._fit_tool_results(tools, budget)
+        history_messages = self._fit_history(history, budget)
+        return [system] + history_messages + tool_messages + [user_msg]
+
+    def _fit_tool_results(self, tools: list, budget: int) -> tuple[list, int]:
+        fitted = []
+        for i, tool_result in enumerate(reversed(tools)):
+            tokens = self._count_tokens(tool_result)
+            if i == 0:
+                fitted.append(tool_result)
+                budget -= tokens
+            elif budget > 500:
+                summary = self._compress_tool_result(tool_result)
+                fitted.append(summary)
+                budget -= self._count_tokens(summary)
+        return fitted, budget
+
+    def _fit_history(self, history: list, budget: int) -> list:
+        fitted = []
+        for msg in reversed(history):
+            tokens = self._count_tokens(msg)
+            if budget - tokens > 0:
+                fitted.insert(0, msg)
+                budget -= tokens
+            else:
+                break
+        return fitted
+
+    @staticmethod
+    def _count_tokens(text: str) -> int:
+        """Use tiktoken or provider tokenizer. For now, rough estimate."""
+        try:
+            import tiktoken
+            enc = tiktoken.get_encoding("cl100k_base")
+            return len(enc.encode(text))
+        except ImportError:
+            return len(text) // 4
+
+    @staticmethod
+    def _compress_tool_result(result) -> str:
+        """Deterministic compression (no LLM)."""
+        name = getattr(result, "tool_name", "unknown")
+        match name:
+            case "read_file":
+                path = getattr(result, "path", "")
+                lines = getattr(result, "line_count", 0)
+                return f"[已读取 {path} ({lines}行)]"
+            case "run_command":
+                exit_code = getattr(result, "exit_code", -1)
+                cmd = getattr(result, "command", "")
+                if exit_code == 0:
+                    return f"[命令成功: {cmd}]"
+                stderr = getattr(result, "stderr", "")
+                return f"[命令失败(exit={exit_code}): {stderr[:200]}]"
+            case "grep" | "glob":
+                pattern = getattr(result, "pattern", "")
+                count = getattr(result, "match_count", 0)
+                return f"[搜索 {pattern}: {count} 个结果]"
+            case _:
+                summary = getattr(result, "summary", "")
+                return f"[{name}: {summary[:100]}]"
+```
+
+### Step 6: Run test to verify it passes
+
+```bash
+uv run pytest tests/core/test_context_window.py -v
+```
+
+Expected: PASS
+
+### Step 7: Commit
+
+```bash
+git add src/sloth_agent/core/nextstep.py src/sloth_agent/core/context_window.py tests/core/test_nextstep.py tests/core/test_context_window.py
+git commit -m "feat: add NextStep protocol and ContextWindowManager"
+```
+
+---
+
+## Task 9: Reflection & Stuck Detection
+
+**Files:**
+- Create: `src/sloth_agent/core/reflection.py`
+- Test: `tests/core/test_reflection.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/core/test_reflection.py
+
+from sloth_agent.core.reflection import Reflection, StuckDetector
+
+
+def test_reflection_model():
+    r = Reflection(
+        error_category="syntax",
+        root_cause="Missing colon on line 42",
+        learnings=["Always check syntax before running"],
+        action="retry_same",
+        confidence=0.9,
+    )
+    assert r.error_category == "syntax"
+    assert r.action == "retry_same"
+
+
+def test_stuck_detector_not_stuck_initially():
+    detector = StuckDetector(window=[])
+    assert detector.is_stuck() is False
+
+
+def test_stuck_detector_detects_same_category():
+    r1 = Reflection(error_category="syntax", root_cause="missing colon", learnings=[], action="retry_same", confidence=0.9)
+    r2 = Reflection(error_category="syntax", root_cause="missing comma", learnings=[], action="retry_same", confidence=0.8)
+    r3 = Reflection(error_category="syntax", root_cause="missing semicolon", learnings=[], action="retry_same", confidence=0.7)
+    detector = StuckDetector(window=[r1, r2, r3])
+    assert detector.is_stuck() is True
+
+
+def test_stuck_detector_action_escalation():
+    # After being stuck, should escalate: retry_different -> replan -> abort
+    detector = StuckDetector(window=[])
+    assert detector.get_unstuck_action() in ("retry_different", "replan", "abort")
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/core/test_reflection.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/core/reflection.py
+
+"""Reflection mechanism and stuck detection."""
+
+from pydantic import BaseModel
+from typing import Literal
+
+
+class Reflection(BaseModel):
+    """Structured reflection output from reasoner model."""
+
+    error_category: Literal[
+        "syntax",
+        "logic",
+        "dependency",
+        "design",
+        "plan",
+        "environment",
+    ]
+    root_cause: str
+    learnings: list[str]
+    action: Literal[
+        "retry_same",
+        "retry_different",
+        "replan",
+        "abort",
+    ]
+    retry_hint: str | None = None
+    confidence: float
+
+
+class StuckDetector:
+    """Detect when the agent is stuck in a loop."""
+
+    def __init__(self, window: list[Reflection] | None = None):
+        self.window: list[Reflection] = window or []
+
+    def record(self, reflection: Reflection) -> None:
+        self.window.append(reflection)
+
+    def reset(self) -> None:
+        self.window.clear()
+
+    def is_stuck(self) -> bool:
+        if len(self.window) < 3:
+            return False
+        recent = self.window[-3:]
+
+        # Rule 1: Same error category + similar root cause
+        if all(r.error_category == recent[0].error_category for r in recent):
+            if self._similarity(recent) > 0.8:
+                return True
+
+        # Rule 2: Three consecutive retry_same without success
+        if all(r.action == "retry_same" for r in recent):
+            return True
+
+        # Rule 3: Declining confidence
+        if all(recent[i].confidence < recent[i - 1].confidence for i in range(1, len(recent))):
+            return True
+
+        return False
+
+    def get_unstuck_action(self) -> str:
+        count = self._consecutive_stuck_count()
+        if count <= 1:
+            return "retry_different"
+        elif count == 2:
+            return "replan"
+        else:
+            return "abort"
+
+    def _consecutive_stuck_count(self) -> int:
+        count = 0
+        for r in reversed(self.window):
+            if r.action in ("retry_same",):
+                count += 1
+            else:
+                break
+        return min(count, 3)
+
+    @staticmethod
+    def _similarity(reflections: list[Reflection]) -> float:
+        """Simple Jaccard-like similarity on root_cause words."""
+        if len(reflections) < 2:
+            return 1.0
+        words_sets = [set(r.root_cause.lower().split()) for r in reflections]
+        intersection = set.intersection(*words_sets)
+        union = set.union(*words_sets)
+        if not union:
+            return 1.0
+        return len(intersection) / len(union)
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/core/test_reflection.py -v
+```
+
+Expected: PASS
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/core/reflection.py tests/core/test_reflection.py
+git commit -m "feat: add Reflection model and StuckDetector"
+```
+
+---
+
+## Task 10: Adaptive Planning & Builder Integration
+
+**Files:**
+- Create: `src/sloth_agent/core/builder.py`
+- Test: `tests/core/test_builder.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/core/test_builder.py
+
+from sloth_agent.core.builder import Builder
+
+
+def test_builder_basic():
+    builder = Builder()
+    # Builder should be instantiable
+    assert builder is not None
+
+
+def test_build_with_replan_signature():
+    builder = Builder()
+    # Should have replan method
+    assert hasattr(builder, "build_with_replan")
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/core/test_builder.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/core/builder.py
+
+"""Builder Agent with adaptive planning."""
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class BuilderOutput:
+    """Structured output from Builder phase."""
+    branch: str
+    changed_files: list[str]
+    diff_summary: str
+    test_results: dict = field(default_factory=dict)
+    coverage: float = 0.0
+    build_log: str | None = None
+
+
+@dataclass
+class ReplanResult:
+    """Result of dynamic replanning."""
+    new_tasks: list[Any]
+    should_abort: bool = False
+
+
+class Builder:
+    """Builder Agent with reflection and adaptive planning."""
+
+    async def build(self, plan, context) -> BuilderOutput:
+        """Execute plan with reflection on gate failure."""
+        tasks = self.parse_plan(plan)
+        completed = []
+
+        for task in tasks:
+            while not task.done:
+                result = await self.execute(task)
+                gate = self.check_gate(result)
+
+                if gate.passed:
+                    task.done = True
+                    completed.append(task)
+                    continue
+
+                # Reflection on failure
+                reflection = await self.reflect(result, gate)
+                context.update(reflection.learnings)
+
+                if reflection.action == "replan":
+                    return await self.build_with_replan(plan, context)
+                elif reflection.action == "abort":
+                    raise BuildFailure(task, reflection.root_cause)
+
+                task.retries += 1
+                if task.retries >= 3:
+                    raise BuildFailure(task, "exceeded max retries")
+
+        return self.collect_output(completed)
+
+    async def build_with_replan(self, plan, context) -> BuilderOutput:
+        """Dynamic replanning based on execution results."""
+        tasks = self.parse_plan(plan)
+        replan = await self.replan(plan, context)
+        if replan.should_abort:
+            raise BuildFailure(None, "Replan decided to abort")
+        # Continue with new task list
+        return self.collect_output([])
+
+    def parse_plan(self, plan):
+        return []
+
+    async def execute(self, task):
+        pass
+
+    def check_gate(self, result):
+        pass
+
+    async def reflect(self, result, gate):
+        pass
+
+    async def replan(self, plan, context) -> ReplanResult:
+        return ReplanResult(new_tasks=[], should_abort=False)
+
+    def collect_output(self, completed) -> BuilderOutput:
+        return BuilderOutput(branch="", changed_files=[])
+
+
+class BuildFailure(Exception):
+    def __init__(self, task, reason):
+        self.task = task
+        self.reason = reason
+        super().__init__(reason)
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/core/test_builder.py -v
+```
+
+Expected: PASS
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/core/builder.py tests/core/test_builder.py
+git commit -m "feat: add Builder with adaptive planning integration"
+```
+
+---
+
 ## Summary
 
 | Task | Deliverable | Tests |
@@ -1333,10 +1877,13 @@ git commit -m "feat: export public workflow API"
 | 5 | YAML config | 1 |
 | 6 | Integration tests | 3 |
 | 7 | Public API | (verification) |
+| 8 | NextStep + ContextWindowManager | 6 |
+| 9 | Reflection + StuckDetector | 4 |
+| 10 | Builder + Adaptive Planning | 2 |
 
-**Total: 27 tests across 7 tasks**
+**Total: 30 tests across 10 tasks**
 
-Plan complete and saved to `docs/plans/20260416-phase-role-architecture.md`. Two execution options:
+Plan complete and saved to `docs/plans/20260416-01-phase-role-architecture-implementation-plan.md`. Two execution options:
 
 **1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
 
