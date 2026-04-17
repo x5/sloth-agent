@@ -704,3 +704,22 @@ git commit -m "feat(tools): add web_fetch, test_runner, and coverage_check built
 **Total: 15 new tests across 4 tasks**
 
 Phase 1 (already implemented): Tool base, Registry, HallucinationGuard, RiskGate, Executor, Formatter, Orchestrator, builtin file/shell/search, configs.
+
+---
+
+## 合并说明
+
+本 plan 于 2026-04-17 合并了 `20260417-v10-tool-runtime-implementation-plan.md` 的内容：
+
+- v10 plan 的 Phase 1 组件（models, HallucinationGuard, RiskGate, Executor, Formatter, ToolOrchestrator, 6 核心工具, runner tool_call 分支对接）已在 Task 1 中实现
+- v10 plan 作为追溯记录保留在此，原始步骤 2.1-2.10 对应关系：
+  - 步骤 2.1 (models) → 已实现
+  - 步骤 2.2 (Tool metadata 扩展) → 已实现
+  - 步骤 2.3 (HallucinationGuard) → 已实现
+  - 步骤 2.4 (RiskGate) → 已实现
+  - 步骤 2.5 (Executor) → 已实现
+  - 步骤 2.6 (ResultFormatter) → 已实现
+  - 步骤 2.7 (ToolOrchestrator) → 已实现
+  - 步骤 2.8 (6 核心工具) → 已实现
+  - 步骤 2.9 (Runner tool_call 分支) → 已实现
+  - 步骤 2.10 (单元测试) → 已实现

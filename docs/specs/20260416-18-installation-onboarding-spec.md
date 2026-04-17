@@ -511,6 +511,80 @@ Support: ...
 
 ---
 
+## 9. CLI 入口与 `sloth run` 命令（v1.0）
+
+### 9.1 命令定义
+
+v1.0 CLI 提供 `run` 子命令，用于启动自主流水线：
+
+```bash
+sloth run <plan>              # 输入 Plan 文件，跑完整 Builder → Gate1 → Reviewer → Gate2 → Deployer → Gate3 流水线
+sloth run <plan> --agent      # 指定从哪个 Agent 开始（默认 builder）
+sloth run <plan> --dry-run    # 预演模式，不执行实际工具调用
+```
+
+### 9.2 执行流程
+
+```
+sloth run path/to/plan.md
+    │
+    ├── ① 加载配置文件（configs/agent.yaml）
+    ├── ② 初始化 LLM Router（按 agent + stage 路由）
+    ├── ③ 创建 ProductOrchestrator
+    ├── ④ 创建 Runner + ToolRegistry
+    ├── ⑤ 加载 Plan 文件
+    ├── ⑥ 创建 RunState（run_id=uuid）
+    ├── ⑦ 设置 Builder phase
+    ├── ⑧ runner.run(state) → 完整流水线执行
+    ├── ⑨ 阶段产物写入 memory/scenarios/
+    ├── ⑩ 输出最终结果
+```
+
+### 9.3 CLI 入口代码
+
+```python
+# src/sloth_agent/cli/app.py
+
+import typer
+from pathlib import Path
+from rich.console import Console
+
+app = typer.Typer()
+
+@app.command()
+def run(plan: str = typer.Argument(..., help="Plan 文件路径")):
+    """执行自主流水线: Builder → Reviewer → Deployer"""
+    from sloth_agent.core.config import load_config
+    from sloth_agent.core.orchestrator import ProductOrchestrator
+    from sloth_agent.core.runner import Runner
+
+    config = load_config()
+    orchestrator = ProductOrchestrator(config)
+    runner = Runner(config, orchestrator.tool_registry)
+
+    plan_text = Path(plan).read_text()
+    state = orchestrator.create_run_state()
+    state.current_agent = "builder"
+    state.current_phase = "plan_parsing"
+
+    final_state = runner.run(state)
+
+    if final_state.phase == "completed":
+        console.print("[green]流水线执行成功![/green]")
+    else:
+        console.print(f"[red]流水线失败: {final_state.errors}[/red]")
+```
+
+### 9.4 文件清单
+
+| 文件 | 说明 |
+|------|------|
+| `src/sloth_agent/cli/app.py` | CLI 入口（typer app，sloth run/status/eval） |
+| `src/sloth_agent/cli/install.py` | 交互式安装向导 |
+| `src/sloth_agent/cli/env_check.py` | 环境检查器 |
+
+---
+
 ## 8. 文件清单
 
 | 文件 | 说明 |

@@ -198,8 +198,10 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
 | 17 | Sandbox Security | `20260416-17-sandbox-security-spec.md` | P0 | 5 层安全、路径白名单、资源限制、审计日志 |
 | 18 | Installation | `20260416-18-installation-onboarding-spec.md` | P1 | 交互式安装、环境检查、配置引导 |
 | 19 | Feishu Integration | `20260416-19-feishu-integration-spec.md` | P2 | Webhook 服务器、卡片交互、审批通道 |
+| 20 | LLM Provider & Routing | `20260417-20-llm-router-spec.md` | P0 | 多 Provider 管理、阶段级路由、熔断降级 |
+| 21 | Eval Framework | `20260417-21-eval-framework-spec.md` | P0 | 评估维度、标准任务集、Smoke Test |
 
-> 注：模块编号 01-15 为核心模块，16-19 为辅助模块。另有一份流程规范 `20260417-spec-plan-execute-spec.md` 不在模块编号体系内。
+> 注：模块编号 01-15 为核心模块，16-19 为辅助模块。模块 20-21 为 v1.0 新增核心模块。另有一份流程规范 `20260417-spec-plan-execute-spec.md` 不在模块编号体系内。
 
 ### 4.2 模块依赖关系
 
@@ -1566,6 +1568,8 @@ sloth eval --compare        # 对比最近两次 eval 结果
 | 17 | Sandbox Security | `20260416-17-sandbox-security-spec.md` | 已记录 |
 | 18 | Installation + Global Setup | `20260416-18-installation-onboarding-spec.md` | 已记录 |
 | 19 | Feishu Integration | `20260416-19-feishu-integration-spec.md` | 待审批 |
+| 20 | LLM Provider & Routing | `20260417-20-llm-router-spec.md` | 待审批 |
+| 21 | Eval Framework | `20260417-21-eval-framework-spec.md` | 待审批 |
 | — | Architecture v2（归档） | `archive/20260416-architecture-v2.md` | 已合并归档 |
 
 ---

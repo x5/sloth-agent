@@ -282,6 +282,44 @@ memory/                    # 运行时数据目录
 
 ---
 
+## 9. RunState 持久化（v1.0）
+
+### 9.1 运行时会话存储
+
+除 sessions/scenarios/shared 三层结构外，v1.0 Runner 需在运行时将执行状态写入文件系统，用于恢复、审计、回放：
+
+```
+memory/sessions/{run_id}/
+├── state.json            # RunState 快照（当前阶段、状态码、错误信息）
+├── tool_history.jsonl    # 工具调用记录（每行一条 ToolExecutionRecord）
+├── turns.jsonl           # 每轮 LLM 对话记录
+└── handoffs.jsonl        # phase handoff 记录
+```
+
+`Runner.persist()` 必须在以下时机写入：
+1. 每次 turn 后写 `state.json`
+2. 每次 tool_call 后追加 `tool_history.jsonl`
+3. 每次 phase_handoff 后追加 `handoffs.jsonl`
+
+`resume_run_state(run_id)` 从 `state.json` 读取恢复 Runner 状态。
+
+### 9.2 三层上下文边界
+
+运行时上下文分为三层，严格隔离：
+
+| 层级 | 数据类 | 去向 |
+|------|--------|------|
+| **ModelVisibleContext** | 对话历史、检索到的记忆、当前任务、handoff payload | 可进入 LLM prompt |
+| **RuntimeOnlyContext** | Config、ToolRegistry、SkillRegistry、Logger、workspace_handle | 仅供代码与工具层使用，不发给模型 |
+| **PersistedRunState** | state.json、tool_history.jsonl、turns.jsonl、handoffs.jsonl | 用于恢复/审计/回放，不等价于对话历史 |
+
+规则：
+- 只有 `ModelVisibleContext` 能进入 prompt
+- `RuntimeOnlyContext` 只供代码与工具层使用
+- `PersistedRunState` 是运行记录，不等同于模型可见的对话历史
+
+---
+
 ## 8. 风险与缓解
 
 | 风险 | 影响 | 缓解 |

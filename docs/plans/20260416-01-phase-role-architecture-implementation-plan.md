@@ -2630,6 +2630,317 @@ git commit -m "feat(agents): add DeployerAgent with deploy + smoke test + rollba
 
 ---
 
+## Task 17: FS Memory / Checkpoint / Skill Loading
+
+> 本任务拆分为 3 个独立 plan，由各自 spec 驱动：
+> - Memory / RunState 持久化 / 三层上下文: `20260416-04-memory-management-implementation-plan.md`
+> - Skill 加载 / 注入: `20260416-06-skill-management-implementation-plan.md`
+> - Session / Git Checkpoint / 回滚: `20260416-13-session-lifecycle-implementation-plan.md`
+
+---
+
+## Task 18: Gate 机制与 Phase Handoff
+
+> Spec: `20260416-01-phase-role-architecture-spec.md` §5.4, §7.1.2, §7.2; `00000000-00-architecture-overview.md` §6.0
+
+**Files:**
+- New: `src/sloth_agent/core/gates.py` — Gate1/Gate2/Gate3 实现
+- Modify: `src/sloth_agent/core/runner.py` — phase_handoff 分支 + gate failure → NextStep 映射
+- Test: `tests/core/test_gates.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/core/test_gates.py
+
+import pytest
+from sloth_agent.core.gates import Gate1, Gate2, Gate3, Gate1Config, Gate2Config, Gate3Config
+
+
+class MockSubprocess:
+    """Mock subprocess for gate checks."""
+    def __init__(self, results: dict):
+        self.results = results
+
+    def run(self, cmd, **kwargs):
+        result = self.results.get(cmd.split()[0], type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+        return result
+
+
+def test_gate1_pass(monkeypatch, tmp_path):
+    config = Gate1Config()
+    gate = Gate1(config)
+    gate._subprocess = MockSubprocess({})
+
+    # Mock all checks to pass
+    gate._run_lint = lambda w: type("R", (), {"passed": True, "output": ""})()
+    gate._run_type_check = lambda w: type("R", (), {"passed": True, "output": ""})()
+    gate._run_tests = lambda w: type("R", (), {"passed": True, "output": ""})()
+
+    result = gate.check(tmp_path, str(tmp_path))
+    assert result.passed is True
+    assert result.failed_checks == []
+
+
+def test_gate1_lint_fail(monkeypatch, tmp_path):
+    config = Gate1Config()
+    gate = Gate1(config)
+    gate._run_lint = lambda w: type("R", (), {"passed": False, "output": "lint error"})()
+    gate._run_type_check = lambda w: type("R", (), {"passed": True, "output": ""})()
+    gate._run_tests = lambda w: type("R", (), {"passed": True, "output": ""})()
+
+    result = gate.check(tmp_path, str(tmp_path))
+    assert result.passed is False
+    assert "lint" in result.failed_checks
+
+
+def test_gate2_pass(tmp_path):
+    from sloth_agent.models.handoff import ReviewerOutput
+    config = Gate2Config()
+    gate = Gate2(config)
+    output = ReviewerOutput(blocking_issues=[], coverage=0.85)
+    result = gate.check(output, coverage=0.85)
+    assert result.passed is True
+
+
+def test_gate2_blocking_issues(tmp_path):
+    from sloth_agent.models.handoff import ReviewerOutput
+    config = Gate2Config()
+    gate = Gate2(config)
+    output = ReviewerOutput(blocking_issues=["SQL injection"], coverage=0.90)
+    result = gate.check(output, coverage=0.90)
+    assert result.passed is False
+
+
+def test_gate2_low_coverage(tmp_path):
+    from sloth_agent.models.handoff import ReviewerOutput
+    config = Gate2Config()
+    gate = Gate2(config)
+    output = ReviewerOutput(blocking_issues=[], coverage=0.50)
+    result = gate.check(output, coverage=0.50)
+    assert result.passed is False
+
+
+def test_gate3_pass():
+    config = Gate3Config()
+    gate = Gate3(config)
+    result = gate.check({"smoke_test_passed": True, "output": "ok"})
+    assert result.passed is True
+
+
+def test_gate3_fail():
+    config = Gate3Config()
+    gate = Gate3(config)
+    result = gate.check({"smoke_test_passed": False, "output": "failed"})
+    assert result.passed is False
+
+
+def test_phase_handoff():
+    from sloth_agent.core.runner import Runner, NextStep, RunState
+    runner = Runner.__new__(Runner)
+    state = RunState(run_id="test", current_agent="builder", current_phase="coding", turn=5)
+    step = NextStep(type="phase_handoff", next_agent="reviewer", next_phase="review", output={"files": ["a.py"]})
+    state = runner._handle_phase_handoff(state, step)
+    assert state.current_agent == "reviewer"
+    assert state.current_phase == "review"
+    assert state.turn == 0
+    assert state.handoff_payload == {"files": ["a.py"]}
+
+
+def test_gate_failure_maps_to_retry():
+    from sloth_agent.core.runner import Runner, NextStep, GateResult
+    gate_result = GateResult(passed=False, passed_checks=[], failed_checks=["lint"], raw_output="error")
+    step = Runner._gate_failure_to_nextstep(gate_result)
+    assert step.type in ("retry_same", "retry_different")
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/core/test_gates.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/core/gates.py
+
+from pydantic import BaseModel
+from dataclasses import dataclass
+import subprocess
+
+
+@dataclass
+class GateResult:
+    passed: bool
+    passed_checks: list[str]
+    failed_checks: list[str]
+    raw_output: str = ""
+
+
+class Gate1Config(BaseModel):
+    lint_must_pass: bool = True
+    type_check_must_pass: bool = True
+    tests_must_pass: bool = True
+    max_retries: int = 3
+
+
+class Gate2Config(BaseModel):
+    no_blocking_issues: bool = True
+    min_coverage: float = 0.80
+
+
+class Gate3Config(BaseModel):
+    smoke_test_must_pass: bool = True
+    auto_rollback: bool = True
+
+
+class Gate1:
+    def __init__(self, config: Gate1Config):
+        self.config = config
+
+    def check(self, branch: str, workspace: str) -> GateResult:
+        passed, failed, raw = [], [], ""
+        if self.config.lint_must_pass:
+            r = self._run_lint(workspace)
+            (passed if r.passed else failed).append("lint")
+            raw += r.output
+        if self.config.type_check_must_pass:
+            r = self._run_type_check(workspace)
+            (passed if r.passed else failed).append("type_check")
+            raw += r.output
+        if self.config.tests_must_pass:
+            r = self._run_tests(workspace)
+            (passed if r.passed else failed).append("tests")
+            raw += r.output
+        return GateResult(passed=len(failed) == 0, passed_checks=passed, failed_checks=failed, raw_output=raw)
+
+    def _run_lint(self, workspace):
+        r = subprocess.run(["ruff", "check", workspace], capture_output=True, text=True)
+        return type("R", (), {"passed": r.returncode == 0, "output": r.stdout + r.stderr})()
+
+    def _run_type_check(self, workspace):
+        r = subprocess.run(["mypy", workspace], capture_output=True, text=True)
+        return type("R", (), {"passed": r.returncode == 0, "output": r.stdout + r.stderr})()
+
+    def _run_tests(self, workspace):
+        r = subprocess.run(["pytest", workspace], capture_output=True, text=True)
+        return type("R", (), {"passed": r.returncode == 0, "output": r.stdout + r.stderr})()
+
+
+class Gate2:
+    def __init__(self, config: Gate2Config):
+        self.config = config
+
+    def check(self, reviewer_output, coverage: float) -> GateResult:
+        passed, failed = [], []
+        if self.config.no_blocking_issues:
+            if not reviewer_output.blocking_issues:
+                passed.append("no_blocking_issues")
+            else:
+                failed.append(f"blocking_issues: {reviewer_output.blocking_issues}")
+        if coverage >= self.config.min_coverage:
+            passed.append(f"coverage({coverage:.0%} >= {self.config.min_coverage:.0%})")
+        else:
+            failed.append(f"coverage({coverage:.0%} < {self.config.min_coverage:.0%})")
+        return GateResult(passed=len(failed) == 0, passed_checks=passed, failed_checks=failed)
+
+
+class Gate3:
+    def __init__(self, config: Gate3Config):
+        self.config = config
+
+    def check(self, deploy_result: dict) -> GateResult:
+        passed = deploy_result.get("smoke_test_passed", False)
+        return GateResult(
+            passed=passed,
+            passed_checks=["smoke_test"] if passed else [],
+            failed_checks=["smoke_test"] if not passed else [],
+            raw_output=deploy_result.get("output", ""),
+        )
+```
+
+```python
+# runner.py — add to Runner class
+
+def _handle_phase_handoff(self, state, step) -> RunState:
+    state.current_agent = step.next_agent
+    state.current_phase = step.next_phase
+    state.handoff_payload = step.output
+    state.turn = 0
+    self.observe("handoff", {"from": state.current_agent, "to": step.next_agent})
+    return state
+
+@staticmethod
+def _gate_failure_to_nextstep(gate_result: GateResult) -> NextStep:
+    if "lint" in gate_result.failed_checks or "type_check" in gate_result.failed_checks:
+        return NextStep(type="retry_same")
+    if "tests" in gate_result.failed_checks:
+        return NextStep(type="retry_same")
+    if "blocking_issues" in gate_result.failed_checks:
+        return NextStep(type="retry_different")
+    return NextStep(type="abort")
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/core/test_gates.py -v
+```
+
+Expected: PASS (all 9 tests)
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/core/gates.py src/sloth_agent/core/runner.py tests/core/test_gates.py
+git commit -m "feat(gates): add Gate1/2/3 + phase_handoff + gate failure mapping (9 tests)"
+```
+
+---
+
+## Task 19: 运行时内核（Runner / RunState / NextStep）
+
+> 来源: 原 `20260417-runtime-kernel-implementation-plan.md`
+> Spec: `20260416-01-phase-role-architecture-spec.md` §25（运行时内核定义）
+
+> 注: 此任务代码已在 v1.0 Task 1 中实现完毕，以下为追溯记录。
+
+### 已完成文件
+
+| 文件 | 状态 |
+|------|------|
+| `src/sloth_agent/core/runner.py` | **已完成** — NextStep, RunState, Runner, HookManager |
+| `src/sloth_agent/core/orchestrator.py` | **已完成** — ProductOrchestrator |
+| `tests/core/test_runner.py` | **已完成** — 25 tests |
+
+### 覆盖内容（对应 spec §25）
+
+| Spec 章节 | 实现 |
+|-----------|------|
+| §25.1 分层模型 | Runner.run/think/resolve/persist/observe 循环 |
+| §25.2 RunState 模型 | RunState + is_finished 属性 |
+| §25.3 Runner 内核 | 完整 run() 循环 + resolve() 8 种 type 分支 |
+| §25.4 resolve() 分支 | final_output/tool_call/phase_handoff/retry_same/retry_different/replan/interruption/abort |
+| §25.5 ProductOrchestrator | create_run_state / resume_run_state |
+| §25.6 HookManager | on/emit/hook_points |
+| §25.7 NextStep 协议 | 8 种 type 的完整定义 |
+
+### 测试覆盖
+
+| 测试类 | 覆盖 |
+|--------|------|
+| `TestNextStepSerialization` | NextStep 序列化/反序列化 |
+| `TestRunState` | is_finished, 序列化, 持久化/恢复 |
+| `TestRunnerResolve` | 8 种 NextStep type 各一个 case |
+| `TestHookManager` | on/emit, 空 emit, hook_points |
+| `TestProductOrchestrator` | create, resume not found, resume found |
+| `TestRunnerRun` | final_output, tool+final, replan abort |
+
+---
+
 ## Summary
 
 | Task | Deliverable | Tests |
@@ -2650,12 +2961,18 @@ git commit -m "feat(agents): add DeployerAgent with deploy + smoke test + rollba
 | 14 | CodeReviewer (spec + quality) | 2 |
 | 15 | ReviewerAgent (static analysis) | 3 |
 | 16 | DeployerAgent (deploy + smoke + rollback) | 3 |
+| 17 | FS Memory / Checkpoint / Skill Loading | (拆分为 3 个独立 plan) |
+| 18 | Gate 机制 + Phase Handoff | 9 |
+| 19 | 运行时内核（Runner/RunState/NextStep）| 25（已完成）|
 
-**Total: 48 tests across 16 tasks**
+**Total: 83 tests across 19 tasks + 3 个独立 plan (Task 17 拆分)，其中 Task 19 已完成 25 tests**
 
 合并说明:
 - Task 11-14 来自原 `20260416-01-workflow-implementation-plan.md` 的 Task 2/3/4/5
 - Task 15 来自原 `20260417-v10-reviewer-agent-implementation-plan.md`
 - Task 16 来自原 `20260417-v10-deployer-agent-implementation-plan.md`
+- Task 17 拆分为 3 个独立 plan: `20260416-04-memory-management-implementation-plan.md`、`20260416-06-skill-management-implementation-plan.md`、`20260416-13-session-lifecycle-implementation-plan.md`
+- Task 18 来自原 `20260417-v10-gate-handoff-implementation-plan.md`
+- Task 19 来自原 `20260417-runtime-kernel-implementation-plan.md`（spec 已并入 §25）
 - 原 workflow-plan 的 Task 1 (WorkflowEngine state machine) 已被本文件 Task 4 覆盖，已删除
 - 合并后统一在 `src/sloth_agent/workflow/` 和 `src/sloth_agent/agents/` 下实现

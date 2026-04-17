@@ -1900,6 +1900,153 @@ async def build_with_replan(self, plan: Plan, context: Context) -> BuilderOutput
 - 执行中发现新依赖或拀制点（如 API 不存在、库版本不兼容）
 - 任务间依赖关系变化（前序任务产出改变了后续任务的输入）
 
+## 25. 运行时内核定义（v1.0 Runner / RunState / NextStep）
+
+> 本节约定了 v1.0 运行时内核的完整语义，是模块 01 的运行时部分真相源。
+> Arch 来源: `00000000-00-architecture-overview.md` §3.1.1, §5.1.1.1, §5.1.1.2
+
+### 25.1 分层模型
+
+```
+CLI / Daemon / Chat
+  │
+  ▼
+Product Orchestrator（产品层入口）
+  │
+  ▼
+Runner（唯一运行时内核）
+  │
+  ├── prepare()   组装 active agent / phase / context
+  ├── think()     调模型得到 next step
+  ├── resolve()   final / tool / handoff / retry / interrupt
+  ├── persist()   写回 RunState / session / memory
+  └── observe()   hooks / tracing / gate / reflection
+```
+
+边界规则：
+- `ProductOrchestrator` 只负责模式入口、创建/恢复 `RunState`、调用 `Runner.run(...)`
+- `Runner` 是唯一执行循环，推进同一个 run 直到完成、中断或终止
+- `current_agent`、`current_phase` 只是 `RunState` 中的当前所有权指针
+- gate failure、tool approval、resume 都发生在同一个 run 内
+
+### 25.2 RunState 数据模型
+
+```python
+@dataclass
+class RunState:
+    """唯一运行时状态，所有真相源。"""
+    run_id: str
+    session_id: str | None = None
+    current_agent: str | None = None       # "builder" / "reviewer" / "deployer"
+    current_phase: str | None = None       # "plan_parsing" / "coding" / ...
+    phase: Literal["initializing", "running", "paused", "completed", "aborted"]
+    turn: int = 0
+    tool_history: list[dict] = field(default_factory=list)
+    pending_interruptions: list[dict] = field(default_factory=list)
+    handoff_payload: dict | None = None
+    model: str = "deepseek-v3.2"
+    output: str | None = None
+    errors: list[str] = field(default_factory=list)
+    started_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+
+    @property
+    def is_finished(self) -> bool:
+        return self.phase in ("completed", "aborted")
+```
+
+### 25.3 Runner 内核
+
+```python
+class Runner:
+    """唯一执行循环内核。"""
+
+    def __init__(self, config: Config, tool_registry: ToolRegistry, llm_provider):
+        self.config = config
+        self.tool_registry = tool_registry
+        self.llm_provider = llm_provider
+        self.hooks = HookManager()
+
+    def run(self, state: RunState) -> RunState:
+        """主循环，直到 state.is_finished。"""
+        self.hooks.emit("run.start", {"run_id": state.run_id})
+        while not state.is_finished:
+            state.turn += 1
+            next_step = self.think(state)
+            state = self.resolve(state, next_step)
+            self.persist(state)
+            self.hooks.emit("turn.end", {"turn": state.turn, "step": next_step.type})
+        self.hooks.emit("run.end", {"run_id": state.run_id, "phase": state.phase})
+        return state
+
+    def think(self, state: RunState) -> NextStep:
+        """调用 LLM 得到 next step。"""
+
+    def resolve(self, state: RunState, next_step: NextStep) -> RunState:
+        """根据 NextStep type 分发处理。"""
+```
+
+### 25.4 resolve() 分支逻辑
+
+`resolve()` 必须处理 `NextStep` 的全部 8 种 type：
+
+| type | 动作 | 更新字段 |
+|------|------|---------|
+| `final_output` | phase="completed", output=next_step.output | phase, output |
+| `tool_call` | 调用 tool_registry，记录结果到 tool_history | tool_history |
+| `phase_handoff` | 更新 current_agent/current_phase，重置 turn | current_agent, current_phase, handoff_payload, turn |
+| `retry_same` | 继续循环 | (无特殊变更) |
+| `retry_different` | 继续循环，记录 reason | errors |
+| `replan` | 当前标记 abort（v1.1 实现完整重规划） | phase="aborted" |
+| `interruption` | phase="paused", 记录 pending_interruptions | phase, pending_interruptions |
+| `abort` | phase="aborted", 记录 error | phase, errors |
+
+### 25.5 ProductOrchestrator 边界
+
+```python
+class ProductOrchestrator:
+    """产品层入口，不负责执行循环。"""
+
+    def __init__(self, config: Config):
+        self.config = config
+        self.tool_registry = ToolRegistry(config)
+
+    def create_run_state(self, run_id: str, session_id: str | None = None) -> RunState:
+        """创建初始 RunState。"""
+
+    def resume_run_state(self, run_id: str, memory_dir: Path) -> RunState | None:
+        """从文件系统恢复 RunState。"""
+```
+
+边界规则：
+- `ProductOrchestrator` 不实现执行循环
+- 它只负责组装初始状态、创建 Runner、调用 `Runner.run()`
+
+### 25.6 HookManager
+
+v1.x hook 点：`run.start`/`run.end`、`phase.start`/`phase.end`、`model.start`/`model.end`、`tool.start`/`tool.end`、`handoff`、`gate.pass`/`gate.fail`、`reflection`、`resume`、`budget.warn`/`budget.over`。
+
+### 25.7 NextStep 协议（完整定义）
+
+```python
+class NextStep(BaseModel):
+    type: Literal[
+        "final_output",
+        "tool_call",
+        "phase_handoff",
+        "retry_same",
+        "retry_different",
+        "replan",
+        "interruption",
+        "abort",
+    ]
+    output: str | None = None
+    request: ToolRequest | None = None
+    next_agent: str | None = None
+    next_phase: str | None = None
+    reason: str | None = None
+```
+
 ---
 
 *规范版本: v1.0.0*

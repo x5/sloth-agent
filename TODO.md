@@ -34,13 +34,14 @@
 > Spec: 各模块以独立 spec 文件为准，见每项标注；架构总览提供 v1.0 流水线概览
 > 范围: 3-Agent 串行流水线（Builder → Reviewer → Deployer）
 > 关键约束: 单一 `Runner` 内核 + 结构化交接 + 自动门控 + 文件系统状态
+> 模块映射: 模块 01 (§25 运行时内核定义) 包含 Runner/RunState/NextStep 完整语义
 
 依赖链: `1 → 2 → 3 → 4 → 5 → 6 → 7 → 8`
 
 - [x] **Task 1: Runtime Kernel & RunState**
   > Arch: `00000000-00-architecture-overview.md` §3.1.1
-  > Spec: 同上（Runner/RunState/NextStep 无独立 spec 文件）
-  > Plan: `20260417-v10-runtime-kernel-implementation-plan.md`
+  > Spec: `20260416-01-phase-role-architecture-spec.md` §25（运行时内核定义）
+  > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 19（追溯记录）
   - [ ] 在 `src/sloth_agent/core/` 中引入统一运行时骨架：`Runner`、`RunState`、`NextStep`
   - [ ] 明确 `Product Orchestrator` 与 `Runner` 的边界，避免多套执行循环
   - [ ] 统一 `final_output / tool_call / phase_handoff / retry / interruption / abort` 语义
@@ -49,7 +50,7 @@
 - [x] **Task 2: Tool Runtime 基础能力** ← Task 1
   > Arch: `00000000-00-architecture-overview.md` §7.1
   > Spec: `20260416-02-tools-invocation-spec.md`（模块 #2）
-  > Plan: `20260417-v10-tool-runtime-implementation-plan.md`
+  > Plan: `20260416-02-tools-invocation-implementation-plan.md`（已合并 v10 tool runtime plan）
   - [ ] 统一 `ToolRegistry` / `ToolOrchestrator` 接口，纳入 `Runner.resolve()` 分支
   - [ ] 优先落地 v1.0 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
   - [ ] 接入 `HallucinationGuard`、路径白名单、命令黑名单
@@ -67,7 +68,7 @@
 - [ ] **Task 4: Gate 机制与 Phase Handoff** ← Task 3
   > Arch: `00000000-00-architecture-overview.md` §5.1.3, §5.1.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Gate + Handoff 定义）
-  > Plan: `20260417-v10-gate-handoff-implementation-plan.md`
+  > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 18
   - [ ] 实现 Gate1 / Gate2 / Gate3 的纯规则判断，不依赖 LLM
   - [ ] 固化 `phase_handoff` 与 `skill-as-tool` 的不同语义
   - [ ] 对齐 `BuilderOutput` / `ReviewerOutput` 数据结构
@@ -94,7 +95,7 @@
 - [ ] **Task 7: FS Memory / Checkpoint / Skill Loading** ← Task 6
   > Arch: `00000000-00-architecture-overview.md` §7.2
   > Spec: `20260416-04-memory-management-spec.md`（模块 #4）+ `20260416-06-skill-management-spec.md`（模块 #6）
-  > Plan: `20260417-v10-memory-checkpoint-skill-implementation-plan.md`
+  > Plan: `20260416-04-memory-management-implementation-plan.md` + `20260416-06-skill-management-implementation-plan.md` + `20260416-13-session-lifecycle-implementation-plan.md`
   - [ ] 将运行状态、阶段产物、工具记录、gate 结果统一写入文件系统
   - [ ] 建立 checkpoint 保存/恢复机制，作为回滚与 resume 基础
   - [ ] 打通 `SKILL.md` 加载与按需注入机制
@@ -103,7 +104,7 @@
 - [ ] **Task 8: CLI 集成与 v1.0 验证闭环** ← Task 7
   > Arch: `00000000-00-architecture-overview.md` §9.0, §11.0
   > Spec: 同上（CLI + 配置定义无独立 spec 文件）
-  > Plan: `20260417-v10-cli-integration-verification-plan.md`
+  > Plan: `20260417-20-llm-router-implementation-plan.md` + `20260416-18-installation-onboarding-implementation-plan.md` + `20260417-21-eval-framework-implementation-plan.md`
   - [ ] 打通 `sloth run` 主路径，输入 Plan 后可跑完整流水线
   - [ ] 配置 v1.0 阶段级模型路由（Builder / Reviewer / Deployer）
   - [ ] 增加最小 eval / smoke 场景，验证成功率、质量门控、自修复链路
@@ -116,7 +117,7 @@
 - [ ] **[P0]** 结构化 Agent 交接协议落地（BuilderOutput / ReviewerOutput）@agent @20260416
   > Arch: `00000000-00-architecture-overview.md` §5.1.1 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: 已并入 Task 4
 - [ ] **[P1]** 阶段级模型路由配置（Builder / Reviewer / Deployer）@agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §11.0 | Spec: 同上（无独立 spec） | Plan: 待创建
+  > Arch: `00000000-00-architecture-overview.md` §11.0 | Spec: `20260417-20-llm-router-spec.md`（模块 20） | Plan: `20260417-20-llm-router-implementation-plan.md`
 - [ ] **[P1]** 文件系统记忆与 checkpoint 统一格式 @agent @20260416
   > Arch: `00000000-00-architecture-overview.md` §7.2 | Spec: `20260416-04-memory-management-spec.md` | Plan: 待创建
 
@@ -163,14 +164,14 @@
 > 规则: 每个 Plan 必须引用 architecture-overview.md 对应章节，且包含具体文件路径/函数/测试
 > 依赖链: `P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8`
 
-- [x] **P1: 创建 Runtime Kernel & RunState plan** → `docs/plans/20260417-v10-runtime-kernel-implementation-plan.md`
-- [x] **P2: 创建 Tool Runtime plan** → `docs/plans/20260417-v10-tool-runtime-implementation-plan.md`
+- [x] **P1: 创建 Runtime Kernel & RunState plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 19
+- [x] **P2: 创建 Tool Runtime plan** → 已并入 `20260416-02-tools-invocation-implementation-plan.md`
 - [x] **P3: 创建 Builder Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 8/9/10
-- [x] **P4: 创建 Gate & Handoff plan** → `docs/plans/20260417-v10-gate-handoff-implementation-plan.md`
+- [x] **P4: 创建 Gate & Handoff plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 18
 - [x] **P5: 创建 Reviewer Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 15
 - [x] **P6: 创建 Deployer Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 16
-- [x] **P7: 创建 Memory / Checkpoint / Skill plan** → `docs/plans/20260417-v10-memory-checkpoint-skill-implementation-plan.md`
-- [x] **P8: 创建 CLI 集成与验证 plan** → `docs/plans/20260417-v10-cli-integration-verification-plan.md`
+- [x] **P7: 创建 Memory / Checkpoint / Skill plan** → `20260416-04-memory-management-implementation-plan.md` + `20260416-06-skill-management-implementation-plan.md` + `20260416-13-session-lifecycle-implementation-plan.md`
+- [x] **P8: 创建 CLI 集成与验证 plan** → `20260417-20-llm-router-implementation-plan.md` + `20260416-18-installation-onboarding-implementation-plan.md` + `20260417-21-eval-framework-implementation-plan.md`
 
 ## 已完成
 
