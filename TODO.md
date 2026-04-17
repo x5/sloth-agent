@@ -1,6 +1,6 @@
 # Project TODO
 
-> 最后更新: 20260417 — v0.1 发布，v0.2 规划完成，待执行
+> 最后更新: 20260418 — v0.2 全部完成并发布，360 tests pass
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
 > 当前目标: v0.2 最小可用扩展（成本管控 + Provider 容错 + Chat 增强）
 > 版本映射: 原 v1.0→v0.1, 原 v1.1→v0.2, 原 v1.2→v0.3, 原 v2.0→v0.5~v1.0
@@ -166,7 +166,7 @@
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-3
   - [x] `SessionManager` 创建/加载/保存 chat session
   - [x] 对话历史持久化 + 上下文截断策略
-  - [ ] REPL 集成 tool call 执行 + 用户确认（已有基础 REPL）
+  - [x] REPL 集成 tool call 执行 + 用户确认（增强版 REPL）
   - [x] v0.2 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
   - [x] `AutonomousController` 自主模式控制
 
@@ -178,13 +178,13 @@
   - [x] 增加 summary 压缩: 早期对话生成摘要
   - [x] Token 计数器 (tiktoken 或简化估算)
 
-- [ ] **Task V0.2-5: Adaptive Execution（自适应重规划）** ← Task V0.2-4
+- [x] **Task V0.2-5: Adaptive Execution（自适应重规划）** ← Task V0.2-4
   > Arch: `00000000-00-architecture-overview.md` §6.0
   > Spec: `20260416-01-phase-role-architecture-spec.md`
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-5
-  - [ ] `AdaptiveTrigger` 检测 gate 失败/context 不足/plan 偏离
-  - [ ] `Replanner` 接收当前状态 → 生成 updated plan
-  - [ ] Runner 集成 adaptive trigger 检测
+  - [x] `AdaptiveTrigger` 检测 gate 失败/context 不足/plan 偏离
+  - [x] `Replanner` 接收当前状态 → 生成 updated plan
+  - [x] Runner 集成 adaptive trigger 检测
 
 ### 其他活跃任务
 
@@ -283,3 +283,5 @@
 | 20260418 | V0.2-2 Provider Fallback 完成：CircuitBreaker、ProviderCircuitManager、LLMRouter 降级集成、33 新测试（284 total） |
 | 20260418 | V0.2-3 Chat Mode 增强完成：SessionManager、AutonomousController、上下文截断、25 新测试（309 total） |
 | 20260418 | V0.2-4 Builder 上下文窗口优化完成：TokenCounter、summary 压缩、21 新测试（330 total） |
+| 20260418 | V0.2-5 Adaptive Execution 完成：AdaptiveTrigger、Replanner、16 新测试（346 total） |
+| 20260418 | **v0.2 全部任务完成**：Cost Tracking + Provider Fallback + Chat Mode + Context Window + Adaptive Execution |

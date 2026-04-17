@@ -3,6 +3,8 @@
 import typer
 from rich.console import Console
 
+import sloth_agent
+
 app = typer.Typer(help="Sloth Agent - AI development assistant")
 console = Console()
 
@@ -34,7 +36,7 @@ def run(plan: str | None = typer.Argument(None, help="Plan file path")):
     state.current_agent = "builder"
     state.current_phase = "plan_parsing"
 
-    console.print(f"[bold]Sloth Agent v1.0[/bold]")
+    console.print(f"[bold]Sloth Agent v{sloth_agent.__version__}[/bold]")
     console.print(f"Run ID: {run_id}")
     console.print(f"Plan: {plan or '(none)'}")
 
@@ -60,16 +62,16 @@ def chat(
     provider: str | None = typer.Option(None, "--provider", "-p", help="Use specific provider"),
 ):
     """Enter interactive chat mode."""
-    from sloth_agent.cli.chat import ChatSession
+    from sloth_agent.chat.repl import EnhancedChatSession
 
-    session = ChatSession(model=model, provider=provider)
+    session = EnhancedChatSession(model=model, provider=provider)
     session.loop()
 
 
 @app.command()
 def status():
     """Show agent status."""
-    console.print("[bold]Sloth Agent v0.1.0[/bold]")
+    console.print(f"[bold]Sloth Agent v{sloth_agent.__version__}[/bold]")
     console.print("Mode: autonomous (day/night cycle)")
     console.print("Config: configs/agent.yaml")
 

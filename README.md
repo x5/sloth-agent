@@ -17,7 +17,7 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.2 已发布** — 3-Agent 自主流水线 MVP + 配置管理系统，208 tests pass。
+> **v0.2 已发布** — 3-Agent 自主流水线 MVP + 配置管理系统 + REPL 增强，360 tests pass。
 > [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.2) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
@@ -69,7 +69,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | **Skill Loading** | ✅ | SKILL.md 加载与按需注入（Claude Code 兼容格式） |
 | **Memory Store** | ✅ | 纯文件系统 jsonl 存储（sessions/scenarios/shared） |
 | **LLM Router** | ✅ | 阶段级模型路由配置 |
-| **Eval Framework** | ✅ | smoke test + 标准任务集，330 tests pass |
+| **Eval Framework** | ✅ | smoke test + 标准任务集，360 tests pass |
 
 ### 远期目标：8+1 Agent 架构（v0.5~v1.0）
 
@@ -214,7 +214,7 @@ cp ~/.sloth-agent/.env.example ~/.sloth-agent/.env
 # 查看帮助
 uv run sloth --help
 
-# 运行测试（208 tests）
+# 运行测试（360 tests）
 uv run pytest tests/ evals/ -v
 
 # Smoke test
@@ -329,4 +329,4 @@ uv run sloth logs --level INFO --limit 50
 
 *Sloth Agent v0.2*
 *最后更新: 2026-04-18*
-*330 tests pass*
+*360 tests pass*

@@ -4,6 +4,7 @@
 > Goal: v0.2 最小可用扩展 — 成本管控、Provider 容错、Chat Mode 增强
 > 依赖链: `Cost → Fallback → Chat → Context → Adaptive`
 > 版本映射: 此计划原编号 v1.1，现重命名为 v0.2
+> 状态: 全部完成 (360 tests pass)
 
 ---
 
@@ -135,10 +136,12 @@
 | `src/sloth_agent/chat/repl.py` | 新建 (增强版 REPL) |
 | `src/sloth_agent/chat/autonomous.py` | 新建 |
 | `src/sloth_agent/cli/chat.py` | 修改 (集成新组件) |
+| `src/sloth_agent/cli/app.py` | 修改 (version + chat command) |
 | `tests/chat/__init__.py` | 新建 |
 | `tests/chat/test_session.py` | 新建 |
 | `tests/chat/test_context_truncation.py` | 新建 |
 | `tests/chat/test_autonomous.py` | 新建 |
+| `tests/chat/test_repl.py` | 新建 |
 
 ---
 
