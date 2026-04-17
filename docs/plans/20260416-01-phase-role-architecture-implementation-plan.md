@@ -2978,3 +2978,235 @@ git commit -m "feat(gates): add Gate1/2/3 + phase_handoff + gate failure mapping
 - Task 19 来自原 `20260417-runtime-kernel-implementation-plan.md`（spec 已并入 §25）
 - 原 workflow-plan 的 Task 1 (WorkflowEngine state machine) 已被本文件 Task 4 覆盖，已删除
 - 合并后统一在 `src/sloth_agent/workflow/` 和 `src/sloth_agent/agents/` 下实现
+
+---
+
+## v0.3 Phase Execution Pipeline（待实现）
+
+> Spec: `00000000-00-architecture-overview.md` §3.1, §5.1; `20260416-01-phase-role-architecture-spec.md` §25
+> 目标：打通 Builder→Reviewer→Deployer 的实际调用链，让 `sloth run --plan` 可跑完整流水线
+> 当前状态：Runner.run() 循环 + resolve() 8 分支 + Gate1/2/3 + NextStep 协议均已实现，但 `think()` 为 `NotImplementedError`，Agent 未接入 Runner 循环
+
+### 现状分析
+
+| 组件 | 文件 | 状态 |
+|------|------|------|
+| Runner.run() | `src/sloth_agent/core/runner.py:143` | 循环结构完整，resolve 8 分支已实现 |
+| Runner.think() | `src/sloth_agent/core/runner.py:173` | **NotImplementedError** — 未接入 LLM/Agent |
+| Builder | `src/sloth_agent/core/builder.py` | Stub async 方法，无 LLM 集成 |
+| ReviewerAgent | `src/sloth_agent/agents/reviewer.py` | 规则审查可用，无 LLM 增强 |
+| DeployerAgent | `src/sloth_agent/agents/deployer.py` | 部署+smoke+回滚可用 |
+| Gate1/2/3 | `src/sloth_agent/core/gates.py` | 已实现 |
+| phase_handoff | `src/sloth_agent/core/runner.py:205` | resolve 分支存在，但从未被触发 |
+| CLI `sloth run` | `src/sloth_agent/cli/app.py:19` | 创建 state 后调 runner.run()，因 think() 失败 |
+
+### 依赖链
+
+```
+PE-1 (Runner Agent Dispatch) ──→ PE-2 (Gate Wiring) ──→ PE-3 (CLI Pipeline)
+        ↓                                                       ↓
+PE-4 (Builder LLM)                                          PE-5 (E2E Tests)
+```
+
+PE-1/PE-4 可并行。PE-2 依赖 PE-1。PE-3 依赖 PE-1+PE-2。PE-5 依赖 PE-3。
+
+---
+
+### Task PE-1: Runner Agent Dispatch
+
+> 将 Agent 接入 Runner.run() 循环，按 current_agent 分发到对应 Agent 执行
+
+**文件**: `src/sloth_agent/core/runner.py`（修改）
+
+将 `think()` 从 `NotImplementedError` 改为按 `state.current_agent` 分发到对应 Agent：
+
+```python
+def think(self, state: RunState) -> NextStep:
+    match state.current_agent:
+        case "builder":
+            return self._think_builder(state)
+        case "reviewer":
+            return self._think_reviewer(state)
+        case "deployer":
+            return self._think_deployer(state)
+        case _:
+            return NextStep(type=NextStepType.abort, reason=f"Unknown agent: {state.current_agent}")
+```
+
+每个 `_think_*` 方法：
+1. 调 LLM（通过 `self.llm_provider`）获取 Agent 的决策
+2. 解析 LLM 响应为 NextStep
+3. Builder 完成所有任务后 → `NextStep(type=phase_handoff, next_agent="reviewer", next_phase="review")`
+4. Reviewer 审查通过后 → `NextStep(type=phase_handoff, next_agent="deployer", next_phase="deploy")`
+5. Deployer 部署成功后 → `NextStep(type=final_output, output="Deployed successfully")`
+
+**验收**:
+- `runner._think_builder(state)` 能返回 tool_call 或 phase_handoff
+- `runner._think_reviewer(state)` 能返回 phase_handoff 或 retry_same（有 blocking issues）
+- `runner._think_deployer(state)` 能返回 final_output 或 abort
+
+**文件清单**:
+| 文件 | 动作 |
+|------|------|
+| `src/sloth_agent/core/runner.py` | 修改 (think 分发 + 3 个 _think_* 方法) |
+| `tests/core/test_runner_dispatch.py` | 新建 (Agent 分发测试) |
+
+---
+
+### Task PE-2: Gate Wiring in Runner Loop
+
+> Runner.run() 循环中集成 Gate1/2/3 检查
+
+**文件**: `src/sloth_agent/core/runner.py`（修改）
+
+在 resolve() 之后、下一轮循环之前，插入 Gate 检查：
+
+```python
+def run(self, state: RunState) -> RunState:
+    while not state.is_finished:
+        state.turn += 1
+        next_step = self.think(state)
+        state = self.resolve(state, next_step)
+
+        # Gate check after agent completes its phase
+        if next_step.type == NextStepType.phase_handoff:
+            gate_result = self._check_gate_for_handoff(state, next_step)
+            if not gate_result.passed:
+                # Map gate failure to retry/abort
+                next_step = self._gate_failure_to_nextstep(gate_result)
+                state.errors.append(f"Gate failed: {gate_result.failed_checks}")
+
+        state = self.resolve(state, next_step)  # resolve gate result
+        self.persist(state)
+```
+
+Gate 映射：
+- Builder 完成后 → Gate1（lint + type_check + tests）
+- Reviewer 完成后 → Gate2（no_blocking_issues + min_coverage）
+- Deployer 完成后 → Gate3（smoke_test）
+
+Gate 失败处理：
+- Gate1 失败 → `NextStep(type=retry_same)` — Builder 自己修复
+- Gate2 有 blocking issues → `NextStep(type=retry_different)` — 退回 Builder 修复
+- Gate2 覆盖率不足 → `NextStep(type=retry_same)` — Builder 补充测试
+- Gate3 失败 → `NextStep(type=abort)` — 回滚后终止流水线
+
+**验收**:
+- Builder 产出代码后 Gate1 能自动运行 lint/type_check/tests
+- Gate1 失败时 Builder 能收到 retry_same 继续修复
+- Reviewer 通过后 Gate2 验证
+- Deployer 完成后 Gate3 验证 smoke test
+
+**文件清单**:
+| 文件 | 动作 |
+|------|------|
+| `src/sloth_agent/core/runner.py` | 修改 (run 循环中集成 gate 检查) |
+| `tests/core/test_runner_gates.py` | 新建 (Runner + Gate 集成测试) |
+
+---
+
+### Task PE-3: Builder LLM Integration
+
+> Builder 接入 LLM 实现真正的代码生成
+
+**文件**: `src/sloth_agent/core/builder.py`（修改）
+
+Builder 的核心方法 `build()` 需要：
+1. 接收 plan 文件路径，解析为结构化任务列表
+2. 每个任务调 LLM 生成代码
+3. 调用工具（write/edit/run_command）执行
+4. 产出 BuilderOutput（branch, changed_files, diff_summary, test_results, coverage）
+
+v0.3 最小实现：
+- Builder 接收 plan 文本 → 解析为任务列表
+- 每个任务 → 调 LLM 生成代码 → 写入文件
+- 所有任务完成后 → 运行 pytest → 产出 BuilderOutput
+
+**文件清单**:
+| 文件 | 动作 |
+|------|------|
+| `src/sloth_agent/core/builder.py` | 修改 (LLM 集成) |
+| `src/sloth_agent/core/plan_parser.py` | 新建 (plan 文件解析) |
+| `tests/core/test_builder_llm.py` | 新建 |
+| `tests/core/test_plan_parser.py` | 新建 |
+
+---
+
+### Task PE-4: CLI Pipeline Wiring
+
+> `sloth run --plan` 能跑通 Builder→Reviewer→Deployer 完整链路
+
+**文件**: `src/sloth_agent/cli/app.py`（修改）
+
+CLI `run` 命令需要：
+1. 读取 plan 文件
+2. 创建 RunState，设置 `current_agent="builder"`, `current_phase="build"`
+3. 注入 Builder/Reviewer/Deployer 实例到 Runner
+4. 调用 `runner.run(state)`
+5. 输出最终结果
+
+```python
+@app.command()
+def run(plan: str | None = typer.Argument(None)):
+    config = load_config()
+    runner = Runner(config, tool_registry, llm_provider)
+    runner.builder = Builder(llm_provider, config)
+    runner.reviewer = ReviewerAgent()
+    runner.deployer = DeployerAgent()
+
+    state = orchestrator.create_run_state(run_id=uuid.uuid4().hex[:12])
+    state.current_agent = "builder"
+    state.current_phase = "build"
+    state.plan_path = plan
+
+    final_state = runner.run(state)
+    # 输出结果...
+```
+
+**验收**:
+- `sloth run --plan plan.md` 能启动流水线
+- 控制台实时显示当前阶段/Agent/Gate 状态
+- 最终输出完成/失败原因
+
+**文件清单**:
+| 文件 | 动作 |
+|------|------|
+| `src/sloth_agent/cli/app.py` | 修改 (run 命令 wiring) |
+| `tests/cli/test_run_command.py` | 新建 (CLI run 命令测试) |
+
+---
+
+### Task PE-5: E2E Tests
+
+> 端到端测试验证完整流水线
+
+**文件**: `tests/e2e/test_phase_pipeline.py`（新建）
+
+测试场景：
+1. **Happy path**: plan → Builder 生成代码 → Gate1 通过 → Reviewer 审查通过 → Gate2 通过 → Deployer 部署成功 → Gate3 通过 → final_output
+2. **Gate1 fail**: Builder 产出有 lint error → Gate1 失败 → retry_same → Builder 修复 → 继续
+3. **Gate2 fail**: Reviewer 发现 blocking issue → Gate2 失败 → retry_different → 退回 Builder 修复 → Reviewer 重新审查 → 通过
+4. **Gate3 fail**: Deployer smoke test 失败 → Gate3 失败 → abort → 回滚
+
+所有测试 mock LLM 响应，验证流程正确性。
+
+**验收**:
+- 4 个 E2E 测试全部通过
+- 无 race condition、无状态泄漏
+
+**文件清单**:
+| 文件 | 动作 |
+|------|------|
+| `tests/e2e/test_phase_pipeline.py` | 新建 |
+| `tests/e2e/fixtures/simple_plan.md` | 新建 (测试用 plan) |
+
+---
+
+### 预期验收标准
+
+- [ ] `sloth run --plan plan.md` 可跑通 Builder→Gate1→Reviewer→Gate2→Deployer→Gate3
+- [ ] Gate 失败能正确触发 retry/rollback
+- [ ] Builder 能根据 plan 生成代码并通过 Gate1
+- [ ] CLI 实时显示流水线状态
+- [ ] E2E 测试覆盖 happy path + 3 种失败场景
+- [ ] 对应测试覆盖：约 20-30 个测试用例
