@@ -2459,6 +2459,177 @@ git commit -m "feat(agents): add ReviewerAgent with static analysis review (3 te
 
 ---
 
+## Task 16: Deployer Agent Runtime
+
+> 来源: 原 `20260417-v10-deployer-agent-implementation-plan.md`
+
+**Spec:** `00000000-00-architecture-overview.md` §5.1, §6.0
+**Files:**
+- Create: `src/sloth_agent/agents/deployer.py`
+- Modify: `src/sloth_agent/core/runner.py` — 集成 Deployer phase
+- Test: `tests/agents/test_deployer.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/agents/test_deployer.py
+
+from sloth_agent.agents.deployer import DeployerAgent, DeployResult
+
+
+def test_deployer_basic():
+    agent = DeployerAgent()
+    assert agent is not None
+
+
+def test_deploy_with_script_and_smoke_pass():
+    """有部署脚本 + smoke test 通过 → success=True。"""
+    agent = DeployerAgent()
+    result = agent.deploy_with_script(
+        deploy_script="deploy/echo_deploy.sh",
+        smoke_test_script="tests/smoke/echo_smoke.sh",
+        branch="test-branch",
+    )
+    assert result.success is True
+    assert result.smoke_test_passed is True
+    assert result.branch == "test-branch"
+
+
+def test_deploy_smoke_fail_triggers_rollback():
+    """有部署脚本 + smoke test 失败 → success=False + rollback。"""
+    agent = DeployerAgent()
+    result = agent.deploy_with_script(
+        deploy_script="deploy/echo_deploy.sh",
+        smoke_test_script="tests/smoke/fail_smoke.sh",
+        branch="test-branch",
+    )
+    assert result.success is False
+    assert result.smoke_test_passed is False
+    assert result.rollback_performed is True
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/agents/test_deployer.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/agents/deployer.py
+
+"""Deployer Agent: deploy, smoke test, and auto-rollback."""
+
+import os
+import subprocess
+from dataclasses import dataclass
+
+
+@dataclass
+class DeployResult:
+    success: bool
+    branch: str
+    deploy_log: str
+    smoke_test_passed: bool
+    smoke_test_output: str
+    rollback_performed: bool = False
+
+
+class DeployerAgent:
+    """Deployer Agent — 执行部署、验证、回滚。"""
+
+    def deploy_with_script(
+        self,
+        deploy_script: str,
+        smoke_test_script: str,
+        branch: str,
+        workspace: str = ".",
+    ) -> DeployResult:
+        """执行部署脚本 → smoke test → Gate3 检查 → 失败回滚。"""
+        deploy_path = os.path.join(workspace, deploy_script)
+        smoke_path = os.path.join(workspace, smoke_test_script)
+
+        # 1. Run deploy script
+        deploy_log = ""
+        if os.path.exists(deploy_path):
+            result = subprocess.run(
+                ["bash", deploy_path], capture_output=True, text=True, timeout=300
+            )
+            deploy_log = result.stdout + result.stderr
+        else:
+            deploy_log = "No deploy script found, skipping deploy step."
+
+        # 2. Run smoke test
+        smoke_output = ""
+        smoke_passed = True
+        if os.path.exists(smoke_path):
+            result = subprocess.run(
+                ["bash", smoke_path], capture_output=True, text=True, timeout=120
+            )
+            smoke_passed = result.returncode == 0
+            smoke_output = result.stdout + result.stderr
+        else:
+            smoke_output = "No smoke test found, skipping verification."
+
+        # 3. Gate3 check
+        if not smoke_passed:
+            rollback_log = self._rollback(workspace, branch)
+            return DeployResult(
+                success=False,
+                branch=branch,
+                deploy_log=deploy_log,
+                smoke_test_passed=False,
+                smoke_test_output=smoke_output,
+                rollback_performed=True,
+            )
+
+        return DeployResult(
+            success=True,
+            branch=branch,
+            deploy_log=deploy_log,
+            smoke_test_passed=smoke_passed,
+            smoke_test_output=smoke_output,
+        )
+
+    def _rollback(self, workspace: str, branch: str) -> str:
+        """回滚到部署前状态。"""
+        try:
+            result = subprocess.run(
+                ["git", "checkout", branch, "--force"],
+                cwd=workspace,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            return f"Rolled back to {branch}: {result.stdout}"
+        except subprocess.TimeoutExpired:
+            return "Rollback timeout"
+        except Exception as e:
+            return f"Rollback failed: {e}"
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/agents/test_deployer.py -v
+```
+
+Expected: PASS (all 3 tests)
+
+Note: Tests will need mock deploy/smoke scripts. Create them in `tests/agents/fixtures/` with simple `exit 0` / `exit 1` scripts.
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/agents/deployer.py tests/agents/test_deployer.py
+git commit -m "feat(agents): add DeployerAgent with deploy + smoke test + rollback (3 tests)"
+```
+
+---
+
 ## Summary
 
 | Task | Deliverable | Tests |
@@ -2478,11 +2649,13 @@ git commit -m "feat(agents): add ReviewerAgent with static analysis review (3 te
 | 13 | SystematicDebugger (4-phase) | 3 |
 | 14 | CodeReviewer (spec + quality) | 2 |
 | 15 | ReviewerAgent (static analysis) | 3 |
+| 16 | DeployerAgent (deploy + smoke + rollback) | 3 |
 
-**Total: 45 tests across 15 tasks**
+**Total: 48 tests across 16 tasks**
 
 合并说明:
 - Task 11-14 来自原 `20260416-01-workflow-implementation-plan.md` 的 Task 2/3/4/5
 - Task 15 来自原 `20260417-v10-reviewer-agent-implementation-plan.md`
+- Task 16 来自原 `20260417-v10-deployer-agent-implementation-plan.md`
 - 原 workflow-plan 的 Task 1 (WorkflowEngine state machine) 已被本文件 Task 4 覆盖，已删除
 - 合并后统一在 `src/sloth_agent/workflow/` 和 `src/sloth_agent/agents/` 下实现

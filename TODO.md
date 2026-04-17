@@ -85,7 +85,7 @@
 - [ ] **Task 6: Deployer Agent Runtime** ← Task 5
   > Arch: `00000000-00-architecture-overview.md` §5.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Deployer 定义）
-  > Plan: `20260417-v10-deployer-agent-implementation-plan.md`
+  > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 16
   - [ ] 实现部署执行与 smoke test 验证链路
   - [ ] 支持 Gate3 失败后的自动回滚与通知钩子
   - [ ] 明确部署产物、部署日志、验证结果的落盘格式
@@ -168,7 +168,7 @@
 - [x] **P3: 创建 Builder Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 8/9/10
 - [x] **P4: 创建 Gate & Handoff plan** → `docs/plans/20260417-v10-gate-handoff-implementation-plan.md`
 - [x] **P5: 创建 Reviewer Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 15
-- [x] **P6: 创建 Deployer Agent plan** → `docs/plans/20260417-v10-deployer-agent-implementation-plan.md`
+- [x] **P6: 创建 Deployer Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 16
 - [x] **P7: 创建 Memory / Checkpoint / Skill plan** → `docs/plans/20260417-v10-memory-checkpoint-skill-implementation-plan.md`
 - [x] **P8: 创建 CLI 集成与验证 plan** → `docs/plans/20260417-v10-cli-integration-verification-plan.md`
 
