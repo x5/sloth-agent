@@ -139,6 +139,66 @@ gh release view vX.X.0
 
 ---
 
+## 8. 安装脚本验证（Install Script Verification）
+
+发布后必须验证安装脚本能正确拉取到刚发布的版本。
+
+### 8.1 验证远端可解析到最新 tag
+
+```bash
+# 确认安装脚本能正确解析到最新 release tag
+git ls-remote --tags --sort=-v:refname https://github.com/x5/sloth-agent.git 'v*' | head -1
+```
+
+**要求：** 输出应包含刚发布的 `vX.X.0`。
+
+### 8.2 模拟全新安装（浅克隆验证）
+
+```bash
+# 在临时目录模拟全新安装
+TEMP_DIR=$(mktemp -d)
+git clone --depth 1 --list-tags \
+    $(git ls-remote --tags --sort=-v:refname https://github.com/x5/sloth-agent.git 'v*' \
+    | head -1 | sed 's/.*refs\/tags\/\(v[0-9.]*\).*/\1/') \
+    --branch $(git ls-remote --tags --sort=-v:refname https://github.com/x5/sloth-agent.git 'v*' \
+    | head -1 | sed 's/.*refs\/tags\/\(v[0-9.]*\).*/\1/') \
+    https://github.com/x5/sloth-agent.git "$TEMP_DIR" 2>&1
+
+# 验证克隆的版本
+cd "$TEMP_DIR"
+git describe --tags --abbrev=0
+rm -rf "$TEMP_DIR"
+```
+
+**要求：** 输出的 tag 必须等于刚发布的版本号。
+
+### 8.3 验证 install.sh 的 tag 解析逻辑
+
+```bash
+# 直接运行安装脚本中解析 tag 的片段，确认输出正确
+REPO_URL="https://github.com/x5/sloth-agent.git"
+LATEST_TAG=$(git ls-remote --tags --sort=-v:refname "${REPO_URL}" 'v*' | head -1 | sed 's/.*\///')
+echo "Resolved tag: $LATEST_TAG"
+```
+
+**要求：** 输出应为 `vX.X.0`（刚发布的版本），不能为空，不能回退到分支名。
+
+### 8.4 检查安装脚本内容一致性
+
+```bash
+# 确认 install.sh 和 install.ps1 中均使用 tag 解析逻辑，而非硬编码分支
+grep -n 'ls-remote.*tags' scripts/install.sh scripts/install.ps1
+```
+
+**要求：** 两个脚本都应出现 `ls-remote --tags` 调用。
+
+**检查内容：**
+- 新安装用户 clone 到的是 release tag，不是 `main` 分支
+- 已有安装用户重新运行 install 脚本时，会被 `checkout` + `reset --hard` 到 release tag
+- 如果远端没有任何 release tag，脚本应 warn 并 fallback 到 `main` 分支
+
+---
+
 ## 执行顺序
 
 ```
@@ -148,7 +208,9 @@ gh release view vX.X.0
 ↓
 6. Git Commit & Release
 ↓
-7. Post-Release Verify
+7. Post-Release Verify (tag + Release page)
+↓
+8. Install Script Verify (tag resolve + clone + consistency)
 ```
 
 **原则：每一步都必须通过才能进入下一步。测试失败必须修复，不允许跳过。**
