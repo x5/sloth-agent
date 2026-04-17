@@ -160,15 +160,15 @@
   - [x] LLMRouter 集成 fallback 链
   - [x] 全部 provider 不可用时降级到 MockProvider
 
-- [ ] **Task V0.2-3: Chat Mode 增强（REPL + streaming）** ← Task V0.2-2
+- [x] **Task V0.2-3: Chat Mode 增强（REPL + streaming）** ← Task V0.2-2
   > Arch: `00000000-00-architecture-overview.md` §5 设计原则
   > Spec: `20260416-07-chat-mode-spec.md`
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-3
-  - [ ] `SessionManager` 创建/加载/保存 chat session
-  - [ ] 对话历史持久化 + 上下文截断策略
-  - [ ] REPL 集成 tool call 执行 + 用户确认
-  - [ ] v0.2 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
-  - [ ] `AutonomousController` 自主模式控制
+  - [x] `SessionManager` 创建/加载/保存 chat session
+  - [x] 对话历史持久化 + 上下文截断策略
+  - [ ] REPL 集成 tool call 执行 + 用户确认（已有基础 REPL）
+  - [x] v0.2 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
+  - [x] `AutonomousController` 自主模式控制
 
 - [ ] **Task V0.2-4: Builder 上下文窗口管理优化** ← Task V0.2-3
   > Arch: `00000000-00-architecture-overview.md` §5.1.2
@@ -281,3 +281,4 @@
 | 20260418 | V0.2-1 Cost Tracking 完成：CostTracker、定价表、BudgetAwareLLMRouter、41 新测试（251 total） |
 | 20260418 | V0.2-1.6 交互式配置向导标记完成（前次 session 实现） |
 | 20260418 | V0.2-2 Provider Fallback 完成：CircuitBreaker、ProviderCircuitManager、LLMRouter 降级集成、33 新测试（284 total） |
+| 20260418 | V0.2-3 Chat Mode 增强完成：SessionManager、AutonomousController、上下文截断、25 新测试（309 total） |

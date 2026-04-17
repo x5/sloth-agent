@@ -69,7 +69,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | **Skill Loading** | ✅ | SKILL.md 加载与按需注入（Claude Code 兼容格式） |
 | **Memory Store** | ✅ | 纯文件系统 jsonl 存储（sessions/scenarios/shared） |
 | **LLM Router** | ✅ | 阶段级模型路由配置 |
-| **Eval Framework** | ✅ | smoke test + 标准任务集，284 tests pass |
+| **Eval Framework** | ✅ | smoke test + 标准任务集，309 tests pass |
 
 ### 远期目标：8+1 Agent 架构（v0.5~v1.0）
 
@@ -329,4 +329,4 @@ uv run sloth logs --level INFO --limit 50
 
 *Sloth Agent v0.2*
 *最后更新: 2026-04-18*
-*284 tests pass*
+*309 tests pass*
