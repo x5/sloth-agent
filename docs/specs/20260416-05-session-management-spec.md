@@ -229,6 +229,23 @@ def generate_session_id(mode: str) -> str:
 
 ---
 
+## 5.3 Continuation：恢复优先依赖自有 RunState
+
+系统允许多种 continuation 来源，但 `RunState` 始终是第一真相源：
+
+```python
+class ContinuationState(BaseModel):
+    session_id: str | None = None
+    snapshot_id: str | None = None
+    provider_name: str | None = None
+    provider_token: str | None = None
+    daemon_thread_id: str | None = None
+```
+
+其中 provider token 只是优化层，不能成为系统规范中的真相源。
+
+---
+
 ## 6. 文件结构
 
 ```

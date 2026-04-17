@@ -1586,5 +1586,321 @@ class LLMRouter:
 
 ---
 
+## 21. NextStep 协议
+
+为了让 reflection、gate、approval、phase transition 共用一套语义，运行时统一使用 `NextStep` 协议：
+
+```python
+class NextStep(BaseModel):
+  type: Literal[
+    "final_output",
+    "tool_call",
+    "phase_handoff",
+    "retry_same",
+    "retry_different",
+    "replan",
+    "interruption",
+    "abort",
+  ]
+  output: str | None = None
+  request: ToolRequest | None = None
+  next_agent: str | None = None
+  next_phase: str | None = None
+  reason: str | None = None
+```
+
+## 22. Builder Agent 上下文管理
+
+### 22.1 ContextWindowManager
+
+Builder Agent 的上下文窗口是 v1.0 最关键的工程约束（单次请求 ~60K tokens），需要精确管理。Token 计数用 tiktoken（或 Provider 自带的 tokenizer），不估算。压缩规则是纯规则（match/case），不调用 LLM，零延迟。窗口管理在每次 LLM 调用前执行，不缓存。
+
+```python
+class ContextWindowManager:
+    """精确管理 Agent 上下文窗口"""
+
+    def __init__(self, max_tokens: int = 128_000, output_reserve: int = 15_000):
+        self.max_tokens = max_tokens
+        self.output_reserve = output_reserve
+        self.available = max_tokens - output_reserve  # 实际可用 113K
+
+    def build_messages(self, system: str, history: list, tools: list, user_msg: str) -> list:
+        budget = self.available
+
+        # 1. System prompt（固定，不可压缩）
+        sys_tokens = count_tokens(system)
+        budget -= sys_tokens
+
+        # 2. 当前用户消息（固定）
+        user_tokens = count_tokens(user_msg)
+        budget -= user_tokens
+
+        # 3. 工具结果（按时间倒序，最新的完整保留，旧的压缩）
+        tool_messages, budget = self._fit_tool_results(tools, budget)
+
+        # 4. 历史对话（从最新到最旧，填满剩余空间）
+        history_messages = self._fit_history(history, budget)
+
+        return [system] + history_messages + tool_messages + [user_msg]
+
+    def _fit_tool_results(self, tools: list, budget: int) -> tuple[list, int]:
+        """最新 1 条完整保留，其余压缩为单行摘要"""
+        fitted = []
+        for i, tool_result in enumerate(reversed(tools)):
+            tokens = count_tokens(tool_result)
+            if i == 0:  # 最新一条完整保留
+                fitted.append(tool_result)
+                budget -= tokens
+            elif budget > 500:  # 旧结果压缩
+                summary = self._compress_tool_result(tool_result)
+                fitted.append(summary)
+                budget -= count_tokens(summary)
+        return fitted, budget
+
+    @staticmethod
+    def _compress_tool_result(result: ToolResult) -> str:
+        """确定性压缩规则（不用 LLM）"""
+        match result.tool_name:
+            case "read_file":
+                return f"[已读取 {result.path} ({result.line_count}行)]"
+            case "run_command":
+                exit_code = result.exit_code
+                if exit_code == 0:
+                    return f"[命令成功: {result.command}]"
+                return f"[命令失败(exit={exit_code}): {result.stderr[:200]}]"
+            case "grep" | "glob":
+                return f"[搜索 {result.pattern}: {result.match_count} 个结果]"
+            case _:
+                return f"[{result.tool_name}: {result.summary[:100]}]"
+```
+
+### 22.2 Context Boundary：三层上下文分层
+
+上下文分层是 v1.0 避免 prompt 污染和恢复混乱的关键约束：
+
+```python
+class ModelVisibleContext(BaseModel):
+    """唯一能进入 prompt 的层"""
+    history: list[MessageItem]
+    retrieved_memory: list[str]
+    current_task: str | None
+    handoff_payload: dict | None
+
+@dataclass
+class RuntimeOnlyContext:
+    """只供代码与工具层使用，不直接发给模型"""
+    config: Config
+    tool_registry: ToolRegistry
+    skill_registry: SkillRegistry
+    logger: Logger
+    budget_tracker: BudgetTracker
+    workspace_handle: WorkspaceHandle
+    secrets: SecretStore
+
+@dataclass
+class PersistedRunState:
+    """用于恢复、审计、回放，不等价于对话历史"""
+    run_state: RunState
+    snapshots: list[str]
+    session_refs: list[str]
+```
+
+规则：
+- 只有 `ModelVisibleContext` 能进入 prompt
+- `RuntimeOnlyContext` 只供代码与工具层使用，不直接发给模型
+- `PersistedRunState` 用于恢复、审计、回放，不等价于对话历史
+
+## 23. Reflection 机制
+
+Builder 在 gate 失败时调用 `reflect()`，用 reasoner 模型做结构化根因分析。设计参考 Reflexion（verbal reflection）+ SWE-Agent（完整环境观察）+ Aider（确定性工具反馈）。
+
+**核心设计原则：好的观察 > 好的反思——把 lint output、test output、git diff 等确定性信号完整喂给 LLM，而非让它猜。**
+
+### 23.1 Reflection 输出 Schema
+
+```python
+class Reflection(BaseModel):
+    """reflect() 的结构化输出，由 reasoner 模型生成"""
+
+    error_category: Literal[
+        "syntax",       # 语法错误（lint/type check 失败）
+        "logic",        # 逻辑错误（测试失败、断言不通过）
+        "dependency",   # 依赖问题（import 失败、版本冲突）
+        "design",       # 设计问题（接口不匹配、架构不合理）
+        "plan",         # 计划问题（任务拆分不当、缺少前置步骤）
+        "environment",  # 环境问题（命令不存在、权限不足）
+    ]
+    root_cause: str              # 一句话根因
+    learnings: list[str]         # 本次教训（注入后续 context）
+    action: Literal[
+        "retry_same",            # 同一方案微调后重试
+        "retry_different",       # 换一种方案重试
+        "replan",                # 根因在计划层面，触发 Adaptive Planning
+        "abort",                 # 无法恢复，终止任务
+    ]
+    retry_hint: str | None       # action=retry 时，具体的修正建议
+    confidence: float            # 0.0~1.0，对根因判断的信心
+```
+
+### 23.2 Reflect Prompt 策略
+
+核心原则：喂完整的环境观察（git diff、lint/test 完整输出、当前文件上下文、历史反思），不要摘要。用 reasoner 模型（deepseek-r1-0528），不用 chat 模型。
+
+```python
+async def reflect(self, result: ExecutionResult, gate: GateResult) -> Reflection:
+    prompt = f"""
+    ## 任务
+    {result.task.description}
+
+    ## 你的代码变更
+    ```diff
+    {result.git_diff}
+    ```
+
+    ## Gate 检查结果
+    - 通过: {gate.passed_checks}
+    - 失败: {gate.failed_checks}
+
+    ## 完整错误输出（不要摘要，原文粘贴）
+    ```
+    {gate.raw_output[:8000]}
+    ```
+
+    ## 当前文件上下文
+    {result.relevant_file_contents[:4000]}
+
+    ## 历史反思（避免重复同一错误）
+    {context.previous_reflections[-3:]}
+
+    请分析根因并决定下一步行动。
+    """
+    return await self.reasoner.generate(prompt, output_schema=Reflection)
+```
+
+### 23.3 Stuck Detection（转圈检测）
+
+Agent 最常见的失败模式是陷入死循环——连续做相同的事并期待不同的结果。
+
+```python
+class StuckDetector:
+    """检测 Agent 是否陷入重复循环"""
+
+    window: list[Reflection]  # 最近 N 次反思记录
+
+    def is_stuck(self) -> bool:
+        if len(self.window) < 3:
+            return False
+
+        recent = self.window[-3:]
+
+        # 规则 1：连续 3 次相同 error_category + 相似 root_cause
+        if all(r.error_category == recent[0].error_category for r in recent):
+            if self._similarity(recent) > 0.8:
+                return True
+
+        # 规则 2：连续 3 次 action=retry_same 但问题未解决
+        if all(r.action == "retry_same" for r in recent):
+            return True
+
+        # 规则 3：confidence 持续下降（Agent 越来越没信心）
+        if all(recent[i].confidence < recent[i-1].confidence
+               for i in range(1, len(recent))):
+            return True
+
+        return False
+
+    def get_unstuck_action(self) -> str:
+        """强制脱困策略"""
+        stuck_count = self._consecutive_stuck_count()
+        if stuck_count == 1:
+            return "retry_different"    # 第 1 次 stuck → 换方案
+        elif stuck_count == 2:
+            return "replan"             # 第 2 次 stuck → 重规划
+        else:
+            return "abort"              # 第 3 次 stuck → 放弃，交给人
+```
+
+### 23.4 Reflection 在执行循环中的集成
+
+```python
+async def build(self, plan: Plan, context: Context) -> BuilderOutput:
+    tasks = self.parse_plan(plan)  # 用 reasoner 模型解析
+    stuck_detector = StuckDetector()
+
+    for task in tasks:
+        while not task.done:
+            result = await self.execute(task)        # 用 chat 模型编码
+            gate = self.check_gate(result)           # 纯规则检查
+
+            if gate.passed:
+                task.done = True
+                stuck_detector.reset()
+                continue
+
+            # Reflect
+            reflection = await self.reflect(result, gate)
+            context.update(reflection.learnings)
+            stuck_detector.record(reflection)
+
+            # Stuck detection 优先于 reflection 的 action
+            if stuck_detector.is_stuck():
+                forced_action = stuck_detector.get_unstuck_action()
+                if forced_action == "abort":
+                    raise BuildFailure(task, "stuck: 连续失败无法恢复")
+                elif forced_action == "replan":
+                    return await self.build_with_replan(plan, context)
+                # forced_action == "retry_different" → 继续但强制换方案
+
+            # 正常 reflection action
+            if reflection.action == "replan":
+                return await self.build_with_replan(plan, context)
+            elif reflection.action == "abort":
+                raise BuildFailure(task, reflection.root_cause)
+            # retry_same / retry_different → 继续循环
+
+            task.retries += 1
+            if task.retries >= MAX_RETRIES:
+                raise BuildFailure(task, f"exceeded {MAX_RETRIES} retries")
+```
+
+## 24. Adaptive Planning（动态重规划）
+
+Builder 在执行过程中可以中途修正计划，而非死板走完预定步骤：
+
+```python
+async def build_with_replan(self, plan: Plan, context: Context) -> BuilderOutput:
+    tasks = self.parse_plan(plan)
+    completed = []
+
+    while tasks:
+        task = tasks[0]
+        result = await self.execute(task)
+        gate = self.check_gate(result)
+
+        if gate.passed:
+            completed.append(task)
+            tasks.pop(0)
+        else:
+            # 动态重规划：根据已完成的结果和当前失败信息，重新规划剩余任务
+            replan = await self.replan(
+                original_plan=plan,
+                completed=completed,
+                failed_task=task,
+                error=gate.errors
+            )
+            if replan.should_abort:
+                raise BuildFailure(task, gate.errors)
+            tasks = replan.new_tasks  # 替换剩余任务列表
+
+    return self.collect_output()
+```
+
+重规划触发条件：
+- Gate 失败且 `reflect()` 判断根因不在当前任务而在计划本身
+- 执行中发现新依赖或拀制点（如 API 不存在、库版本不兼容）
+- 任务间依赖关系变化（前序任务产出改变了后续任务的输入）
+
+---
+
 *规范版本: v1.0.0*
 *创建日期: 2026-04-16*

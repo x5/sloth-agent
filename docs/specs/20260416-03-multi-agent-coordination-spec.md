@@ -594,6 +594,31 @@ multi_agent:
 
 ---
 
+## 10. v1.0 Agent 交接协议
+
+v1.0 采用 3-Agent 串行流水线（Builder → Reviewer → Deployer），Agent 间传递确定性数据（git diff、pytest 输出、覆盖率数字），而非 LLM 生成的摘要：
+
+```python
+class BuilderOutput(BaseModel):
+    """Builder → Reviewer 的交接物"""
+    branch: str                    # git branch name
+    changed_files: list[str]       # 变更文件列表
+    diff_summary: str              # git diff --stat
+    test_results: TestReport       # pytest 输出（结构化）
+    coverage: float                # 覆盖率数字
+    build_log: str | None          # 构建日志（如有错误）
+
+
+class ReviewerOutput(BaseModel):
+    """Reviewer → Deployer 的交接物"""
+    approved: bool
+    branch: str
+    blocking_issues: list[str]     # 空 = 通过
+    suggestions: list[str]         # 非阻塞建议
+```
+
+---
+
 ## 11. 文件清单
 
 | 文件 | 说明 |

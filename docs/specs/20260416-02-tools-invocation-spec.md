@@ -515,6 +515,125 @@ class Interruption:
 
 因此，更推荐的做法是由 `Runner` 规划链式/并行策略，`ToolOrchestrator` 只负责执行。
 
+### 5.4 HallucinationGuard（幻觉检测层）
+
+Agent 的工具调用可能基于 LLM 幻觉（伪造文件路径、不存在的命令、错误参数）。v1.0 在工具执行器中加入校验层，在 RiskGate 之后、Executor 之前执行：
+
+```python
+class HallucinationGuard:
+    """工具调用前的幻觉检测"""
+
+    def validate_tool_call(self, call: ToolCall) -> ToolCall | RejectedCall:
+        match call.tool_name:
+            case "read_file" | "write_file" | "edit_file":
+                return self._validate_file_path(call)
+            case "run_command":
+                return self._validate_command(call)
+            case "glob" | "grep":
+                return self._validate_pattern(call)
+            case _:
+                return call  # 未知工具，放行（由 Executor 处理）
+
+    def _validate_file_path(self, call: ToolCall) -> ToolCall | RejectedCall:
+        path = call.args.get("path", "")
+        # 规则 1: 路径必须在 workspace 内
+        if not is_within_workspace(path):
+            return RejectedCall(call, "路径越权: 不在 workspace 内")
+        # 规则 2: read_file/edit_file 的目标必须存在
+        if call.tool_name in ("read_file", "edit_file") and not Path(path).exists():
+            return RejectedCall(call, f"文件不存在: {path}",
+                                hint="请先用 glob 搜索正确路径")
+        # 规则 3: 路径不能包含可疑模式
+        if any(p in path for p in ["..", "~", "$(", "`"]):
+            return RejectedCall(call, f"路径包含可疑字符: {path}")
+        return call
+
+    def _validate_command(self, call: ToolCall) -> ToolCall | RejectedCall:
+        cmd = call.args.get("command", "")
+        # 规则 1: 黑名单命令
+        blacklist = ["rm -rf", "sudo", "chmod 777", "curl | sh", "wget | bash",
+                     "mkfs", "dd if=", "> /dev/", "shutdown", "reboot"]
+        for b in blacklist:
+            if b in cmd:
+                return RejectedCall(call, f"黑名单命令: {b}")
+        # 规则 2: 不允许链式命令中隐藏危险操作
+        if "|" in cmd or ";" in cmd:
+            parts = re.split(r'[|;]', cmd)
+            for part in parts:
+                if any(b in part.strip() for b in blacklist):
+                    return RejectedCall(call, f"链式命令中包含危险操作: {part}")
+        # 规则 3: 命令长度上限（防止注入超长 payload）
+        if len(cmd) > 2000:
+            return RejectedCall(call, "命令过长（>2000 字符），可能是注入攻击")
+        return call
+
+    def _validate_pattern(self, call: ToolCall) -> ToolCall | RejectedCall:
+        pattern = call.args.get("pattern", "")
+        # 防止 ReDoS（正则拒绝服务）
+        if len(pattern) > 200:
+            return RejectedCall(call, "搜索模式过长")
+        return call
+```
+
+RejectedCall 处理：
+- 返回结构化错误信息给 LLM（包含 hint）
+- LLM 根据 hint 修正后重试
+- 连续 3 次 rejected → 触发 Reflection
+- 所有 rejection 记录到 tool_stats.jsonl（供 Tool-Use Learning 分析）
+
+### 5.5 StreamProcessor（流式处理）
+
+`StreamProcessor` 处理 LLM streaming 输出：文本 chunk 直接输出，tool_call chunk 拦截执行后结果回注。
+
+```python
+class StreamProcessor:
+    """处理 LLM streaming 输出，拦截工具调用并执行"""
+
+    async def process_stream(self, stream: AsyncIterator[Chunk]) -> AsyncIterator[OutputEvent]:
+        tool_buffer = []  # 缓冲不完整的 tool_call JSON
+
+        async for chunk in stream:
+            match chunk.type:
+                case "text":
+                    yield TextEvent(chunk.content)  # 直接流式输出
+
+                case "tool_call_start":
+                    tool_buffer = [chunk]
+                    yield StatusEvent(f"🔧 调用 {chunk.tool_name}...")
+
+                case "tool_call_delta":
+                    tool_buffer.append(chunk)  # 缓冲参数片段
+
+                case "tool_call_end":
+                    # 完整 tool call 已收到，执行
+                    tool_call = self._assemble_tool_call(tool_buffer)
+                    yield StatusEvent(f"⚡ 执行 {tool_call.tool_name}")
+
+                    # 执行工具（经过 RiskGate + HallucinationGuard）
+                    result = await self.tool_executor.execute(tool_call)
+                    yield ToolResultEvent(tool_call, result)
+
+                    # 结果回注 LLM，继续 streaming
+                    tool_buffer = []
+
+                case "error":
+                    yield ErrorEvent(chunk.error)
+
+                case "done":
+                    yield DoneEvent(usage=chunk.usage)
+```
+
+v1.0 Provider 对接：
+- DeepSeek: SSE (text/event-stream)，兼容 OpenAI 格式
+- Qwen: SSE，兼容 OpenAI 格式
+- 统一适配：所有 Provider 输出转换为内部 Chunk 格式
+
+关键约束：
+- 不使用 WebSocket（v1.0 无 Web UI）
+- CLI 模式下 streaming 直接写 stdout
+- 飞书模式下 (v1.2) 按段落缓冲后推送（避免过于碎片化）
+- tool call 期间挂起 streaming（串行，不并发）
+
 ---
 
 ## 6. LLM 工具调用协议

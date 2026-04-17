@@ -412,6 +412,36 @@ class EventReplay:
 
 ---
 
+## 6.1 v1.x — 轻量 Hook 系统
+
+> v1.x 采用同步 hooks，无持久化、无死信队列，满足基本扩展需求。
+
+```python
+class HookManager:
+    hooks: dict[str, list[Callable]]
+
+    def on(self, event: str, handler: Callable): ...
+    def emit(self, event: str, data: Any): ...
+```
+
+内置 hook 点：
+
+| Hook 点 | 时机 | 用途 |
+|---------|------|------|
+| `run.start` / `run.end` | run 生命周期 | 记录开始/结束时间 |
+| `phase.start` / `phase.end` | 当前 owner/phase 生命周期 | Phase 级统计 |
+| `model.start` / `model.end` | 模型调用前后 | Token 计数、费用追踪 |
+| `tool.start` / `tool.end` | 工具调用前后 | 工具使用统计 |
+| `handoff` | ownership transfer | 交接记录 |
+| `gate.pass` / `gate.fail` | 自动门禁结果 | 质量统计 |
+| `reflection` | 结构化反思产出 | 学习记录 |
+| `resume` | interruption 恢复 | 恢复追踪 |
+| `budget.warn` / `budget.over` | 预算警告/超支 | 费用告警 |
+
+v1.x tracing 的最小粒度应覆盖：run、turn、model call、tool call、handoff、gate failure、interruption / resume。Hook 与 tracing 都是 runtime 的观察面，不应侵入业务执行逻辑。
+
+---
+
 ## 7. 配置
 
 ```yaml
