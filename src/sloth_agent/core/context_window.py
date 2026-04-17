@@ -4,7 +4,8 @@
 class ContextWindowManager:
     """Manage agent context window with precise token counting."""
 
-    def __init__(self, max_tokens: int = 128_000, output_reserve: int = 15_000):
+    def __init__(self, model: str = "gpt-4", max_tokens: int = 128_000, output_reserve: int = 15_000):
+        self.model = model
         self.max_tokens = max_tokens
         self.output_reserve = output_reserve
         self.available = max_tokens - output_reserve
@@ -50,6 +51,15 @@ class ContextWindowManager:
             else:
                 break
         return fitted
+
+    def inject_skills(self, skill_ids: list[str], skill_manager) -> str:
+        """Concatenate specified skills into an injectable prompt string."""
+        parts = []
+        for sid in skill_ids:
+            content = skill_manager.get_skill_content(sid)
+            if content:
+                parts.append(f"## Skill: {sid}\n{content}")
+        return "\n".join(parts)
 
     @staticmethod
     def _count_tokens(text: str) -> int:

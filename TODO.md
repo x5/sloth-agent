@@ -1,6 +1,6 @@
 # Project TODO
 
-> 最后更新: 20260417 — Task 6 完成，169 tests pass
+> 最后更新: 20260417 — Task 7 完成，184 tests pass
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
 > 当前目标: 先落地 v1.0 最小可用产品，再进入 v1.1 / v2.0 扩展
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
@@ -92,14 +92,14 @@
   - [x] 明确部署产物、部署日志、验证结果的落盘格式
   - [x] 补充 end-to-end 部署阶段测试
 
-- [ ] **Task 7: FS Memory / Checkpoint / Skill Loading** ← Task 6
+- [x] **Task 7: FS Memory / Checkpoint / Skill Loading** ← Task 6
   > Arch: `00000000-00-architecture-overview.md` §7.2
   > Spec: `20260416-04-memory-management-spec.md`（模块 #4）+ `20260416-06-skill-management-spec.md`（模块 #6）
   > Plan: `20260416-04-memory-management-implementation-plan.md` + `20260416-06-skill-management-implementation-plan.md` + `20260416-13-session-lifecycle-implementation-plan.md`
-  - [ ] 将运行状态、阶段产物、工具记录、gate 结果统一写入文件系统
-  - [ ] 建立 checkpoint 保存/恢复机制，作为回滚与 resume 基础
-  - [ ] 打通 `SKILL.md` 加载与按需注入机制
-  - [ ] 约束模型可见上下文、运行时上下文、持久化状态三层边界
+  - [x] 将运行状态、阶段产物、工具记录、gate 结果统一写入文件系统
+  - [x] 建立 checkpoint 保存/恢复机制，作为回滚与 resume 基础
+  - [x] 打通 `SKILL.md` 加载与按需注入机制
+  - [x] 约束模型可见上下文、运行时上下文、持久化状态三层边界
 
 - [ ] **Task 8: CLI 集成与 v1.0 验证闭环** ← Task 7
   > Arch: `00000000-00-architecture-overview.md` §9.0, §11.0

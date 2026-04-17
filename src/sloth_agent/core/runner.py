@@ -5,6 +5,7 @@ Spec: architecture-overview.md §3.1.1, §5.1.1.1, §5.1.1.2
 
 import json
 import logging
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -19,6 +20,42 @@ from sloth_agent.core.tools.orchestrator import ToolOrchestrator
 from sloth_agent.core.tools.tool_registry import ToolRegistry
 
 logger = logging.getLogger("runner")
+
+
+# ---------------------------------------------------------------------------
+# Three-layer context boundary (spec §9.2)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ModelVisibleContext:
+    """Data that CAN be sent to the LLM prompt."""
+    history: list
+    retrieved_memory: list
+    current_task: str | None
+    handoff_payload: dict | None
+
+    def to_prompt_data(self) -> dict:
+        """Convert to dict suitable for LLM prompt."""
+        return {
+            "history": self.history,
+            "retrieved_memory": self.retrieved_memory,
+            "current_task": self.current_task,
+            "handoff_payload": self.handoff_payload,
+        }
+
+
+@dataclass
+class RuntimeOnlyContext:
+    """Data that must NEVER be sent to the LLM — code/tools only."""
+    config: Any
+    tool_registry: Any
+    skill_registry: Any
+    logger: Any
+    workspace_handle: str
+
+    def to_prompt_data(self) -> dict:
+        """Returns empty dict — runtime context is never sent to LLM."""
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -267,3 +304,33 @@ class Runner:
         if "blocking_issues" in gate_result.failed_checks:
             return NextStep(type=NextStepType.retry_different, reason=f"Gate2 failed: {gate_result.failed_checks}")
         return NextStep(type=NextStepType.abort, reason=f"Gate failed: {gate_result.failed_checks}")
+
+    # -----------------------------------------------------------------------
+    # RunState persistence (spec §9.1)
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def persist_state(state: RunState, persist_dir: Path) -> None:
+        """Write RunState snapshot and tool history to filesystem."""
+        run_dir = persist_dir / state.run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write state.json
+        state_file = run_dir / "state.json"
+        state_file.write_text(state.model_dump_json(indent=2))
+
+        # Append tool_history.jsonl
+        if state.tool_history:
+            history_file = run_dir / "tool_history.jsonl"
+            with history_file.open("a") as f:
+                for entry in state.tool_history:
+                    f.write(json.dumps(entry) + "\n")
+
+    @staticmethod
+    def resume_run_state(run_dir: Path) -> RunState | None:
+        """Restore RunState from state.json."""
+        state_file = run_dir / "state.json"
+        if not state_file.exists():
+            return None
+        data = json.loads(state_file.read_text())
+        return RunState(**data)
