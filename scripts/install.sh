@@ -99,17 +99,26 @@ else
 fi
 
 # ─── Step 2: Clone or update ────────────────────────────────
+# Resolve the latest release tag
+LATEST_TAG=$(git ls-remote --tags --sort=-v:refname "${REPO_URL}" 'v*' | head -1 | sed 's/.*\///')
+if [ -z "${LATEST_TAG}" ]; then
+    LATEST_TAG="${BRANCH}"
+    warn "no release tag found, falling back to ${BRANCH}"
+else
+    ok "latest release: ${LATEST_TAG}"
+fi
+
 if [ -d "${SLOTH_DIR}/.git" ]; then
     step "Updating existing installation at ${SLOTH_DIR}..."
     cd "${SLOTH_DIR}"
-    git fetch origin "${BRANCH}"
-    git reset --hard "origin/${BRANCH}"
-    ok "pulled latest"
+    git fetch origin --tags --force
+    git checkout "${LATEST_TAG}"
+    git reset --hard "${LATEST_TAG}"
+    ok "pinned to ${LATEST_TAG}"
 else
     step "Cloning Sloth Agent to ${SLOTH_DIR}..."
-    git clone "${REPO_URL}" "${SLOTH_DIR}"
-    cd "${SLOTH_DIR}"
-    ok "cloned"
+    git clone --depth 1 --branch "${LATEST_TAG}" "${REPO_URL}" "${SLOTH_DIR}"
+    ok "cloned (${LATEST_TAG})"
 fi
 
 # ─── Step 3: Create venv and install ────────────────────────

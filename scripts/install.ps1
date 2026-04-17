@@ -86,17 +86,27 @@ if (Get-Command python3 -ErrorAction SilentlyContinue) {
 }
 
 # ─── Step 2: Clone or update ────────────────────────────────
+# Resolve the latest release tag
+$tags = git ls-remote --tags --sort=-v:refname $REPO_URL 'v*'
+if ($tags) {
+    $LATEST_TAG = ($tags -split "`n" | Select-Object -First 1) -replace '.*/'
+} else {
+    $LATEST_TAG = $BRANCH
+    Write-Warn "no release tag found, falling back to $BRANCH"
+}
+
 if (Test-Path "$SLOTH_DIR\.git") {
     Write-Step "Updating existing installation at $SLOTH_DIR..."
     Push-Location $SLOTH_DIR
-    git fetch origin $BRANCH
-    git reset --hard "origin/$BRANCH"
+    git fetch origin --tags --force
+    git checkout $LATEST_TAG
+    git reset --hard $LATEST_TAG
     Pop-Location
-    Write-Ok "pulled latest"
+    Write-Ok "pinned to $LATEST_TAG"
 } else {
     Write-Step "Cloning Sloth Agent to $SLOTH_DIR..."
-    git clone $REPO_URL $SLOTH_DIR
-    Write-Ok "cloned"
+    git clone --depth 1 --branch $LATEST_TAG $REPO_URL $SLOTH_DIR
+    Write-Ok "cloned ($LATEST_TAG)"
 }
 
 # ─── Step 3: Create venv and install ────────────────────────
