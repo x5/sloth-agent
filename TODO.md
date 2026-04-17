@@ -42,19 +42,19 @@
   > Arch: `00000000-00-architecture-overview.md` §3.1.1
   > Spec: `20260416-01-phase-role-architecture-spec.md` §25（运行时内核定义）
   > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 19（追溯记录）
-  - [ ] 在 `src/sloth_agent/core/` 中引入统一运行时骨架：`Runner`、`RunState`、`NextStep`
-  - [ ] 明确 `Product Orchestrator` 与 `Runner` 的边界，避免多套执行循环
-  - [ ] 统一 `final_output / tool_call / phase_handoff / retry / interruption / abort` 语义
-  - [ ] 补充对应单元测试，覆盖状态推进与恢复入口
+  - [x] 在 `src/sloth_agent/core/` 中引入统一运行时骨架：`Runner`、`RunState`、`NextStep`
+  - [x] 明确 `Product Orchestrator` 与 `Runner` 的边界，避免多套执行循环
+  - [x] 统一 `final_output / tool_call / phase_handoff / retry / interruption / abort` 语义
+  - [x] 补充对应单元测试，覆盖状态推进与恢复入口
 
 - [x] **Task 2: Tool Runtime 基础能力** ← Task 1
   > Arch: `00000000-00-architecture-overview.md` §7.1
   > Spec: `20260416-02-tools-invocation-spec.md`（模块 #2）
   > Plan: `20260416-02-tools-invocation-implementation-plan.md`（已合并 v10 tool runtime plan）
-  - [ ] 统一 `ToolRegistry` / `ToolOrchestrator` 接口，纳入 `Runner.resolve()` 分支
-  - [ ] 优先落地 v1.0 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
-  - [ ] 接入 `HallucinationGuard`、路径白名单、命令黑名单
-  - [ ] 为工具调用记录审计信息与结构化结果，便于后续 gate / tracing / replay
+  - [x] 统一 `ToolRegistry` / `ToolOrchestrator` 接口，纳入 `Runner.resolve()` 分支
+  - [x] 优先落地 v1.0 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
+  - [x] 接入 `HallucinationGuard`、路径白名单、命令黑名单
+  - [x] 为工具调用记录审计信息与结构化结果，便于后续 gate / tracing / replay
 
 - [x] **Task 3: Builder Agent Runtime** ← Task 2
   > Arch: `00000000-00-architecture-overview.md` §5.1
@@ -112,14 +112,12 @@
 
 ### 其他活跃任务
 
-- [ ] **[P0]** Tools 与运行时内核对齐，禁止游离在 Runner 之外 @agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §7.1.0 | Spec: `20260416-02-tools-invocation-spec.md` | Plan: 已并入 Task 2
-- [ ] **[P0]** 结构化 Agent 交接协议落地（BuilderOutput / ReviewerOutput）@agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §5.1.1 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: 已并入 Task 4
-- [ ] **[P1]** 阶段级模型路由配置（Builder / Reviewer / Deployer）@agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §11.0 | Spec: `20260417-20-llm-router-spec.md`（模块 20） | Plan: `20260417-20-llm-router-implementation-plan.md`
-- [ ] **[P1]** 文件系统记忆与 checkpoint 统一格式 @agent @20260416
-  > Arch: `00000000-00-architecture-overview.md` §7.2 | Spec: `20260416-04-memory-management-spec.md` | Plan: 待创建
+> 以下任务已随 Task 1-8 实现完毕，标记为完成
+
+- [x] **[P0]** Tools 与运行时内核对齐，禁止游离在 Runner 之外 → 随 Task 2 完成
+- [x] **[P0]** 结构化 Agent 交接协议落地（BuilderOutput / ReviewerOutput）→ 随 Task 4 完成
+- [x] **[P1]** 阶段级模型路由配置（Builder / Reviewer / Deployer）→ 随 Task 8（LLMRouter）完成
+- [x] **[P1]** 文件系统记忆与 checkpoint 统一格式 → 随 Task 7 完成
 
 ## 近期 Backlog
 
@@ -157,7 +155,7 @@
 
 ## 阻塞
 
-- [x] ~~当前缺少与 canonical architecture 对齐的 v1.0 implementation plan~~ → Plan 创建任务链已全部完成（P1-P8），阻塞已解除。下一步按依赖链从 Task 1 开始按对应 plan 执行代码实现。@20260417
+> 无阻塞。v1.0 流水线全部实现完成并验证。
 
 ### P0: v1.0 Plan 创建（已全部完成）
 
