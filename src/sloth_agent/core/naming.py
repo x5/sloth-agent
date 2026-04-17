@@ -15,7 +15,7 @@ Where:
 
 Examples:
     - 20260416-02-tools-invocation-spec.md
-    - 20260415-tools-implementation-plan.md
+    - 20260416-02-tools-invocation-implementation-plan.md
     - 20260415-card-game-design-spec.md
     - 20260416-wuxing-app-implementation-plan.md
 
@@ -259,7 +259,7 @@ class DocumentEnforcer:
                 f"Expected format: YYYYMMDD-description-type.md\n"
                 f"Examples:\n"
                 f"  20260416-02-tools-invocation-spec.md\n"
-                f"  20260415-tools-implementation-plan.md\n"
+                f"  20260416-02-tools-invocation-implementation-plan.md\n"
                 f"  20260415-daily-report.md"
             )
 

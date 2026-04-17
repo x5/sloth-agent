@@ -48,7 +48,7 @@ YYYYMMDD-event-description-type.md
 20260416-wuxing-app-design-spec.md
 
 # 实现计划
-20260415-tools-implementation-plan.md
+20260416-02-tools-invocation-implementation-plan.md
 20260415-card-game-implementation-plan.md
 
 # 工作报告
@@ -88,7 +88,7 @@ docs/
 │   └── 20260416-card-game-design-spec.md
 │
 ├── plans/           # 实现计划
-│   ├── 20260415-tools-implementation-plan.md
+│   ├── 20260416-02-tools-invocation-implementation-plan.md
 │   └── 20260415-card-game-implementation-plan.md
 │
 ├── reports/         # 工作报告
