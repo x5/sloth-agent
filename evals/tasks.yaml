@@ -1,0 +1,8 @@
+---
+name: create-crud-api
+description: Create a CRUD API for a resource
+expected:
+  files_created: 4
+  tests_pass: true
+  coverage_min: 0.80
+plan: evals/plans/crud-api.md
