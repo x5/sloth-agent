@@ -1,6 +1,6 @@
 # Project TODO
 
-> 最后更新: 20260417 — Task 2 完成，120 tests pass
+> 最后更新: 20260417 — Task 4 完成，163 tests pass
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
 > 当前目标: 先落地 v1.0 最小可用产品，再进入 v1.1 / v2.0 扩展
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
@@ -56,23 +56,23 @@
   - [ ] 接入 `HallucinationGuard`、路径白名单、命令黑名单
   - [ ] 为工具调用记录审计信息与结构化结果，便于后续 gate / tracing / replay
 
-- [ ] **Task 3: Builder Agent Runtime** ← Task 2
+- [x] **Task 3: Builder Agent Runtime** ← Task 2
   > Arch: `00000000-00-architecture-overview.md` §5.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Builder 定义）
   > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 8/9/10
-  - [ ] 将 Plan 解析、编码、调试、单元测试收敛到 Builder phase
-  - [ ] 实现 `ContextWindowManager`，区分 system、历史、工具结果、输出预留
-  - [ ] 接入 Reflection / Stuck Detection / 自动重试入口
-  - [ ] 产出结构化 `BuilderOutput`，作为 Builder → Reviewer 的唯一交接物
+  - [x] 将 Plan 解析、编码、调试、单元测试收敛到 Builder phase
+  - [x] 实现 `ContextWindowManager`，区分 system、历史、工具结果、输出预留
+  - [x] 接入 Reflection / Stuck Detection / 自动重试入口
+  - [x] 产出结构化 `BuilderOutput`，作为 Builder → Reviewer 的唯一交接物
 
-- [ ] **Task 4: Gate 机制与 Phase Handoff** ← Task 3
+- [x] **Task 4: Gate 机制与 Phase Handoff** ← Task 3
   > Arch: `00000000-00-architecture-overview.md` §5.1.3, §5.1.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Gate + Handoff 定义）
   > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 18
-  - [ ] 实现 Gate1 / Gate2 / Gate3 的纯规则判断，不依赖 LLM
-  - [ ] 固化 `phase_handoff` 与 `skill-as-tool` 的不同语义
-  - [ ] 对齐 `BuilderOutput` / `ReviewerOutput` 数据结构
-  - [ ] 打通 gate failure → retry / rollback / interrupt 的运行时流转
+  - [x] 实现 Gate1 / Gate2 / Gate3 的纯规则判断，不依赖 LLM
+  - [x] 固化 `phase_handoff` 与 `skill-as-tool` 的不同语义
+  - [x] 对齐 `BuilderOutput` / `ReviewerOutput` 数据结构
+  - [x] 打通 gate failure → retry / rollback / interrupt 的运行时流转
 
 - [ ] **Task 5: Reviewer Agent Runtime** ← Task 4
   > Arch: `00000000-00-architecture-overview.md` §5.1

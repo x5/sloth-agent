@@ -6,47 +6,19 @@ Spec: architecture-overview.md §3.1.1, §5.1.1.1, §5.1.1.2
 import json
 import logging
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
 from pydantic import BaseModel, Field
 
 from sloth_agent.core.config import Config
+from sloth_agent.core.nextstep import NextStep, NextStepType, ToolRequest
+from sloth_agent.core.gates import GateResult
 from sloth_agent.core.tools.models import ToolCallRequest
 from sloth_agent.core.tools.orchestrator import ToolOrchestrator
 from sloth_agent.core.tools.tool_registry import ToolRegistry
 
 logger = logging.getLogger("runner")
-
-
-# ---------------------------------------------------------------------------
-# NextStep protocol (spec §5.1.1.2)
-# ---------------------------------------------------------------------------
-
-class NextStepType(str, Enum):
-    final_output = "final_output"
-    tool_call = "tool_call"
-    phase_handoff = "phase_handoff"
-    retry_same = "retry_same"
-    retry_different = "retry_different"
-    replan = "replan"
-    interruption = "interruption"
-    abort = "abort"
-
-
-class ToolRequest(BaseModel):
-    tool_name: str
-    params: dict[str, Any] = Field(default_factory=dict)
-
-
-class NextStep(BaseModel):
-    type: NextStepType
-    output: str | None = None
-    request: ToolRequest | None = None
-    next_agent: str | None = None
-    next_phase: str | None = None
-    reason: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -270,3 +242,28 @@ class Runner:
                 "error": str(e),
                 "duration_ms": 0,
             }
+
+    def _handle_phase_handoff(self, state: RunState, step: NextStep) -> RunState:
+        """处理 phase_handoff NextStep。"""
+        state.current_agent = step.next_agent
+        state.current_phase = step.next_phase
+        state.handoff_payload = step.output
+        state.turn = 0
+        if hasattr(self, "hooks"):
+            self.hooks.emit("handoff", {
+                "from_agent": state.current_agent,
+                "to_agent": step.next_agent,
+                "to_phase": step.next_phase,
+            })
+        return state
+
+    @staticmethod
+    def _gate_failure_to_nextstep(gate_result: GateResult) -> NextStep:
+        """Gate 失败映射到 NextStep。"""
+        if "lint" in gate_result.failed_checks or "type_check" in gate_result.failed_checks:
+            return NextStep(type=NextStepType.retry_same, reason=f"Gate1 failed: {gate_result.failed_checks}")
+        if "tests" in gate_result.failed_checks:
+            return NextStep(type=NextStepType.retry_same, reason=f"Gate1 tests failed: {gate_result.failed_checks}")
+        if "blocking_issues" in gate_result.failed_checks:
+            return NextStep(type=NextStepType.retry_different, reason=f"Gate2 failed: {gate_result.failed_checks}")
+        return NextStep(type=NextStepType.abort, reason=f"Gate failed: {gate_result.failed_checks}")
