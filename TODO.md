@@ -58,7 +58,7 @@
 - [ ] **Task 3: Builder Agent Runtime** ← Task 2
   > Arch: `00000000-00-architecture-overview.md` §5.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Builder 定义）
-  > Plan: `20260417-v10-builder-agent-implementation-plan.md`
+  > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 8/9/10
   - [ ] 将 Plan 解析、编码、调试、单元测试收敛到 Builder phase
   - [ ] 实现 `ContextWindowManager`，区分 system、历史、工具结果、输出预留
   - [ ] 接入 Reflection / Stuck Detection / 自动重试入口
@@ -165,7 +165,7 @@
 
 - [x] **P1: 创建 Runtime Kernel & RunState plan** → `docs/plans/20260417-v10-runtime-kernel-implementation-plan.md`
 - [x] **P2: 创建 Tool Runtime plan** → `docs/plans/20260417-v10-tool-runtime-implementation-plan.md`
-- [x] **P3: 创建 Builder Agent plan** → `docs/plans/20260417-v10-builder-agent-implementation-plan.md`
+- [x] **P3: 创建 Builder Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 8/9/10
 - [x] **P4: 创建 Gate & Handoff plan** → `docs/plans/20260417-v10-gate-handoff-implementation-plan.md`
 - [x] **P5: 创建 Reviewer Agent plan** → `docs/plans/20260417-v10-reviewer-agent-implementation-plan.md`
 - [x] **P6: 创建 Deployer Agent plan** → `docs/plans/20260417-v10-deployer-agent-implementation-plan.md`
