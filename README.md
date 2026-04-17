@@ -176,8 +176,8 @@ curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install
 或手动安装：
 
 ```bash
-git clone git@github.com:x5/sloth-agent.git
-cd sloth-agent
+git clone git@github.com:x5/sloth-agent.git ~/.sloth-agent
+cd ~/.sloth-agent
 uv sync --dev
 uv run sloth --help
 ```
@@ -191,8 +191,8 @@ iwr -useb https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.
 或手动安装：
 
 ```powershell
-git clone git@github.com:x5/sloth-agent.git $HOME\sloth-agent
-cd sloth-agent
+git clone git@github.com:x5/sloth-agent.git $HOME\.sloth-agent
+cd $HOME\.sloth-agent
 uv sync --dev
 uv run sloth --help
 ```
