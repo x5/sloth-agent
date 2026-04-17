@@ -1,0 +1,82 @@
+{
+  "llm": {
+    "providers": {
+      "deepseek": {
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "base_url": "https://api.deepseek.com/v1",
+        "models": {
+          "coding": "deepseek-v3.2",
+          "reasoning": "deepseek-r1-0528"
+        }
+      },
+      "qwen": {
+        "api_key_env": "QWEN_API_KEY",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "models": {
+          "review": "qwen3.6-plus"
+        }
+      },
+      "kimi": {
+        "api_key_env": "KIMI_API_KEY",
+        "base_url": "https://api.moonshot.cn/v1",
+        "models": {
+          "vision": "kimi-k2.5"
+        },
+        "is_optional": true
+      },
+      "glm": {
+        "api_key_env": "GLM_API_KEY",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "models": {
+          "coding": "glm-5.1"
+        },
+        "is_optional": true
+      },
+      "minimax": {
+        "api_key_env": "MINIMAX_API_KEY",
+        "base_url": "https://api.minimax.chat/v1",
+        "models": {
+          "evolution": "minimax-m2.7"
+        },
+        "is_optional": true
+      },
+      "xiaomi": {
+        "api_key_env": "XIAOMI_API_KEY",
+        "base_url": "https://api.mioffice.cn/openapi/llm",
+        "models": {
+          "coding": "mimo-v2-pro"
+        },
+        "is_optional": true
+      }
+    },
+    "default_provider": "deepseek"
+  },
+  "agent": {
+    "name": "sloth-agent",
+    "workspace": "./workspace",
+    "timezone": "Asia/Shanghai"
+  },
+  "execution": {
+    "auto_execute_hours": "09:00-18:00",
+    "require_approval_hours": "18:00-09:00"
+  },
+  "chat": {
+    "max_context_turns": 20,
+    "auto_approve_risk_level": 2,
+    "stream_responses": true,
+    "prompt_prefix": "sloth> "
+  },
+  "security": {
+    "sandbox_enabled": true,
+    "path_whitelist": ["./workspace/**", "./src/**", "./tests/**"],
+    "command_denylist": ["rm -rf /", "dd", "mkfs"]
+  },
+  "skills": {
+    "global_dir": "~/.sloth-agent/skills",
+    "local_dir": ".sloth/local_skills"
+  },
+  "observability": {
+    "log_level": "INFO",
+    "log_file": "~/.sloth-agent/logs/sloth.log"
+  }
+}

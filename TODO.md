@@ -104,18 +104,21 @@
 
 - [x] **Task 8: CLI 集成与 v0.1 验证闭环** ← Task 7
   > Arch: `00000000-00-architecture-overview.md` §9.0, §11.0
-  > Spec: 同上（CLI + 配置定义无独立 spec 文件）
+  > Spec: `20260416-18-installation-onboarding-spec.md`（模块 #18）
   > Plan: `20260417-20-llm-router-implementation-plan.md` + `20260416-18-installation-onboarding-implementation-plan.md` + `20260417-21-eval-framework-implementation-plan.md`
   - [x] 打通 `sloth run` 主路径，输入 Plan 后可跑完整流水线
   - [x] 配置 v0.1 阶段级模型路由（Builder / Reviewer / Deployer）
   - [x] 增加最小 eval / smoke 场景，验证成功率、质量门控、自修复链路
   - [x] 跑通一条真实示例并更新 README / 使用文档
+  - [x] 实现全局安装脚本 `scripts/install.sh`（macOS/Linux/WSL2）
+  - [x] 实现全局安装脚本 `scripts/install.ps1`（Windows PowerShell）
+  - [x] 采用 Claude Code 安装模型：自检 → 克隆 → venv → CLI shim → PATH → 验证 → smoke test
 
 ### P1: v0.2 扩展实现
 
 > Arch: `00000000-00-architecture-overview.md` §5, §7.3
 > Plan: `20260417-v1-1-implementation-plan.md`（原 v1.1 计划，重命名为 v0.2）
-> 依赖链: `V0.2-1 → V0.2-2 → V0.2-3 → V0.2-4 → V0.2-5`
+> 依赖链: `V0.2-1 → V0.2-1.5 → V0.2-1.6 → V0.2-2 → V0.2-3 → V0.2-4 → V0.2-5`
 > 范围: 成本管控 + Provider 容错 + Chat 增强 + 上下文优化 + 自适应执行
 
 - [ ] **Task V0.2-1: Cost Tracking 基础** ← v0.1 Task 8
@@ -127,7 +130,28 @@
   - [ ] `BudgetAwareLLMRouter` 软/硬限额检查
   - [ ] 在 ToolRuntime 的 LLM 调用路径中接入 `record_call()`
 
-- [ ] **Task V0.2-2: Provider Fallback / 熔断降级** ← Task V0.2-1
+- [x] **Task V0.2-1.5: ConfigManager + config.json 统一配置** ← v0.1 Task 8
+  > Arch: `00000000-00-architecture-overview.md` §9.0
+  > Spec: `20260416-18-installation-onboarding-spec.md` §6.5（模块 #18）
+  > Plan: `20260416-18-installation-onboarding-implementation-plan.md` §Task 3/4/5
+  - [x] 实现 `ConfigManager`：三级配置合并（user → project → local）
+  - [x] 定义配置数据类：`SlothConfig`、`LLMConfig`、`ProviderConfig` 等
+  - [x] 创建 `configs/config.json.example` 模板
+  - [x] 实现 `sloth config` CLI 命令（查看/设置/验证/env 列出缺失 Key）
+  - [x] `ConfigManager.get_api_key()` 从环境变量解析实际 Key
+  - [x] 安装脚本同步生成全局 `config.json`
+
+- [ ] **Task V0.2-1.6: `sloth config init --interactive` 交互式向导** ← Task V0.2-1.5
+  > Arch: `00000000-00-architecture-overview.md` §9.0
+  > Spec: `20260416-18-installation-onboarding-spec.md` §6.5.7（模块 #18）
+  > Plan: `20260416-18-installation-onboarding-implementation-plan.md` §Task 7
+  - [ ] 安装 `prompt_toolkit>=3.0` 依赖
+  - [ ] 实现交互式向导：作用域 → Provider → API Key → 工作空间 → 确认 → 写入 → 验证
+  - [ ] API Key 隐藏输入（password 模式）
+  - [ ] 配置写入后自动 `sloth config validate` 验证
+  - [ ] 编写交互向导测试（模拟输入流）
+
+- [ ] **Task V0.2-2: Provider Fallback / 熔断降级** ← Task V0.2-1.6
   > Arch: `00000000-00-architecture-overview.md` §7.3
   > Spec: `20260416-07-chat-mode-spec.md` + `20260416-09-error-handling-recovery-spec.md` §4
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-2
@@ -253,4 +277,4 @@
 | 20260417 | 版本重命名：原 v1.0→v0.1, v1.1→v0.2, v1.2→v0.3, v2.0→v0.5~v1.0 |
 | 20260417 | v0.2 规划完成：5 个 Task (V0.2-1~V0.2-5) 纳入活跃区 |
 | 20260417 | 产品路线图更新：architecture-overview.md §14 建立 v0.1→v1.0 六版本完整路线图 |
-| 20260417 | TODO.md 全量版本号对齐，v0.1 发布至 GitHub |
+| 20260418 | 引入 config.json 统一配置管理（模块 #18），安装脚本支持 API Key 模板 + 自动填充 |

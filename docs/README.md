@@ -17,8 +17,8 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.2 已发布** — 3-Agent 自主流水线 MVP + 配置管理系统，208 tests pass。
-> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.2) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
+> **v0.1 已发布** — 3-Agent 自主流水线 MVP，189 tests pass。
+> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.1) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
 
@@ -69,7 +69,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | **Skill Loading** | ✅ | SKILL.md 加载与按需注入（Claude Code 兼容格式） |
 | **Memory Store** | ✅ | 纯文件系统 jsonl 存储（sessions/scenarios/shared） |
 | **LLM Router** | ✅ | 阶段级模型路由配置 |
-| **Eval Framework** | ✅ | smoke test + 标准任务集，208 tests pass |
+| **Eval Framework** | ✅ | smoke test + 标准任务集，189 tests pass |
 
 ### 远期目标：8+1 Agent 架构（v0.5~v1.0）
 
@@ -197,64 +197,37 @@ uv sync --dev
 uv run sloth --help
 ```
 
-### 初始化配置
-
-```bash
-# 交互式配置向导（推荐）
-sloth config init --interactive
-
-# 或创建模板文件后手动编辑
-sloth config init
-cp ~/.sloth-agent/.env.example ~/.sloth-agent/.env
-```
-
 ### 验证安装
 
 ```bash
 # 查看帮助
 uv run sloth --help
 
-# 运行测试（208 tests）
+# 运行测试（189 tests）
 uv run pytest tests/ evals/ -v
 
 # Smoke test
 uv run python -c "from evals.smoke_test import run_smoke_test; r = run_smoke_test(); print(f'PASS' if r.passed else 'FAIL')"
 ```
 
-详细安装步骤见 [v0.2 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
+详细安装步骤见 [v0.1 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
 
 ---
 
 ## 快速开始
 
 ```bash
-# 1. 初始化配置（首次使用）
-sloth config init --interactive
+# 1. 准备一份 Plan 文件（Markdown 格式）
 
-# 2. 准备一份 Plan 文件（Markdown 格式）
-
-# 3. 执行自主流水线
+# 2. 执行自主流水线
 uv run sloth run --plan plan.md
 
-# 4. 查看执行状态
+# 3. 查看执行状态
 uv run sloth status
 
-# 5. 查看日志
+# 4. 查看日志
 uv run sloth logs --level INFO --limit 50
 ```
-
-### 常用 CLI 命令
-
-| 命令 | 说明 |
-|------|------|
-| `sloth config init --interactive` | 交互式配置向导 |
-| `sloth config show` | 查看当前配置 |
-| `sloth config env` | 检查 API Key 状态 |
-| `sloth init` | 初始化项目目录 |
-| `sloth run --plan <file>` | 运行自主流水线 |
-| `sloth chat` | 进入对话模式 |
-| `sloth status` | 查看执行状态 |
-| `sloth logs` | 查看执行日志 |
 
 ---
 
@@ -323,10 +296,10 @@ uv run sloth logs --level INFO --limit 50
 
 | 文档 | 说明 |
 |------|------|
-| [v0.2 安装指南](docs/guides/20260417-v0.1-installation-guide.md) | 安装、配置向导、快速开始、常见问题 |
+| [v0.1 安装指南](docs/guides/20260417-v0.1-installation-guide.md) | 安装、配置、快速开始、常见问题 |
 
 ---
 
-*Sloth Agent v0.2*
-*最后更新: 2026-04-18*
-*208 tests pass*
+*Sloth Agent v0.1*
+*最后更新: 2026-04-17*
+*189 tests pass*

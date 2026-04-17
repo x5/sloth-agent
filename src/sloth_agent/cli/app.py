@@ -6,6 +6,12 @@ from rich.console import Console
 app = typer.Typer(help="Sloth Agent - AI development assistant")
 console = Console()
 
+# Register sub-commands
+from sloth_agent.cli.config_cmd import config_app
+from sloth_agent.cli.init_cmd import init
+app.add_typer(config_app, name="config")
+app.command()(init)
+
 
 @app.command()
 def run(plan: str | None = typer.Argument(None, help="Plan file path")):
