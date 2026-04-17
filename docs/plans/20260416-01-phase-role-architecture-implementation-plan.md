@@ -2313,6 +2313,152 @@ git commit -m "feat(workflow): add CodeReviewer with spec compliance check (2 te
 
 ---
 
+## Task 15: Reviewer Agent Runtime
+
+> 来源: 原 `20260417-v10-reviewer-agent-implementation-plan.md`
+
+**Spec:** `00000000-00-architecture-overview.md` §5.1, §6.0; `20260416-01-phase-role-architecture-spec.md`
+**Files:**
+- Create: `src/sloth_agent/agents/reviewer.py`
+- Modify: `src/sloth_agent/core/runner.py` — 集成 Reviewer phase
+- Test: `tests/agents/test_reviewer.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/agents/test_reviewer.py
+
+from sloth_agent.agents.reviewer import ReviewerAgent
+from sloth_agent.core.builder import BuilderOutput, TestReport
+
+
+def test_reviewer_basic():
+    agent = ReviewerAgent()
+    assert agent is not None
+
+
+def test_reviewer_detects_bug():
+    """输入有明显 bug 的代码，验证 blocking_issues 非空。"""
+    agent = ReviewerAgent()
+    builder_out = BuilderOutput(
+        branch="test",
+        changed_files=["src/foo.py"],
+        diff_summary="add a function",
+        test_results=TestReport(total=2, passed=2, failed=0),
+        coverage=85.0,
+    )
+    # Mock: inject buggy code content
+    buggy_code = """
+def divide(a, b):
+    return a / b  # no zero check
+"""
+    result = agent.review(builder_out, code_map={"src/foo.py": buggy_code})
+    assert len(result.blocking_issues) > 0
+
+
+def test_reviewer_approves_clean_code():
+    """输入干净的代码，验证 approved=True。"""
+    agent = ReviewerAgent()
+    builder_out = BuilderOutput(
+        branch="test",
+        changed_files=["src/bar.py"],
+        diff_summary="add safe function",
+        test_results=TestReport(total=1, passed=1, failed=0),
+        coverage=90.0,
+    )
+    clean_code = """
+def add(a, b):
+    return a + b
+"""
+    result = agent.review(builder_out, code_map={"src/bar.py": clean_code})
+    assert result.approved is True
+    assert len(result.blocking_issues) == 0
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/agents/test_reviewer.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/agents/reviewer.py
+
+"""Reviewer Agent: independent code review with different model routing."""
+
+from dataclasses import dataclass, field
+from sloth_agent.core.builder import BuilderOutput
+
+
+@dataclass
+class ReviewerOutput:
+    approved: bool
+    branch: str
+    blocking_issues: list[str]
+    suggestions: list[str] = field(default_factory=list)
+
+
+class ReviewerAgent:
+    """Reviewer Agent — 使用不同于 Builder 的模型路由（qwen3.6-plus 或 claude）。"""
+
+    def review(self, builder_output: BuilderOutput, code_map: dict[str, str]) -> ReviewerOutput:
+        blocking = []
+        suggestions = []
+
+        for filepath, content in code_map.items():
+            issues = self._analyze(filepath, content)
+            blocking.extend(issues["blocking"])
+            suggestions.extend(issues["suggestions"])
+
+        return ReviewerOutput(
+            approved=len(blocking) == 0,
+            branch=builder_output.branch,
+            blocking_issues=blocking,
+            suggestions=suggestions,
+        )
+
+    def _analyze(self, filepath: str, content: str) -> dict:
+        blocking = []
+        suggestions = []
+
+        # Rule-based static analysis (v1.0: 纯规则，不调 LLM)
+        for i, line in enumerate(content.splitlines(), 1):
+            stripped = line.strip()
+            if "eval(" in stripped or "exec(" in stripped:
+                blocking.append(f"{filepath}:{i}: use of eval/exec")
+            if "pass" in stripped and i > 1:
+                suggestions.append(f"{filepath}:{i}: empty implementation (pass)")
+            if "import *" in stripped:
+                blocking.append(f"{filepath}:{i}: wildcard import")
+            if "/" in stripped and "def " not in stripped and "return" in stripped:
+                # Simple division without zero check
+                if " / " in stripped and "b" in stripped:
+                    blocking.append(f"{filepath}:{i}: division without zero check")
+
+        return {"blocking": blocking, "suggestions": suggestions}
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/agents/test_reviewer.py -v
+```
+
+Expected: PASS (all 3 tests)
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/agents/reviewer.py tests/agents/test_reviewer.py
+git commit -m "feat(agents): add ReviewerAgent with static analysis review (3 tests)"
+```
+
+---
+
 ## Summary
 
 | Task | Deliverable | Tests |
@@ -2331,10 +2477,12 @@ git commit -m "feat(workflow): add CodeReviewer with spec compliance check (2 te
 | 12 | TDDEnforcer (RED-GREEN) | 2 |
 | 13 | SystematicDebugger (4-phase) | 3 |
 | 14 | CodeReviewer (spec + quality) | 2 |
+| 15 | ReviewerAgent (static analysis) | 3 |
 
-**Total: 42 tests across 14 tasks**
+**Total: 45 tests across 15 tasks**
 
 合并说明:
 - Task 11-14 来自原 `20260416-01-workflow-implementation-plan.md` 的 Task 2/3/4/5
+- Task 15 来自原 `20260417-v10-reviewer-agent-implementation-plan.md`
 - 原 workflow-plan 的 Task 1 (WorkflowEngine state machine) 已被本文件 Task 4 覆盖，已删除
-- 合并后统一在 `src/sloth_agent/workflow/` 下实现
+- 合并后统一在 `src/sloth_agent/workflow/` 和 `src/sloth_agent/agents/` 下实现

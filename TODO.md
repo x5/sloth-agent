@@ -76,7 +76,7 @@
 - [ ] **Task 5: Reviewer Agent Runtime** ← Task 4
   > Arch: `00000000-00-architecture-overview.md` §5.1
   > Spec: `20260416-01-phase-role-architecture-spec.md`（模块 #1，Reviewer 定义）
-  > Plan: `20260417-v10-reviewer-agent-implementation-plan.md`
+  > Plan: `20260416-01-phase-role-architecture-implementation-plan.md` §Task 15
   - [ ] 实现 Reviewer phase，要求使用不同于 Builder 的模型路由
   - [ ] 聚焦代码审查、质量验证、安全/性能 blocking issues 识别
   - [ ] 生成结构化 `ReviewerOutput`，支持 Reviewer → Deployer handoff
@@ -167,7 +167,7 @@
 - [x] **P2: 创建 Tool Runtime plan** → `docs/plans/20260417-v10-tool-runtime-implementation-plan.md`
 - [x] **P3: 创建 Builder Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 8/9/10
 - [x] **P4: 创建 Gate & Handoff plan** → `docs/plans/20260417-v10-gate-handoff-implementation-plan.md`
-- [x] **P5: 创建 Reviewer Agent plan** → `docs/plans/20260417-v10-reviewer-agent-implementation-plan.md`
+- [x] **P5: 创建 Reviewer Agent plan** → 已并入 `20260416-01-phase-role-architecture-implementation-plan.md` §Task 15
 - [x] **P6: 创建 Deployer Agent plan** → `docs/plans/20260417-v10-deployer-agent-implementation-plan.md`
 - [x] **P7: 创建 Memory / Checkpoint / Skill plan** → `docs/plans/20260417-v10-memory-checkpoint-skill-implementation-plan.md`
 - [x] **P8: 创建 CLI 集成与验证 plan** → `docs/plans/20260417-v10-cli-integration-verification-plan.md`
