@@ -1866,6 +1866,453 @@ git commit -m "feat: add Builder with adaptive planning integration"
 
 ---
 
+## Task 11: Verifier — 4-Step Verification Gate
+
+> 来源: 原 `20260416-01-workflow-implementation-plan.md` Task 2
+
+**Spec:** §11.5 (Verifying), §13.6
+**Files:**
+- Create: `src/sloth_agent/workflow/verifier.py`
+- Test: `tests/workflow/test_verifier.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/workflow/test_verifier.py
+
+from sloth_agent.workflow.verifier import Verifier, RedFlagDetector
+
+
+def test_verifier_identify():
+    v = Verifier()
+    cmd = v.identify("所有测试通过")
+    assert "pytest" in cmd
+
+
+def test_verifier_red_flag_detection():
+    detector = RedFlagDetector()
+    assert detector.detect("这个应该没问题") is True
+    assert detector.detect("可能已经修复了") is True
+    assert detector.detect("测试全部通过，0 failures") is False
+
+
+def test_verifier_exit_code_check():
+    v = Verifier()
+    result = v.check_exit_code(0)
+    assert result is True
+    result = v.check_exit_code(1)
+    assert result is False
+
+
+def test_verifier_output_parse():
+    v = Verifier()
+    result = v.parse_test_output("15 passed, 0 failed in 2.3s")
+    assert result["passed"] == 15
+    assert result["failed"] == 0
+
+
+def test_verifier_4step_gate():
+    v = Verifier()
+    gate = v.run_gate(command="echo ok", expected_exit=0)
+    assert gate.passed
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/workflow/test_verifier.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/workflow/verifier.py
+
+"""Verifier: 4-step verification gate (Identify → Run → Read → Verify)."""
+
+import re
+import subprocess
+from dataclasses import dataclass
+
+
+RED_FLAGS = ["应该", "可能", "似乎", "好像", "完成了", "搞定了"]
+
+
+@dataclass
+class GateResult:
+    passed: bool
+    output: str = ""
+    exit_code: int = 0
+
+
+class RedFlagDetector:
+    """检测验证输出中的红旗警告词。"""
+
+    def detect(self, text: str) -> bool:
+        return any(flag in text for flag in RED_FLAGS)
+
+
+class Verifier:
+    """4 步验证门控：Identify → Run → Read → Verify。"""
+
+    def identify(self, claim: str) -> str:
+        """确定什么命令能证明声明。"""
+        if "测试" in claim or "test" in claim.lower():
+            return "pytest --tb=short -v"
+        if "构建" in claim or "build" in claim.lower():
+            return "python -m build"
+        if "覆盖率" in claim or "coverage" in claim.lower():
+            return "pytest --cov=src --cov-report=term"
+        if "lint" in claim.lower():
+            return "ruff check src/"
+        return "echo 'no verification command identified'"
+
+    def check_exit_code(self, code: int) -> bool:
+        return code == 0
+
+    def parse_test_output(self, output: str) -> dict:
+        passed = re.search(r"(\d+) passed", output)
+        failed = re.search(r"(\d+) failed", output)
+        return {
+            "passed": int(passed.group(1)) if passed else 0,
+            "failed": int(failed.group(1)) if failed else 0,
+        }
+
+    def run_gate(self, command: str, expected_exit: int = 0) -> GateResult:
+        """Run → Read → Verify 完整门控。"""
+        try:
+            result = subprocess.run(
+                command, shell=True, capture_output=True, text=True, timeout=120
+            )
+            return GateResult(
+                passed=result.returncode == expected_exit,
+                output=result.stdout + result.stderr,
+                exit_code=result.returncode,
+            )
+        except subprocess.TimeoutExpired:
+            return GateResult(passed=False, output="Timeout", exit_code=-1)
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/workflow/test_verifier.py -v
+```
+
+Expected: PASS (all 5 tests)
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/workflow/verifier.py tests/workflow/test_verifier.py
+git commit -m "feat(workflow): add Verifier with 4-step verification gate (5 tests)"
+```
+
+---
+
+## Task 12: TDDEnforcer — RED-GREEN Iron Law
+
+> 来源: 原 `20260416-01-workflow-implementation-plan.md` Task 3
+
+**Spec:** §11.4, §13.5
+**Files:**
+- Create: `src/sloth_agent/workflow/tdd_enforcer.py`
+- Test: `tests/workflow/test_tdd_enforcer.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/workflow/test_tdd_enforcer.py
+
+from sloth_agent.workflow.tdd_enforcer import TDDEnforcer, TDDViolationError
+
+
+def test_iron_law_exists():
+    assert TDDEnforcer.THE_IRON_LAW
+
+
+def test_violation_error_exists():
+    assert TDDViolationError
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/workflow/test_tdd_enforcer.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/workflow/tdd_enforcer.py
+
+"""TDD enforcer: RED-GREEN-REFACTOR iron law."""
+
+import subprocess
+
+
+class TDDViolationError(Exception):
+    pass
+
+
+class TDDEnforcer:
+    THE_IRON_LAW = "没有失败的测试，就不能写任何生产代码"
+
+    def run_tests(self, target: str = "tests") -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["pytest", target, "-v"], capture_output=True, text=True, timeout=300
+        )
+
+    def enforce_red(self, test_file: str) -> bool:
+        """RED: 确认测试失败。"""
+        result = self.run_tests(test_file)
+        if result.returncode == 0:
+            raise TDDViolationError("测试必须失败！")
+        return True
+
+    def enforce_green(self, test_file: str) -> bool:
+        """GREEN: 确认测试通过。"""
+        result = self.run_tests(test_file)
+        if result.returncode != 0:
+            raise TDDViolationError("实现未能让测试通过！")
+        return True
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/workflow/test_tdd_enforcer.py -v
+```
+
+Expected: PASS (all 2 tests)
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/workflow/tdd_enforcer.py tests/workflow/test_tdd_enforcer.py
+git commit -m "feat(workflow): add TDDEnforcer with RED-GREEN iron law (2 tests)"
+```
+
+---
+
+## Task 13: SystematicDebugger — 4-Phase Debugging
+
+> 来源: 原 `20260416-01-workflow-implementation-plan.md` Task 4
+
+**Spec:** §11.8, §14.2-§14.3
+**Files:**
+- Create: `src/sloth_agent/workflow/debugger.py`
+- Test: `tests/workflow/test_debugger.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/workflow/test_debugger.py
+
+from sloth_agent.workflow.debugger import SystematicDebugger
+
+
+def test_debugger_phases_exist():
+    dbg = SystematicDebugger()
+    assert hasattr(dbg, "phase1_root_cause")
+    assert hasattr(dbg, "phase2_pattern_analysis")
+    assert hasattr(dbg, "phase3_hypothesis_testing")
+    assert hasattr(dbg, "phase4_implementation")
+
+
+def test_no_fix_without_root_cause():
+    dbg = SystematicDebugger()
+    assert not dbg.can_fix_without_root_cause()
+
+
+def test_hypothesis_tracking():
+    dbg = SystematicDebugger()
+    dbg.record_hypothesis("X 导致 Y")
+    assert dbg.hypothesis_count == 1
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/workflow/test_debugger.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/workflow/debugger.py
+
+"""Systematic debugger: 4-phase debugging method."""
+
+from dataclasses import dataclass
+
+
+@dataclass
+class DebugResult:
+    root_cause: str = ""
+    hypothesis: str = ""
+    fix_applied: bool = False
+    verified: bool = False
+
+
+class SystematicDebugger:
+    """四阶段调试法：Root Cause → Pattern Analysis → Hypothesis → Implementation。"""
+
+    NO_FIX_WITHOUT_ROOT_CAUSE = "没有根因调查，就不要修复"
+
+    def __init__(self):
+        self.hypotheses: list[str] = []
+        self.failed_fixes: int = 0
+
+    @property
+    def hypothesis_count(self) -> int:
+        return len(self.hypotheses)
+
+    def can_fix_without_root_cause(self) -> bool:
+        return False
+
+    def phase1_root_cause(self, error: str) -> dict:
+        return {"error": error, "reproduced": True, "root_cause": ""}
+
+    def phase2_pattern_analysis(self, working_example: str, broken_example: str) -> dict:
+        return {"differences": [working_example, broken_example]}
+
+    def phase3_hypothesis_testing(self, hypothesis: str) -> dict:
+        self.hypotheses.append(hypothesis)
+        return {"hypothesis": hypothesis, "tested": False}
+
+    def phase4_implementation(self, fix: str) -> DebugResult:
+        self.failed_fixes += 1
+        if self.failed_fixes >= 3:
+            raise RuntimeError("3+ fixes failed — question the architecture")
+        return DebugResult(fix_applied=True, verified=False)
+
+    def record_hypothesis(self, hypothesis: str) -> None:
+        self.hypotheses.append(hypothesis)
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/workflow/test_debugger.py -v
+```
+
+Expected: PASS (all 3 tests)
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/workflow/debugger.py tests/workflow/test_debugger.py
+git commit -m "feat(workflow): add SystematicDebugger 4-phase method (3 tests)"
+```
+
+---
+
+## Task 14: CodeReviewer — Spec Compliance + Quality
+
+> 来源: 原 `20260416-01-workflow-implementation-plan.md` Task 5
+
+**Spec:** §11.6, §13.7
+**Files:**
+- Create: `src/sloth_agent/workflow/code_reviewer.py`
+- Test: `tests/workflow/test_code_reviewer.py`
+
+### Step 1: Write the failing test
+
+```python
+# tests/workflow/test_code_reviewer.py
+
+from sloth_agent.workflow.code_reviewer import CodeReviewer
+
+
+def test_reviewer_exists():
+    reviewer = CodeReviewer()
+    assert reviewer is not None
+
+
+def test_review_report_format():
+    reviewer = CodeReviewer()
+    report = reviewer.generate_report()
+    assert "Spec 合规性" in report
+    assert "代码质量" in report
+```
+
+### Step 2: Run test to verify it fails
+
+```bash
+uv run pytest tests/workflow/test_code_reviewer.py -v
+```
+
+Expected: FAIL
+
+### Step 3: Write minimal implementation
+
+```python
+# src/sloth_agent/workflow/code_reviewer.py
+
+"""Code reviewer: spec compliance + quality checks."""
+
+from dataclasses import dataclass
+
+
+@dataclass
+class ReviewReport:
+    spec_compliant: bool = False
+    issues: list[str] = None
+    severity: str = "critical"
+
+    def __post_init__(self):
+        if self.issues is None:
+            self.issues = []
+
+
+class CodeReviewer:
+    """代码审查器：Spec 合规性检查优先于代码质量。"""
+
+    def check_spec_compliance(self, diff: str, spec: str) -> ReviewReport:
+        return ReviewReport(spec_compliant=True)
+
+    def check_code_quality(self, diff: str) -> ReviewReport:
+        return ReviewReport(spec_compliant=True)
+
+    def generate_report(self) -> str:
+        return (
+            "## 代码审查报告\n"
+            "\n"
+            "### Spec 合规性\n"
+            "- [ ] 符合项\n"
+            "- [ ] 不符合项\n"
+            "\n"
+            "### 代码质量\n"
+            "- Lint: 0 errors\n"
+            "- Type: 0 errors\n"
+            "- Coverage: 0%\n"
+        )
+```
+
+### Step 4: Run test to verify it passes
+
+```bash
+uv run pytest tests/workflow/test_code_reviewer.py -v
+```
+
+Expected: PASS (all 2 tests)
+
+### Step 5: Commit
+
+```bash
+git add src/sloth_agent/workflow/code_reviewer.py tests/workflow/test_code_reviewer.py
+git commit -m "feat(workflow): add CodeReviewer with spec compliance check (2 tests)"
+```
+
+---
+
 ## Summary
 
 | Task | Deliverable | Tests |
@@ -1880,13 +2327,14 @@ git commit -m "feat: add Builder with adaptive planning integration"
 | 8 | NextStep + ContextWindowManager | 6 |
 | 9 | Reflection + StuckDetector | 4 |
 | 10 | Builder + Adaptive Planning | 2 |
+| 11 | Verifier (4-step gate) | 5 |
+| 12 | TDDEnforcer (RED-GREEN) | 2 |
+| 13 | SystematicDebugger (4-phase) | 3 |
+| 14 | CodeReviewer (spec + quality) | 2 |
 
-**Total: 30 tests across 10 tasks**
+**Total: 42 tests across 14 tasks**
 
-Plan complete and saved to `docs/plans/20260416-01-phase-role-architecture-implementation-plan.md`. Two execution options:
-
-**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
-
-**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
-
-Which approach?
+合并说明:
+- Task 11-14 来自原 `20260416-01-workflow-implementation-plan.md` 的 Task 2/3/4/5
+- 原 workflow-plan 的 Task 1 (WorkflowEngine state machine) 已被本文件 Task 4 覆盖，已删除
+- 合并后统一在 `src/sloth_agent/workflow/` 下实现
