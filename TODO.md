@@ -170,13 +170,13 @@
   - [x] v0.2 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
   - [x] `AutonomousController` 自主模式控制
 
-- [ ] **Task V0.2-4: Builder 上下文窗口管理优化** ← Task V0.2-3
+- [x] **Task V0.2-4: Builder 上下文窗口管理优化** ← Task V0.2-3
   > Arch: `00000000-00-architecture-overview.md` §5.1.2
   > Spec: `20260416-01-phase-role-architecture-spec.md`
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-4
-  - [ ] ContextWindowManager 改进为 token-based 截断
-  - [ ] 增加 summary 压缩: 早期对话生成摘要
-  - [ ] Token 计数器 (tiktoken 或简化估算)
+  - [x] ContextWindowManager 改进为 token-based 截断
+  - [x] 增加 summary 压缩: 早期对话生成摘要
+  - [x] Token 计数器 (tiktoken 或简化估算)
 
 - [ ] **Task V0.2-5: Adaptive Execution（自适应重规划）** ← Task V0.2-4
   > Arch: `00000000-00-architecture-overview.md` §6.0
@@ -282,3 +282,4 @@
 | 20260418 | V0.2-1.6 交互式配置向导标记完成（前次 session 实现） |
 | 20260418 | V0.2-2 Provider Fallback 完成：CircuitBreaker、ProviderCircuitManager、LLMRouter 降级集成、33 新测试（284 total） |
 | 20260418 | V0.2-3 Chat Mode 增强完成：SessionManager、AutonomousController、上下文截断、25 新测试（309 total） |
+| 20260418 | V0.2-4 Builder 上下文窗口优化完成：TokenCounter、summary 压缩、21 新测试（330 total） |
