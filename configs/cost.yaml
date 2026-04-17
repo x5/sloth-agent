@@ -1,0 +1,64 @@
+# Cost & Budget Configuration
+# Prices are reference values (¥/1K tokens). Actual prices depend on provider.
+
+pricing:
+  deepseek:
+    deepseek-v3.2:
+      input_per_1k: 0.001
+      output_per_1k: 0.002
+    deepseek-r1-0528:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+    deepseek-v4:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+  qwen:
+    qwen3.6-plus:
+      input_per_1k: 0.001
+      output_per_1k: 0.002
+    qwen3.5-plus:
+      input_per_1k: 0.0005
+      output_per_1k: 0.001
+    qwen3-max:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+  kimi:
+    kimi-k2.5:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+    kimi-k2:
+      input_per_1k: 0.001
+      output_per_1k: 0.002
+  glm:
+    glm-5.1:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+    glm-5:
+      input_per_1k: 0.001
+      output_per_1k: 0.002
+    glm-4.5-flash:
+      input_per_1k: 0
+      output_per_1k: 0
+  minimax:
+    minimax-m2.7:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+    minimax-m1:
+      input_per_1k: 0.001
+      output_per_1k: 0.002
+  xiaomi:
+    mimo-v2-pro:
+      input_per_1k: 0.001
+      output_per_1k: 0.002
+    mimo-v2-omni:
+      input_per_1k: 0.002
+      output_per_1k: 0.004
+    mimo-v2-flash:
+      input_per_1k: 0.0005
+      output_per_1k: 0.001
+
+budget:
+  daily_limit: 10.0           # Daily budget cap (¥)
+  scenario_limit: 3.0         # Per-scenario budget cap (¥)
+  soft_limit_percent: 0.8     # Soft limit threshold (80%)
+  hard_limit_percent: 1.0     # Hard limit threshold (100%)

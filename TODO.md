@@ -121,14 +121,14 @@
 > 依赖链: `V0.2-1 → V0.2-1.5 → V0.2-1.6 → V0.2-2 → V0.2-3 → V0.2-4 → V0.2-5`
 > 范围: 成本管控 + Provider 容错 + Chat 增强 + 上下文优化 + 自适应执行
 
-- [ ] **Task V0.2-1: Cost Tracking 基础** ← v0.1 Task 8
+- [x] **Task V0.2-1: Cost Tracking 基础** ← v0.1 Task 8
   > Arch: `00000000-00-architecture-overview.md` §7.3
   > Spec: `20260416-12-cost-budget-spec.md`
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-1
-  - [ ] 实现 `CostTracker` 数据模型与文件系统存储
-  - [ ] 内置定价表覆盖 spec 中 16 个模型
-  - [ ] `BudgetAwareLLMRouter` 软/硬限额检查
-  - [ ] 在 ToolRuntime 的 LLM 调用路径中接入 `record_call()`
+  - [x] 实现 `CostTracker` 数据模型与文件系统存储
+  - [x] 内置定价表覆盖 spec 中 16 个模型
+  - [x] `BudgetAwareLLMRouter` 软/硬限额检查
+  - [x] 在 ToolRuntime 的 LLM 调用路径中接入 `record_call()`
 
 - [x] **Task V0.2-1.5: ConfigManager + config.json 统一配置** ← v0.1 Task 8
   > Arch: `00000000-00-architecture-overview.md` §9.0
@@ -141,15 +141,15 @@
   - [x] `ConfigManager.get_api_key()` 从环境变量解析实际 Key
   - [x] 安装脚本同步生成全局 `config.json`
 
-- [ ] **Task V0.2-1.6: `sloth config init --interactive` 交互式向导** ← Task V0.2-1.5
+- [x] **Task V0.2-1.6: `sloth config init --interactive` 交互式向导** ← Task V0.2-1.5
   > Arch: `00000000-00-architecture-overview.md` §9.0
   > Spec: `20260416-18-installation-onboarding-spec.md` §6.5.7（模块 #18）
   > Plan: `20260416-18-installation-onboarding-implementation-plan.md` §Task 7
-  - [ ] 安装 `prompt_toolkit>=3.0` 依赖
-  - [ ] 实现交互式向导：作用域 → Provider → API Key → 工作空间 → 确认 → 写入 → 验证
-  - [ ] API Key 隐藏输入（password 模式）
-  - [ ] 配置写入后自动 `sloth config validate` 验证
-  - [ ] 编写交互向导测试（模拟输入流）
+  - [x] 安装 `prompt_toolkit>=3.0` 依赖
+  - [x] 实现交互式向导：作用域 → Provider → API Key → 工作空间 → 确认 → 写入 → 验证
+  - [x] API Key 隐藏输入（password 模式）
+  - [x] 配置写入后自动 `sloth config validate` 验证
+  - [x] 编写交互向导测试（模拟输入流）
 
 - [ ] **Task V0.2-2: Provider Fallback / 熔断降级** ← Task V0.2-1.6
   > Arch: `00000000-00-architecture-overview.md` §7.3
@@ -278,3 +278,5 @@
 | 20260417 | v0.2 规划完成：5 个 Task (V0.2-1~V0.2-5) 纳入活跃区 |
 | 20260417 | 产品路线图更新：architecture-overview.md §14 建立 v0.1→v1.0 六版本完整路线图 |
 | 20260418 | 引入 config.json 统一配置管理（模块 #18），安装脚本支持 API Key 模板 + 自动填充 |
+| 20260418 | V0.2-1 Cost Tracking 完成：CostTracker、定价表、BudgetAwareLLMRouter、41 新测试（251 total） |
+| 20260418 | V0.2-1.6 交互式配置向导标记完成（前次 session 实现） |
