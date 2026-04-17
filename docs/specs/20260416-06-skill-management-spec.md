@@ -2,10 +2,13 @@
 
 > 版本: v1.1.0
 > 日期: 2026-04-16
-> 状态: v0.1 已实现 SKILL.md 加载子集
-> v0.1 实现状态: SkillManager (from_markdown / load_all_skills / get_skill_content) 已实现
->   - 实现文件: `src/sloth_agent/memory/skills.py`
->   - 测试覆盖: `tests/memory/test_skills.py`
+> 最后更新: 2026-04-18
+> 状态:
+>   - v0.1 已实现: SkillManager (from_markdown / load_all_skills / get_skill_content)
+>     实现文件: `src/sloth_agent/memory/skills.py` | 测试: `tests/memory/test_skills.py`
+>   - v0.2 已实现: Chat REPL `/skills` 命令（扫描 local_skills/ 目录）
+>     实现文件: `src/sloth_agent/chat/repl.py`
+>   - v0.3 规划中: SkillValidator + SkillRouter + 内置 skill + SkillInjector + SkillRegistry
 
 ---
 

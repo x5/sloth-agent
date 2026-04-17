@@ -200,7 +200,7 @@
 - [ ] **[P0][v0.3]** Skill 管理机制完善（内置 skill + 路由 + 注入 + 验证）@agent @20260418
   > Arch: `00000000-00-architecture-overview.md` §6.0
   > Spec: `20260416-06-skill-management-spec.md`
-  > Plan: `20260418-v0-3-skill-management-plan.md`
+  > Plan: `20260416-06-skill-management-implementation-plan.md` §Task S1~S5
   > 范围: SkillValidator + SkillRouter + 5 内置 skill + SkillInjector + SkillRegistry
   > 依赖: v0.2 已完成 SkillManager 基础加载能力
 
