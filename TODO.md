@@ -225,11 +225,17 @@
   > 现状: AdaptiveTrigger + Replanner 已实现且有测试，但 Runner.run() 不会主动调用它们
   > 验收: gate 失败 3 次后 Runner 自动触发 replan，而非无限 retry_same
 
-- [ ] **[P1][v0.3]** v0.2 遗漏修复：CLI Cost 查询命令 @agent @20260418
+- [ ] **[P1][v0.3]** CLI Cost 查询命令 @agent @20260418
   > Arch: §9.0 | Spec: `20260416-12-cost-budget-spec.md` §5
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V0.2-1
   > 范围: `sloth cost` 子命令 — 查看今日/本周/本月花费、预算使用率、按 Provider 分解
   > 验收: `sloth cost` 可列出花费汇总，`sloth cost --today` 显示当日明细
+
+- [x] **[P1][v0.3]** `sloth uninstall` 卸载命令 @agent @20260418
+  > Arch: §10 | Spec: `20260416-18-installation-onboarding-spec.md` §10.8
+  > Plan: `20260416-18-installation-onboarding-implementation-plan.md` §Task 8
+  > 范围: `sloth uninstall` — 删除 shim + ~/.sloth-agent/ + PATH 清理，支持 --dry-run / --full / --yes
+  > 验收: 9 tests pass，dry-run 不删除文件，正常模式交互式确认，--full 连配置也删除
 
 - [ ] **[P1][v0.3]** 基础 Observability（结构化日志 + Trace ID）@agent @20260416
   > Arch: §7.4 | Spec: `20260416-08-observability-logging-spec.md` | Plan: 待创建

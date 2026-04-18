@@ -11,8 +11,10 @@ console = Console()
 # Register sub-commands
 from sloth_agent.cli.config_cmd import config_app
 from sloth_agent.cli.init_cmd import init
+from sloth_agent.cli.uninstall_cmd import uninstall
 app.add_typer(config_app, name="config")
 app.command()(init)
+app.command()(uninstall)
 
 
 @app.command()

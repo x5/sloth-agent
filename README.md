@@ -223,6 +223,22 @@ uv run python -c "from evals.smoke_test import run_smoke_test; r = run_smoke_tes
 
 详细安装步骤见 [v0.2 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
 
+### 卸载
+
+```bash
+# 预览将删除的内容（不实际删除）
+sloth uninstall --dry-run
+
+# 卸载（交互式确认）
+sloth uninstall
+
+# 完整卸载（含配置和 API Key）
+sloth uninstall --full
+
+# 跳过确认
+sloth uninstall --yes
+```
+
 ---
 
 ## 快速开始
@@ -255,6 +271,7 @@ uv run sloth logs --level INFO --limit 50
 | `sloth chat` | 进入对话模式 |
 | `sloth status` | 查看执行状态 |
 | `sloth logs` | 查看执行日志 |
+| `sloth uninstall` | 卸载 Sloth Agent |
 
 ---
 

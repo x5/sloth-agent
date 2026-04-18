@@ -138,6 +138,32 @@ sloth config env                          # 列出需要设置的 API Key
 - 配置写入后可直接 `sloth config show` 查看
 - Windows/macOS/Linux 三平台可用
 
+### 步骤 8: 实现 `sloth uninstall` 卸载命令
+
+**文件**: `src/sloth_agent/cli/uninstall_cmd.py`（已实现）
+
+**内容** (spec §10.8):
+
+1. **收集目标**: CLI shim (`~/.local/bin/sloth` + `.ps1` + `.bat`)、`~/.sloth-agent/` 目录
+2. **PATH 清理**: 扫描 shell profile（`.zshrc`/`.bashrc`/`.profile`/`$PROFILE`），删除含 `# Sloth Agent` 注释的行及相邻空行
+3. **Dry-run 模式**: `--dry-run` 列出将删除的内容，不实际删除
+4. **Full 模式**: `--full` 额外删除 `config.json` 和 `.env`（默认保留配置）
+5. **确认提示**: 交互式确认（`--yes` 跳过）
+6. **执行删除**: 按顺序清理 shell profile → shim → 目录
+
+**测试**: `tests/cli/test_uninstall_cmd.py`（9 tests）
+- CollectItems: 目录存在/不存在、shim 包含
+- CleanShellProfiles: 注释行删除、空列表无操作、无关内容保留
+- DryRun: 不删除文件
+- Actual: 删除 shim + 目录、负输入取消
+
+**验收**:
+- `sloth uninstall --dry-run` 显示列表但不删除
+- `sloth uninstall` 交互式确认后清理
+- `sloth uninstall --full` 完整清理（含配置）
+- Shell profile 中 PATH 行被正确移除
+- 所有测试通过（9 tests）
+
 ---
 
 ## 3. 文件清单
@@ -153,6 +179,8 @@ sloth config env                          # 列出需要设置的 API Key
 | `tests/core/test_config_manager.py` | **新建** (v0.2) |
 | `src/sloth_agent/cli/config_init.py` | **新建** |
 | `tests/cli/test_config_init.py` | **新建** |
+| `src/sloth_agent/cli/uninstall_cmd.py` | **新建** (v0.3) |
+| `tests/cli/test_uninstall_cmd.py` | **新建** (v0.3) |
 
 ---
 
@@ -169,6 +197,9 @@ sloth config env                          # 列出需要设置的 API Key
 - [ ] `sloth config init --interactive` 可在 30 秒内完成首次配置
 - [ ] API Key 输入时不显示明文
 - [ ] Windows/macOS/Linux 三平台可用
+- [x] `sloth uninstall` 命令可正常卸载
+- [x] Shell profile 中 PATH 行被正确移除
+- [x] 卸载命令所有测试通过（9 tests）
 
 ---
 
