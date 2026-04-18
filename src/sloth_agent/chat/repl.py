@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -14,28 +15,30 @@ from rich.markdown import Markdown
 
 from sloth_agent.chat.autonomous import AutonomousController, AutonomousState
 from sloth_agent.chat.session import SessionManager
+from sloth_agent.cli.chat_ux import ChatUX
 from sloth_agent.core.config import Config
 from sloth_agent.core.config_manager import ConfigManager
 from sloth_agent.core.tools.models import ToolCallRequest
 from sloth_agent.core.tools.orchestrator import ToolOrchestrator
 from sloth_agent.core.tools.tool_registry import ToolRegistry
+from sloth_agent.memory.skill_registry import SkillRegistry
 from sloth_agent.memory.skills import SkillManager
 from sloth_agent.providers.llm_providers import LLMMessage, LLMProviderManager
 
 logger = logging.getLogger("sloth.repl")
 
 _SLASH_COMMANDS = {
-    "/clear": "Clear conversation history",
-    "/context": "Show context usage",
-    "/tools": "List available tools",
-    "/skills": "List available skills",
-    "/scenarios": "List workflow scenarios",
-    "/skill <name>": "Execute a skill by name",
-    "/start autonomous": "Start autonomous mode",
-    "/stop": "Stop autonomous mode",
-    "/status": "Show autonomous mode status",
-    "/help": "Show this help",
-    "/quit": "Exit chat mode",
+    "/clear": "清空对话历史",
+    "/context": "查看上下文使用量",
+    "/tools": "列出可用工具",
+    "/skills": "列出可用技能",
+    "/scenarios": "列出工作流场景",
+    "/skill <name>": "按名称执行技能",
+    "/start autonomous": "启动自主模式",
+    "/stop": "停止自主模式",
+    "/status": "查看自主模式状态",
+    "/help": "显示帮助",
+    "/quit": "退出聊天",
 }
 
 _HIGH_RISK_TOOLS = {"run_command", "write_file", "edit_file", "delete_file"}
@@ -57,9 +60,11 @@ class EnhancedChatSession:
         self.session_manager = SessionManager()
         self.autonomous = AutonomousController()
         self.skill_manager = SkillManager()
+        self.skill_registry = self._init_skill_registry()
         self.current_model = model
         self.current_provider = provider
         self._session = None
+        self.ux = ChatUX(self.console)
 
     def loop(self) -> None:
         """Main REPL loop."""
@@ -71,9 +76,16 @@ class EnhancedChatSession:
         )
         self._session = self.session_manager.get_session(session_id)
 
-        self.console.print("[bold green]Sloth Chat[/bold green] (type /help)")
-        self.console.print(f"Session: {session_id}")
-        self.console.print()
+        # Show welcome screen
+        ws = Path(workspace) if workspace else Path.cwd()
+        skill_count = 0
+        if self.skill_registry:
+            skill_count = len(self.skill_registry.get_all())
+        self.ux.show_welcome(
+            workspace=ws,
+            model_info=self.current_model or "default",
+            skill_count=skill_count,
+        )
 
         while True:
             try:
@@ -92,6 +104,26 @@ class EnhancedChatSession:
 
             self._process_message(user_input)
 
+        # Save session on exit
+        self._save_current_session()
+
+    def _init_skill_registry(self) -> SkillRegistry:
+        """Initialize SkillRegistry with builtin + local skills."""
+        try:
+            builtin_dir = Path(__file__).parent.parent.parent.parent / "skills" / "builtin"
+            local_dir = Path(__file__).parent.parent.parent.parent / "local_skills"
+            return SkillRegistry(
+                builtin_dir=builtin_dir if builtin_dir.exists() else None,
+                local_dir=local_dir if local_dir.exists() else None,
+            )
+        except Exception:
+            return None
+
+    def _save_current_session(self) -> None:
+        """Persist current session to disk."""
+        if self._session:
+            self.session_manager.save_session(self._session)
+
     def _handle_slash(self, command: str) -> bool:
         """Handle slash command. Returns True to exit."""
         parts = command.split(maxsplit=1)
@@ -105,7 +137,7 @@ class EnhancedChatSession:
         if cmd == "/clear":
             if self._session:
                 self._session.messages.clear()
-            self.console.print("[dim]Conversation cleared[/dim]")
+            self.console.print("[dim]对话已清空[/dim]")
 
         elif cmd == "/context":
             if self._session:
@@ -127,7 +159,7 @@ class EnhancedChatSession:
             skills = self._list_skills()
             if skills:
                 for s in skills:
-                    self.console.print(f"  {s.get('name', '?')} - {s.get('description', '?')}")
+                    self.console.print(f"  {s.get('id', '?')} - {s.get('description', '?')}")
             else:
                 self.console.print("[dim]No skills found[/dim]")
 
@@ -153,12 +185,20 @@ class EnhancedChatSession:
             self._show_status()
 
         elif cmd == "/help":
-            self.console.print("[bold]Slash commands:[/bold]")
-            for cmd_name, desc in _SLASH_COMMANDS.items():
-                self.console.print(f"  {cmd_name}: {desc}")
+            skill_count = 0
+            try:
+                skills = self.skill_manager.list_skills()
+                skill_count = len(skills) if skills else 0
+            except Exception:
+                pass
+            session_id = self._session.session_id if self._session else ""
+            self.ux.show_natural_help(
+                session_id=session_id,
+                skill_count=skill_count,
+            )
 
         else:
-            self.console.print(f"[red]Unknown command: {cmd}[/red]")
+                self.console.print(f"[red]未知命令: {cmd}[/red]")
 
         return False
 
@@ -183,12 +223,19 @@ class EnhancedChatSession:
             )
         except Exception as e:
             logger.error(f"LLM error: {e}")
-            self.console.print(f"[red]Error: {e}[/red]")
+            self.console.print(f"[red]错误: {e}[/red]")
             return
 
         # Check if response contains tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:
             self._handle_tool_calls(response)
+            if self._session:
+                self.session_manager.add_message(
+                    self._session.session_id,
+                    "assistant",
+                    response.content or "",
+                )
+                self._save_current_session()
         elif response.content:
             self.console.print(Markdown(response.content))
             if self._session:
@@ -197,6 +244,7 @@ class EnhancedChatSession:
                     "assistant",
                     response.content,
                 )
+                self._save_current_session()
 
     def _handle_tool_calls(self, response: Any) -> None:
         """Execute tool calls with user confirmation for high-risk tools."""
@@ -207,15 +255,19 @@ class EnhancedChatSession:
             # Check if user confirmation is needed
             needs_confirm = tool_name in _HIGH_RISK_TOOLS
             if needs_confirm:
-                self.console.print(
-                    f"\n[yellow]Tool '{tool_name}' requires confirmation.[/yellow]"
+                file_changes = []
+                if tool_name in ("write_file", "edit_file"):
+                    file_changes.append({
+                        "file": str(tool_args.get("path", "unknown")),
+                        "lines": "?",
+                        "type": "modify" if tool_name == "edit_file" else "new",
+                    })
+                confirmed = self.ux.show_confirm(
+                    file_changes=file_changes,
+                    commands=[f"{tool_name}({tool_args})"],
                 )
-                try:
-                    answer = input("Execute? (y/N) ").strip().lower()
-                except (EOFError, KeyboardInterrupt):
-                    answer = "n"
-                if answer not in ("y", "yes"):
-                    self.console.print(f"[dim]Skipped: {tool_name}[/dim]")
+                if not confirmed:
+                    self.console.print(f"[dim]已跳过: {tool_name}[/dim]")
                     continue
 
             # Execute the tool
@@ -238,12 +290,16 @@ class EnhancedChatSession:
                         "tool",
                         f"[{tool_name}] {result}",
                     )
+                    self._save_current_session()
             except Exception as e:
-                self.console.print(f"[red]Tool error ({tool_name}): {e}[/red]")
+                self.console.print(f"[red]工具错误 ({tool_name}): {e}[/red]")
 
     def _build_messages(self, user_input: str) -> list:
         """Build message list for LLM."""
-        messages = [LLMMessage(role="system", content="You are Sloth Agent.")]
+        messages = [LLMMessage(
+            role="system",
+            content="你是 Sloth Agent，一个 AI 开发助手。请用中文回答用户的问题。如果用户输入英文，你可以跟随用户的语言。",
+        )]
         if self._session:
             for msg in self._session.messages[-20:]:  # Keep last 20 messages
                 messages.append(
@@ -254,7 +310,14 @@ class EnhancedChatSession:
         return messages
 
     def _list_skills(self) -> list:
-        """List available skills."""
+        """List available skills from SkillRegistry."""
+        if self.skill_registry:
+            return [
+                {"id": sid, "description": desc}
+                for sid, desc, enabled in self.skill_registry.list_all()
+                if enabled
+            ]
+        # Fallback to old SkillManager
         try:
             skills_dir = Path(__file__).parent.parent.parent.parent / "local_skills"
             if not skills_dir.exists():
@@ -270,7 +333,7 @@ class EnhancedChatSession:
                         if line.startswith("description:"):
                             desc = line.split(":", 1)[1].strip()
                             break
-                    skills.append({"name": name, "description": desc})
+                    skills.append({"id": name, "description": desc})
             return skills
         except Exception:
             return []
@@ -289,11 +352,18 @@ class EnhancedChatSession:
             self.console.print("[dim]Scenario registry not yet available[/dim]")
 
     def _execute_skill(self, name: str) -> None:
-        """Execute a skill by name."""
+        """Execute a skill by name via SkillRegistry."""
         try:
-            skill = self.skill_manager.get_skill(name)
+            skill = None
+            if self.skill_registry:
+                skill = self.skill_registry.get(name)
+            # Fallback to SkillManager
+            if skill is None:
+                content = self.skill_manager.get_skill_content(name)
+                if content:
+                    skill = type("MockSkill", (), {"name": name, "content": content})()
             if skill:
-                self.console.print(f"[bold]Executing skill: {name}[/bold]")
+                self.console.print(f"[bold]Executing skill: {skill.name}[/bold]")
                 self.console.print(Markdown(skill.content))
             else:
                 self.console.print(f"[red]Skill '{name}' not found[/red]")
@@ -301,34 +371,90 @@ class EnhancedChatSession:
             self.console.print(f"[red]Error executing skill: {e}[/red]")
 
     def _start_autonomous(self) -> None:
-        """Start autonomous mode."""
+        """Start autonomous mode — runs the real Runner pipeline."""
         if self.autonomous.is_running():
-            self.console.print("[yellow]Autonomous mode is already running[/yellow]")
+            self.console.print("[yellow]自主模式已在运行[/yellow]")
             return
 
-        self.console.print("[bold green]Starting autonomous mode...[/bold green]")
+        # Resolve plan path from workspace
+        workspace = self.config_manager.get("workspace", "./workspace")
+        ws = Path(workspace)
+        plan_path = None
+        for name in ["plan.md", "PLAN.md", "开发计划.md"]:
+            if (ws / name).exists():
+                plan_path = str((ws / name).resolve())
+                break
+
+        if not plan_path:
+            self.console.print("[red]未找到 plan 文件。请先在工作目录创建 plan.md。[/red]")
+            return
+
+        self.console.print(f"[bold green]启动自主模式: {plan_path}[/bold green]")
         try:
             self.autonomous.start(
-                task_id="chat-autonomous",
-                description="Autonomous execution from chat",
-                steps=["Parse plan", "Build", "Review", "Deploy"],
-                executor=self._autonomous_executor,
+                task_id=f"chat-autonomous-{uuid.uuid4().hex[:8]}",
+                description=f"执行 plan: {plan_path}",
+                steps=["解析计划", "构建代码", "审查", "部署"],
+                executor=lambda task_status, stop_flag: self._autonomous_pipeline(
+                    task_status, stop_flag, plan_path,
+                ),
             )
             self.console.print(
-                "[dim]Autonomous mode started. Use /status to check progress.[/dim]"
+                "[dim]自主模式已启动。使用 /status 查看进度。[/dim]"
             )
         except RuntimeError as e:
             self.console.print(f"[red]{e}[/red]")
 
+    def _autonomous_pipeline(
+        self, task_status: Any, stop_flag: Any, plan_path: str,
+    ) -> None:
+        """Real Runner pipeline execution in background thread."""
+        from sloth_agent.core.config import load_config
+        from sloth_agent.core.runner import Runner, RunState
+
+        task_status.current_step = "初始化"
+        config = load_config()
+        runner = Runner(config, self.tool_registry, self.llm_manager)
+
+        state = RunState(
+            run_id=f"autonomous-{uuid.uuid4().hex[:8]}",
+            current_agent="builder",
+            current_phase="build",
+            phase="running",
+            metadata={"plan_path": plan_path},
+        )
+
+        # Hook progress updates into task_status
+        def _on_turn_end(data):
+            task_status.current_step = f"回合 {data.get('turn', '?')}"
+            if stop_flag.is_set():
+                state.phase = "aborted"
+                state.errors.append("用户中止")
+
+        runner.hooks.on("turn.end", _on_turn_end)
+
+        try:
+            task_status.current_step = "构建中"
+            final_state = runner.run(state)
+
+            if final_state.phase == "completed":
+                task_status.result = final_state.output or "Pipeline completed"
+                task_status.current_step = "完成"
+            else:
+                task_status.error = "; ".join(final_state.errors) or f"Phase: {final_state.phase}"
+        except Exception as e:
+            task_status.error = str(e)
+            logger.error(f"Autonomous pipeline error: {e}")
+
     def _stop_autonomous(self) -> None:
         """Stop autonomous mode."""
         if not self.autonomous.is_running():
-            self.console.print("[yellow]Autonomous mode is not running[/yellow]")
+            self.console.print("[yellow]自主模式未运行[/yellow]")
             return
 
-        self.console.print("[bold yellow]Stopping autonomous mode...[/bold yellow]")
+        self.console.print("[bold yellow]停止自主模式...[/bold yellow]")
         self.autonomous.stop()
-        self.console.print("[dim]Autonomous mode stopped[/dim]")
+        self.console.print("[dim]自主模式已停止[/dim]")
 
     def _show_status(self) -> None:
         """Show autonomous mode status."""
@@ -342,13 +468,3 @@ class EnhancedChatSession:
             self.console.print(f"  Current step: {status.get('current_step', 'N/A')}")
             elapsed = status.get("elapsed_seconds", 0)
             self.console.print(f"  Elapsed: {elapsed:.0f}s")
-
-    def _autonomous_executor(self, task_status: Any, stop_flag: Any) -> None:
-        """Simple autonomous executor placeholder."""
-        for step in task_status.steps:
-            if stop_flag.is_set():
-                break
-            task_status.current_step = step
-            logger.info(f"Autonomous step: {step}")
-            import time
-            time.sleep(0.5)  # Placeholder

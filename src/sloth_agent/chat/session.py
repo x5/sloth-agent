@@ -155,6 +155,23 @@ class SessionManager:
         self._save_index()
         return True
 
+    def add_message(self, session_id: str, role: str, content: str) -> SessionMessage | None:
+        """Add a message to a session and update index."""
+        session = self._sessions.get(session_id)
+        if session is None:
+            session = self.get_session(session_id)
+        if session is None:
+            return None
+        msg = session.add_message(role, content)
+        # Update index
+        self._index[session_id] = {
+            "created_at": session.created_at,
+            "updated_at": session.updated_at,
+            "message_count": len(session.messages),
+        }
+        self._save_index()
+        return msg
+
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------

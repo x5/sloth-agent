@@ -314,13 +314,18 @@ class GLMProvider(BaseLLMProvider):
 class LLMProviderManager:
     """Manages multiple LLM providers with fallback support."""
 
-    def __init__(self, config_path: str | Path | None = None):
+    def __init__(
+        self,
+        config_path: str | Path | None = None,
+        cost_tracker=None,
+    ):
         if config_path is None:
             # Look for config in configs/
             config_path = Path(__file__).parent.parent.parent / "configs" / "llm_providers.yaml"
 
         self.config = self._load_config(config_path)
         self.providers: dict[str, BaseLLMProvider] = {}
+        self.cost_tracker = cost_tracker
         self._init_providers()
 
     def _load_config(self, config_path: Path) -> dict:
@@ -363,6 +368,10 @@ class LLMProviderManager:
         messages: list[LLMMessage],
         provider: str | None = None,
         model: str | None = None,
+        scenario_id: str | None = None,
+        phase_id: str | None = None,
+        agent_id: str | None = None,
+        run_id: str | None = None,
         **kwargs
     ) -> LLMResponse:
         """Send chat request with automatic fallback."""
@@ -377,7 +386,22 @@ class LLMProviderManager:
                 continue
 
             try:
-                return await self.providers[p].chat(messages, model, **kwargs)
+                response = await self.providers[p].chat(messages, model, **kwargs)
+
+                # Record cost if tracker is available
+                if self.cost_tracker and response.usage:
+                    self.cost_tracker.record_call(
+                        provider=p,
+                        model=response.model or model or "unknown",
+                        input_tokens=response.usage.get("prompt_tokens", 0),
+                        output_tokens=response.usage.get("completion_tokens", 0),
+                        scenario_id=scenario_id,
+                        phase_id=phase_id,
+                        agent_id=agent_id,
+                        run_id=run_id,
+                    )
+
+                return response
             except Exception as e:
                 logger.warning(f"Provider {p} failed: {e}")
                 last_error = e

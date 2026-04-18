@@ -27,7 +27,19 @@
       "Bash(python *)",
       "Bash(npx serve *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8899/20260416-introducing-sloth-agent.html)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(uv run *)",
+      "Bash(git mv *)",
+      "Bash(git commit *)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o ConnectTimeout=10\" git push *)",
+      "Bash(gh auth *)",
+      "Bash(python3 -m pytest tests/ -q --tb=short)",
+      "Bash(git tag *)",
+      "Bash(gh release *)",
+      "Bash(git status *)",
+      "Bash(xargs wc *)",
+      "Bash(git ls-remote *)",
+      "Bash(cd C:\\\\\\\\Users\\\\\\\\TUF\\\\\\\\Workspace\\\\\\\\agent-evolve)"
     ]
   }
 }

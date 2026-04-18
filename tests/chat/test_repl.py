@@ -129,7 +129,7 @@ class TestSlashCommandHandling:
         session = EnhancedChatSession()
         session._handle_slash("/bogus")
         captured = capsys.readouterr()
-        assert "Unknown command" in captured.out
+        assert "未知命令" in captured.out
 
     def test_skill_without_name_shows_usage(self, capsys):
         session = EnhancedChatSession()
@@ -151,4 +151,4 @@ class TestSlashCommandHandling:
         session = EnhancedChatSession()
         session._handle_slash("/stop")
         captured = capsys.readouterr()
-        assert "not running" in captured.out
+        assert "自主模式未运行" in captured.out

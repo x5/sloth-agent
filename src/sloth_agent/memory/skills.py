@@ -57,7 +57,8 @@ class SkillManager:
                     continue
                 for skill_file in skills_dir.rglob("SKILL.md"):
                     try:
-                        skill = Skill.from_markdown(skill_file.read_text())
+                        text = skill_file.read_text(encoding="utf-8")
+                        skill = Skill.from_markdown(text)
                         self._cache[skill.id] = skill
                     except (ValueError, Exception):
                         continue

@@ -17,8 +17,8 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.2 已发布** — 3-Agent 自主流水线 MVP + 配置管理系统 + REPL 增强，360 tests pass。
-> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.2) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
+> **v0.3 已发布** — Phase Execution Pipeline + Skill Management + Chat UX 增强 + Cost Tracking + Adaptive Execution，482 tests pass。
+> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.3) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
 
@@ -69,7 +69,13 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | **Skill Loading** | ✅ | SKILL.md 加载与按需注入（Claude Code 兼容格式） |
 | **Memory Store** | ✅ | 纯文件系统 jsonl 存储（sessions/scenarios/shared） |
 | **LLM Router** | ✅ | 阶段级模型路由配置 |
-| **Eval Framework** | ✅ | smoke test + 标准任务集，360 tests pass |
+| **Eval Framework** | ✅ | smoke test + 标准任务集，482 tests pass |
+| **Cost Tracking** | ✅ | CostTracker + JSONL 持久化 + 按模型/Provider 分解 + CLI 查询 |
+| **Skill Management** | ✅ | SkillValidator + SkillRouter + SkillInjector + 5 内置 skill |
+| **Adaptive Execution** | ✅ | AdaptiveTrigger + Replanner + 自动重规划 + max_replans 保护 |
+| **Provider Fallback** | ✅ | CircuitBreaker 三态机 + 多 Provider 熔断 + MockProvider 降级 |
+| **Chat Mode** | ✅ | REPL 交互 + SessionManager + 自主模式 + 技能触发 + 中文优先 |
+| **Config Manager** | ✅ | 三级配置合并 + 交互式向导 + API Key 验证 |
 
 ### 远期目标：8+1 Agent 架构（v0.5~v1.0）
 
@@ -93,7 +99,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 |------|------|------|
 | v0.1 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
 | v0.2 | + 对话模式 | REPL 交互，技能触发，工作流控制 |
-| v0.3 | + 可观测性 | 结构化日志 + Trace ID + 错误恢复 |
+| v0.3 | + 可观测性 | 结构化日志 + Trace ID + 错误恢复 + Skill Management + Cost Tracking |
 | v0.5 | + 多 Agent 并行 | 知识库 + 事件总线 + Speculative Execution |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+1 Agent + 37 技能 + 8 场景编排 |
@@ -127,7 +133,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | 安全防护 | ✅ | ✅ | Risk levels | Risk | ✅ **幻觉防护 + 白名单** |
 | 模型路由 | ✅ | ✅ | ❌ | ❌ | ✅ **Stage 级路由** |
 | 自动回滚 | ❌ | ❌ | ❌ | ❌ | ✅ **3 级 Git Checkpoint** |
-| 成本控制 | ❌ | ❌ | ❌ | ❌ | 🚧 v0.2 |
+| 成本控制 | ❌ | ❌ | ❌ | ❌ | ✅ **CostTracker + 预算限额** |
 | 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **DeepSeek/Qwen/Kimi** |
 
 **v0.1 差异化**：3-Agent 自动流水线 + Reflection 自纠错 + Stage 级模型路由 + 中国 LLM 原生支持。
@@ -214,14 +220,14 @@ cp ~/.sloth-agent/.env.example ~/.sloth-agent/.env
 # 查看帮助
 uv run sloth --help
 
-# 运行测试（360 tests）
+# 运行测试（482 tests）
 uv run pytest tests/ evals/ -v
 
 # Smoke test
 uv run python -c "from evals.smoke_test import run_smoke_test; r = run_smoke_test(); print(f'PASS' if r.passed else 'FAIL')"
 ```
 
-详细安装步骤见 [v0.2 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
+详细安装步骤见 [v0.3 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
 
 ### 卸载
 
@@ -272,6 +278,9 @@ uv run sloth logs --level INFO --limit 50
 | `sloth status` | 查看执行状态 |
 | `sloth logs` | 查看执行日志 |
 | `sloth uninstall` | 卸载 Sloth Agent |
+| `sloth skills` | 查看/搜索/验证技能 |
+| `sloth cost summary` | 查看花费汇总 |
+| `sloth cost breakdown` | 按模型/Provider 分解花费 |
 
 ---
 
@@ -331,10 +340,11 @@ uv run sloth logs --level INFO --limit 50
 | #13 Session Lifecycle | [spec](docs/specs/20260416-13-session-lifecycle-spec.md) | ✅ Git Checkpoint 已实现 |
 | #20 LLM Routing | [spec](docs/specs/20260417-20-llm-router-spec.md) | ✅ LLMRouter 已实现 |
 | #21 Eval Framework | [spec](docs/specs/20260417-21-eval-framework-spec.md) | ✅ smoke test 已实现 |
-| #07 Chat Mode | [spec](docs/specs/20260416-07-chat-mode-spec.md) | 🚧 v0.2 |
+| #07 Chat Mode | [spec](docs/specs/20260416-07-chat-mode-spec.md) | ✅ REPL + 自主模式 + 技能触发 |
 | #08 Observability | [spec](docs/specs/20260416-08-observability-logging-spec.md) | 🚧 v0.3 |
 | #09 Error Recovery | [spec](docs/specs/20260416-09-error-handling-recovery-spec.md) | 🚧 v0.3 |
-| #12 Cost & Budget | [spec](docs/specs/20260416-12-cost-budget-spec.md) | 🚧 v0.2 |
+| #12 Cost & Budget | [spec](docs/specs/20260416-12-cost-budget-spec.md) | ✅ CostTracker + 预算限额 |
+| #18 Installation | [spec](docs/specs/20260416-18-installation-onboarding-spec.md) | ✅ 安装脚本 + 卸载命令 + 配置向导 |
 
 ### 指南
 
@@ -344,6 +354,6 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-*Sloth Agent v0.2*
+*Sloth Agent v0.3*
 *最后更新: 2026-04-18*
-*360 tests pass*
+*482 tests pass*
