@@ -39,7 +39,10 @@
       "Bash(git status *)",
       "Bash(xargs wc *)",
       "Bash(git ls-remote *)",
-      "Bash(cd C:\\\\\\\\Users\\\\\\\\TUF\\\\\\\\Workspace\\\\\\\\agent-evolve)"
+      "Bash(cd C:\\\\\\\\Users\\\\\\\\TUF\\\\\\\\Workspace\\\\\\\\agent-evolve)",
+      "Bash(gh api *)",
+      "Bash(grep -rn \"v0\\\\.1[^\\\\.0-9]\\\\|v0\\\\.1$\\\\|v0\\\\.2[^\\\\.0-9]\\\\|v0\\\\.2$\\\\|v0\\\\.3[^\\\\.0-9]\\\\|v0\\\\.3$\" docs/ README.md TODO.md src/sloth_agent/__init__.py --include=\"*.md\" --include=\"*.txt\")",
+      "Bash(grep -rn \"\\\\bv0\\\\.[123][^\\\\.0-9]\\\\|\\\\bv0\\\\.[123]$\" --include=\"*.md\" .)"
     ]
   }
 }

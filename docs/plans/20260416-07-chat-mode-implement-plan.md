@@ -3,8 +3,8 @@
 > Spec 来源: `docs/specs/20260416-07-chat-mode-spec.md`
 > Plan 文件: `docs/plans/20260416-07-chat-mode-implement-plan.md`
 > 对应 Arch: `docs/specs/00000000-00-architecture-overview.md` §5, §7.2
-> v1.0 状态: 已实现 (v0.2 release)
-> v1.1 状态: 已实现 (v0.2 release)
+> v1.0 状态: 已实现 (v0.2.0 release)
+> v1.1 状态: 已实现 (v0.2.0 release)
 > v1.2 状态: 未实现，远期规划
 > v1.3 状态: 本计划重点
 

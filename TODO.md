@@ -1,9 +1,9 @@
 # Project TODO
 
-> 最后更新: 20260418 — v0.3 发布：Phase Execution Pipeline + Skill Management + Chat UX + Cost/Adaptive wire-in
+> 最后更新: 20260418 — v0.3.0 发布：Phase Execution Pipeline + Skill Management + Chat UX + Cost/Adaptive wire-in
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
-> 当前目标: v0.3 发布准备 — 482 tests pass，全部功能闭环
-> 版本映射: 原 v1.0→v0.1, 原 v1.1→v0.2, 原 v1.2→v0.3, 原 v2.0→v0.5~v1.0
+> 当前目标: v0.3.0 发布准备 — 482 tests pass，全部功能闭环
+> 版本映射: 原 v1.0→v0.1.0, 原 v1.1→v0.2.0, 原 v1.2→v0.3.0, 原 v2.0→v0.5~v1.0
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
 
 ---
@@ -29,10 +29,10 @@
 - [x] **Task A4 [P0]: Final polish and validation**
 - [x] **Task A5 [P0]: Add original visual elements to reduce text heaviness**
 
-### P0: v0.1 自主流水线实现
+### P0: v0.1.0 自主流水线实现
 
 > Arch: `docs/specs/00000000-00-architecture-overview.md` §3.1, §5.1, §7.1, §7.2, §9.0
-> Spec: 各模块以独立 spec 文件为准，见每项标注；架构总览提供 v0.1 流水线概览
+> Spec: 各模块以独立 spec 文件为准，见每项标注；架构总览提供 v0.1.0 流水线概览
 > 范围: 3-Agent 串行流水线（Builder → Reviewer → Deployer）
 > 关键约束: 单一 `Runner` 内核 + 结构化交接 + 自动门控 + 文件系统状态
 > 模块映射: 模块 01 (§25 运行时内核定义) 包含 Runner/RunState/NextStep 完整语义
@@ -53,7 +53,7 @@
   > Spec: `20260416-02-tools-invocation-spec.md`（模块 #2）
   > Plan: `20260416-02-tools-invocation-implementation-plan.md`（已合并 v10 tool runtime plan）
   - [x] 统一 `ToolRegistry` / `ToolOrchestrator` 接口，纳入 `Runner.resolve()` 分支
-  - [x] 优先落地 v0.1 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
+  - [x] 优先落地 v0.1.0 核心工具：`read`、`write`、`edit`、`run_command`、`glob`、`grep`
   - [x] 接入 `HallucinationGuard`、路径白名单、命令黑名单
   - [x] 为工具调用记录审计信息与结构化结果，便于后续 gate / tracing / replay
 
@@ -102,26 +102,26 @@
   - [x] 打通 `SKILL.md` 加载与按需注入机制
   - [x] 约束模型可见上下文、运行时上下文、持久化状态三层边界
 
-- [x] **Task 8: CLI 集成与 v0.1 验证闭环** ← Task 7
+- [x] **Task 8: CLI 集成与 v0.1.0 验证闭环** ← Task 7
   > Arch: `00000000-00-architecture-overview.md` §9.0, §11.0
   > Spec: `20260416-18-installation-onboarding-spec.md`（模块 #18）
   > Plan: `20260417-20-llm-router-implementation-plan.md` + `20260416-18-installation-onboarding-implementation-plan.md` + `20260417-21-eval-framework-implementation-plan.md`
   - [x] 打通 `sloth run` 主路径，输入 Plan 后可跑完整流水线
-  - [x] 配置 v0.1 阶段级模型路由（Builder / Reviewer / Deployer）
+  - [x] 配置 v0.1.0 阶段级模型路由（Builder / Reviewer / Deployer）
   - [x] 增加最小 eval / smoke 场景，验证成功率、质量门控、自修复链路
   - [x] 跑通一条真实示例并更新 README / 使用文档
   - [x] 实现全局安装脚本 `scripts/install.sh`（macOS/Linux/WSL2）
   - [x] 实现全局安装脚本 `scripts/install.ps1`（Windows PowerShell）
   - [x] 采用 Claude Code 安装模型：自检 → 克隆 → venv → CLI shim → PATH → 验证 → smoke test
 
-### P1: v0.2 扩展实现
+### P1: v0.2.0 扩展实现
 
 > Arch: `00000000-00-architecture-overview.md` §5, §7.3
-> Plan: `20260417-v1-1-implementation-plan.md`（原 v1.1 计划，重命名为 v0.2）
+> Plan: `20260417-v1-1-implementation-plan.md`（原 v1.1 计划，重命名为 v0.2.0）
 > 依赖链: `V0.2-1 → V0.2-1.5 → V0.2-1.6 → V0.2-2 → V0.2-3 → V0.2-4 → V0.2-5`
 > 范围: 成本管控 + Provider 容错 + Chat 增强 + 上下文优化 + 自适应执行
 
-- [x] **Task V0.2-1: Cost Tracking 基础** ← v0.1 Task 8
+- [x] **Task V0.2-1: Cost Tracking 基础** ← v0.1.0 Task 8
   > Arch: `00000000-00-architecture-overview.md` §7.3
   > Spec: `20260416-12-cost-budget-spec.md`
   > Plan: `20260417-v1-1-implementation-plan.md` §Task V1-1
@@ -130,7 +130,7 @@
   - [x] `BudgetAwareLLMRouter` 软/硬限额检查
   - [x] 在 ToolRuntime 的 LLM 调用路径中接入 `record_call()`
 
-- [x] **Task V0.2-1.5: ConfigManager + config.json 统一配置** ← v0.1 Task 8
+- [x] **Task V0.2-1.5: ConfigManager + config.json 统一配置** ← v0.1.0 Task 8
   > Arch: `00000000-00-architecture-overview.md` §9.0
   > Spec: `20260416-18-installation-onboarding-spec.md` §6.5（模块 #18）
   > Plan: `20260416-18-installation-onboarding-implementation-plan.md` §Task 3/4/5
@@ -167,7 +167,7 @@
   - [x] `SessionManager` 创建/加载/保存 chat session
   - [x] 对话历史持久化 + 上下文截断策略
   - [x] REPL 集成 tool call 执行 + 用户确认（增强版 REPL）
-  - [x] v0.2 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
+  - [x] v0.2.0 新增 slash commands: `/skill`, `/start autonomous`, `/stop`, `/status`
   - [x] `AutonomousController` 自主模式控制
 
 - [x] **Task V0.2-4: Builder 上下文窗口管理优化** ← Task V0.2-3
@@ -188,61 +188,61 @@
 
 ### 其他活跃任务
 
-> 以下任务已随 v0.3 实现完毕，标记为完成
+> 以下任务已随 v0.3.0 实现完毕，标记为完成
 
 - [x] **[P0]** Tools 与运行时内核对齐，禁止游离在 Runner 之外 → 随 Task 2 完成
 - [x] **[P0]** 结构化 Agent 交接协议落地（BuilderOutput / ReviewerOutput）→ 随 Task 4 完成
 - [x] **[P1]** 阶段级模型路由配置（Builder / Reviewer / Deployer）→ 随 Task 8（LLMRouter）完成
 - [x] **[P1]** 文件系统记忆与 checkpoint 统一格式 → 随 Task 7 完成
-- [x] **[P1]** Skill Management 全链路 → v0.3 release: Validator + Router + Injector + Registry + CLI
+- [x] **[P1]** Skill Management 全链路 → v0.3.0 release: Validator + Router + Injector + Registry + CLI
 
 ## 近期 Backlog
 
-### 已完成（v0.3 发布）
+### 已完成（v0.3.0 发布）
 
-- [x] **[P0][v0.3]** Phase Execution Pipeline（Builder→Reviewer→Deployer 打通）→ Runner.run() 循环 + resolve 8 分支 + Gate1/2/3 + Agent dispatch 全链路打通
-- [x] **[P0][v0.3]** Skill 管理机制完善（内置 skill + 路由 + 注入 + 验证）→ SkillValidator + SkillRouter + 5 内置 skill + SkillInjector + SkillRegistry
-- [x] **[P0][v0.3]** Chat-2: AutonomousController 接真实流水线 → `_autonomous_executor` 替换为 Runner.run() 调用
-- [x] **[P0][v0.3]** Chat-3: `/skill <name>` 真正执行 → 通过 SkillRegistry 加载 + 工具调用执行
-- [x] **[P0][v0.3]** Cost Tracking 接入 LLM 调用路径 → LLMProviderManager 接入 CostTracker.record_call()
-- [x] **[P0][v0.3]** AdaptiveTrigger 接入 Runner 循环 → gate 失败追踪 + 自动 replan
-- [x] **[P1][v0.3]** CLI Cost 查询命令 → `sloth cost summary/breakdown`
-- [x] **[P1][v0.3]** CLI Chat 友好化 → 欢迎屏/中文优先/技能列表/状态可视化
-- [x] **[P1][v0.3]** `sloth uninstall` 卸载命令 → 删除 shim + 目录 + PATH 清理
+- [x] **[P0][v0.3.0]** Phase Execution Pipeline（Builder→Reviewer→Deployer 打通）→ Runner.run() 循环 + resolve 8 分支 + Gate1/2/3 + Agent dispatch 全链路打通
+- [x] **[P0][v0.3.0]** Skill 管理机制完善（内置 skill + 路由 + 注入 + 验证）→ SkillValidator + SkillRouter + 5 内置 skill + SkillInjector + SkillRegistry
+- [x] **[P0][v0.3.0]** Chat-2: AutonomousController 接真实流水线 → `_autonomous_executor` 替换为 Runner.run() 调用
+- [x] **[P0][v0.3.0]** Chat-3: `/skill <name>` 真正执行 → 通过 SkillRegistry 加载 + 工具调用执行
+- [x] **[P0][v0.3.0]** Cost Tracking 接入 LLM 调用路径 → LLMProviderManager 接入 CostTracker.record_call()
+- [x] **[P0][v0.3.0]** AdaptiveTrigger 接入 Runner 循环 → gate 失败追踪 + 自动 replan
+- [x] **[P1][v0.3.0]** CLI Cost 查询命令 → `sloth cost summary/breakdown`
+- [x] **[P1][v0.3.0]** CLI Chat 友好化 → 欢迎屏/中文优先/技能列表/状态可视化
+- [x] **[P1][v0.3.0]** `sloth uninstall` 卸载命令 → 删除 shim + 目录 + PATH 清理
 
 ### 待实现
 
-- [ ] **[P1][v0.3]** Chat-4: `/run <scenario>` + `/phase <id>` 命令实现 ← Chat-2
+- [ ] **[P1][v0.3.0]** Chat-4: `/run <scenario>` + `/phase <id>` 命令实现 ← Chat-2
   > Arch: §3.4 | Spec: `20260416-07-chat-mode-spec.md` §3.4, §3.5
   > Plan: 待创建
   > 范围: 新增两个 slash command，支持从 chat 内触发工作流场景和单个 phase 执行
   > 验收: `/run standard` 启动场景，`/phase 1` 执行指定 phase
 
-- [ ] **[P1][v0.3]** Chat-5: Phase 切换上下文衔接 ← Chat-4
+- [ ] **[P1][v0.3.0]** Chat-5: Phase 切换上下文衔接 ← Chat-4
   > Arch: §3.4 | Spec: `20260416-07-chat-mode-spec.md` §3.4 "Phase 切换时的上下文衔接"
   > Plan: 待创建
   > 范围: Phase 切换时生成对话摘要 → 切换 LLM → 注入 phase 系统提示 + 前序摘要 → 保存 phase 产物
   > 现状: 完全未实现
   > 验收: Phase 切换后上下文不断裂，前序摘要正确注入新 phase 系统提示
 
-- [ ] **[P1][v0.3]** Chat 消息持久化修复 ← None（独立，无依赖）@agent @20260418
+- [ ] **[P1][v0.3.0]** Chat 消息持久化修复 ← None（独立，无依赖）@agent @20260418
   > Arch: §7.2 | Spec: `20260416-07-chat-mode-spec.md` §3.4
   > Plan: 待创建
   > 范围: REPL 循环中接入 `SessionManager.save_session()`，确保消息写入 `chat.jsonl`，退出时保存最终摘要
   > 现状: `add_message()` 只存内存，`save_session()` 从未调用，退出后对话丢失
   > 验收: 退出 chat 后 `.sloth/sessions/chat/<id>.jsonl` 存在且含完整对话记录，下次启动可加载
 
-- [ ] **[P1][v0.3]** 基础 Observability（结构化日志 + Trace ID）@agent @20260416
+- [ ] **[P1][v0.3.0]** 基础 Observability（结构化日志 + Trace ID）@agent @20260416
   > Arch: §7.4 | Spec: `20260416-08-observability-logging-spec.md` | Plan: 待创建
-  > 备注: v0.2 完成后可进入，为 Runner 接入 LogManager + TraceContext
+  > 备注: v0.2.0 完成后可进入，为 Runner 接入 LogManager + TraceContext
 
 ## 远期 Backlog
 
-- [ ] **[P2][v0.3]** Error Recovery（重试 + 基本恢复）@agent @20260416
+- [ ] **[P2][v0.3.0]** Error Recovery（重试 + 基本恢复）@agent @20260416
   > Arch: — | Spec: `20260416-09-error-handling-recovery-spec.md` | Plan: 待创建
-- [ ] **[P2][v0.3]** Feishu 通知（webhook 推送执行结果）@agent @20260416
+- [ ] **[P2][v0.3.0]** Feishu 通知（webhook 推送执行结果）@agent @20260416
   > Arch: — | Spec: `20260416-19-feishu-integration-spec.md` | Plan: 待创建
-- [ ] **[P2][v0.3]** Checkpoint 保存与恢复增强 @agent @20260416
+- [ ] **[P2][v0.3.0]** Checkpoint 保存与恢复增强 @agent @20260416
   > Arch: `00000000-00-architecture-overview.md` §8.3 | Spec: `20260416-04-memory-management-spec.md` | Plan: 待创建
 - [ ] **[P2][v0.5]** 按需拆分 Agent（Planner / Debugger）@agent @20260416
   > Arch: §5.2, §6.1, §6.2 | Spec: `20260416-01-phase-role-architecture-spec.md` | Plan: 待创建
@@ -257,9 +257,9 @@
 
 ## 阻塞
 
-> 无阻塞。v0.1 流水线全部实现完成并发布。
+> 无阻塞。v0.1.0 流水线全部实现完成并发布。
 
-### P0: v0.1 Plan 创建（已全部完成）
+### P0: v0.1.0 Plan 创建（已全部完成）
 
 > 规则: 每个 Plan 必须引用 architecture-overview.md 对应章节，且包含具体文件路径/函数/测试
 > 依赖链: `P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8`
@@ -282,7 +282,7 @@
 - [x] **[P0]** Phase-Role-Architecture Spec 编写 @agent @20260416
 - [x] **[P0]** Phase-Role-Architecture Plan 编写 @agent @20260416
 - [x] **[P0]** Architecture v2 内容并入 canonical overview，旧文档归档 @agent @20260416
-- [x] **[P0]** v0.1 发布：3-Agent 流水线 189 tests pass，端到端 smoke 验证 @agent @20260417
+- [x] **[P0]** v0.1.0 发布：3-Agent 流水线 189 tests pass，端到端 smoke 验证 @agent @20260417
 
 ---
 
@@ -293,7 +293,7 @@
 | `P0` | 最高优先级，当前迭代必须完成 |
 | `P1` | 高优先级，当前迭代应该完成 |
 | `P2` | 中优先级，当前迭代可以完成 |
-| `[v0.1] / [v0.2] / [v0.3] / [v0.5] / [v0.8] / [v1.0]` | 对应 roadmap 版本阶段 |
+| `[v0.1.0] / [v0.2.0] / [v0.3.0] / [v0.5] / [v0.8] / [v1.0]` | 对应 roadmap 版本阶段 |
 | `@owner` | 任务负责人（agent/human） |
 | `@YYYYMMDD` | 创建或迁移日期 |
 | `← Task N` | 依赖前置任务 N |
@@ -306,12 +306,12 @@
 |------|---------|
 | 20260415 | 初始版本，创建框架基础任务 |
 | 20260416 | 整合 Phase-Role-Architecture 任务链，建立依赖关系 |
-| 20260416 | 按 canonical architecture 重排 TODO：v0.1 先做 3-Agent 自主流水线，Phase-Role-Architecture 下沉为远期任务 |
-| 20260417 | 创建 Spec → Plan → Execute 流程规范；补齐 v0.1 全部 8 个 implementation plan（Task 1-8） |
+| 20260416 | 按 canonical architecture 重排 TODO：v0.1.0 先做 3-Agent 自主流水线，Phase-Role-Architecture 下沉为远期任务 |
+| 20260417 | 创建 Spec → Plan → Execute 流程规范；补齐 v0.1.0 全部 8 个 implementation plan（Task 1-8） |
 | 20260417 | 完成 Task 1-8，189 tests pass，3-Agent 流水线闭环 |
-| 20260417 | 版本重命名：原 v1.0→v0.1, v1.1→v0.2, v1.2→v0.3, v2.0→v0.5~v1.0 |
-| 20260417 | v0.2 规划完成：5 个 Task (V0.2-1~V0.2-5) 纳入活跃区 |
-| 20260417 | 产品路线图更新：architecture-overview.md §14 建立 v0.1→v1.0 六版本完整路线图 |
+| 20260417 | 版本重命名：原 v1.0→v0.1.0, v1.1→v0.2.0, v1.2→v0.3.0, v2.0→v0.5~v1.0 |
+| 20260417 | v0.2.0 规划完成：5 个 Task (V0.2-1~V0.2-5) 纳入活跃区 |
+| 20260417 | 产品路线图更新：architecture-overview.md §14 建立 v0.1.0→v1.0 六版本完整路线图 |
 | 20260418 | 引入 config.json 统一配置管理（模块 #18），安装脚本支持 API Key 模板 + 自动填充 |
 | 20260418 | V0.2-1 Cost Tracking 完成：CostTracker、定价表、BudgetAwareLLMRouter、41 新测试（251 total） |
 | 20260418 | V0.2-1.6 交互式配置向导标记完成（前次 session 实现） |
@@ -319,11 +319,11 @@
 | 20260418 | V0.2-3 Chat Mode 增强完成：SessionManager、AutonomousController、上下文截断、25 新测试（309 total） |
 | 20260418 | V0.2-4 Builder 上下文窗口优化完成：TokenCounter、summary 压缩、21 新测试（330 total） |
 | 20260418 | V0.2-5 Adaptive Execution 完成：AdaptiveTrigger、Replanner、16 新测试（346 total） |
-| 20260418 | **v0.2 全部任务完成**：Cost Tracking + Provider Fallback + Chat Mode + Context Window + Adaptive Execution |
-| 20260418 | v0.3 规划完成：Phase Execution Pipeline（PE-1~PE-5）+ Skill Management（S1~S5）纳入活跃 Backlog |
-| 20260418 | v0.3 Chat Mode V1.1/V1.2 增强纳入活跃 Backlog：消息持久化 + Autonomous 接真实流水线 + /skill 执行 + /run + /phase + Phase 切换衔接 |
-| 20260418 | v0.3 CLI Chat 友好化规划完成：欢迎屏/自然语言帮助/中文优先/结构化输出/确认卡片/进度可视化，spec + plan 已创建 |
-| 20260418 | **v0.3 发布**：Phase Execution Pipeline + Skill Management + Chat UX + Cost/Adaptive wire-in + CLI Cost + uninstall |
+| 20260418 | **v0.2.0 全部任务完成**：Cost Tracking + Provider Fallback + Chat Mode + Context Window + Adaptive Execution |
+| 20260418 | v0.3.0 规划完成：Phase Execution Pipeline（PE-1~PE-5）+ Skill Management（S1~S5）纳入活跃 Backlog |
+| 20260418 | v0.3.0 Chat Mode V1.1/V1.2 增强纳入活跃 Backlog：消息持久化 + Autonomous 接真实流水线 + /skill 执行 + /run + /phase + Phase 切换衔接 |
+| 20260418 | v0.3.0 CLI Chat 友好化规划完成：欢迎屏/自然语言帮助/中文优先/结构化输出/确认卡片/进度可视化，spec + plan 已创建 |
+| 20260418 | **v0.3.0 发布**：Phase Execution Pipeline + Skill Management + Chat UX + Cost/Adaptive wire-in + CLI Cost + uninstall |
 | 20260418 | Skill Management 完成：SkillValidator + SkillRouter + SkillInjector + SkillRegistry + 5 内置 skill + CLI 命令 |
 | 20260418 | Autonomous Pipeline 打通：Chat REPL `_autonomous_pipeline` 接 Runner.run()，真实执行 Builder→Reviewer→Deployer |
 | 20260418 | Cost Tracking 生产路径接入：LLMProviderManager 自动调用 CostTracker.record_call() |

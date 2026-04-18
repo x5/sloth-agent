@@ -17,8 +17,8 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.1 已发布** — 3-Agent 自主流水线 MVP，189 tests pass。
-> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.1) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
+> **v0.1.0 已发布** — 3-Agent 自主流水线 MVP，189 tests pass。
+> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.1.0) · [安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)
 
 ---
 
@@ -26,13 +26,13 @@
 
 Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + Hermes Agent 的组合体，借鉴 Claude Code 和 Codex 的最佳实践，并针对中国开发者生态进行深度定制。
 
-v0.1 聚焦于 **Plan → 全自主开发 → 部署** 的核心场景：输入一份已完成的 Plan，全自主执行编码、审查、部署，关键节点由自动门控把关质量。
+v0.1.0 聚焦于 **Plan → 全自主开发 → 部署** 的核心场景：输入一份已完成的 Plan，全自主执行编码、审查、部署，关键节点由自动门控把关质量。
 
 ---
 
 ## 核心特性
 
-### v0.1：3-Agent 串行流水线
+### v0.1.0：3-Agent 串行流水线
 
 ```
 Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 ─→ [Deployer Agent] ─→ Gate 3 ─→ Done
@@ -52,7 +52,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 - **Agent 间通过结构化 Pydantic 模型交接**（git diff、pytest 输出、覆盖率数字，非 LLM 摘要）
 - **自动门控**取代人工审批（lint / type-check / test / coverage / smoke-test）
 
-### v0.1 内置能力
+### v0.1.0 内置能力
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
@@ -91,9 +91,9 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 
 | 版本 | 模式 | 说明 |
 |------|------|------|
-| v0.1 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
-| v0.2 | + 对话模式 | REPL 交互，技能触发，工作流控制 |
-| v0.3 | + 可观测性 | 结构化日志 + Trace ID + 错误恢复 |
+| v0.1.0 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
+| v0.2.0 | + 对话模式 | REPL 交互，技能触发，工作流控制 |
+| v0.3.0 | + 可观测性 | 结构化日志 + Trace ID + 错误恢复 |
 | v0.5 | + 多 Agent 并行 | 知识库 + 事件总线 + Speculative Execution |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+1 Agent + 37 技能 + 8 场景编排 |
@@ -102,7 +102,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 
 ## 设计原则
 
-| 原则 | v0.1 | 远期（v0.5+） |
+| 原则 | v0.1.0 | 远期（v0.5+） |
 |------|------|--------------|
 | **Agent 架构** | 3-Agent 串行流水线 | 8+1 Agent 并行执行 |
 | **工具优先** | Agent 通过工具层操作，可审计 | + Plugin 扩展 |
@@ -117,7 +117,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 
 ## 与参考框架的对比
 
-| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.1** |
+| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.1.0** |
 |------|----------|--------|-------------|-------|----------------|
 | 多 Agent 架构 | ❌ | ✅ 子代理 | ❌ | ❌ | ✅ **3-Agent Pipeline** |
 | 自动门控 | ❌ | ❌ | ❌ | ❌ | ✅ **lint/type/test/smoke** |
@@ -127,10 +127,10 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | 安全防护 | ✅ | ✅ | Risk levels | Risk | ✅ **幻觉防护 + 白名单** |
 | 模型路由 | ✅ | ✅ | ❌ | ❌ | ✅ **Stage 级路由** |
 | 自动回滚 | ❌ | ❌ | ❌ | ❌ | ✅ **3 级 Git Checkpoint** |
-| 成本控制 | ❌ | ❌ | ❌ | ❌ | 🚧 v0.2 |
+| 成本控制 | ❌ | ❌ | ❌ | ❌ | 🚧 v0.2.0 |
 | 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **DeepSeek/Qwen/Kimi** |
 
-**v0.1 差异化**：3-Agent 自动流水线 + Reflection 自纠错 + Stage 级模型路由 + 中国 LLM 原生支持。
+**v0.1.0 差异化**：3-Agent 自动流水线 + Reflection 自纠错 + Stage 级模型路由 + 中国 LLM 原生支持。
 
 ---
 
@@ -145,7 +145,7 @@ Plan ─→ [Builder Agent] ─→ Gate 1 ─→ [Reviewer Agent] ─→ Gate 2 
 | **MiniMax** | minimax-m2.7 (最新)<br>minimax-m1 (MoE) | 自进化能力 |
 | **Xiaomi** | mimo-v2-pro (最新旗舰)<br>mimo-v2-omni (全模态)<br>mimo-v2-flash (轻量) | 高强度 Agent 工作流 |
 
-v0.1 需配置 DeepSeek + Qwen 即可跑通。自动降级将在 v0.2 实现。
+v0.1.0 需配置 DeepSeek + Qwen 即可跑通。自动降级将在 v0.2.0 实现。
 
 ---
 
@@ -210,7 +210,7 @@ uv run pytest tests/ evals/ -v
 uv run python -c "from evals.smoke_test import run_smoke_test; r = run_smoke_test(); print(f'PASS' if r.passed else 'FAIL')"
 ```
 
-详细安装步骤见 [v0.1 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
+详细安装步骤见 [v0.1.0 安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)。
 
 ---
 
@@ -277,9 +277,9 @@ uv run sloth logs --level INFO --limit 50
 
 ### 架构与规格
 
-| 模块 | 文档 | v0.1 状态 |
+| 模块 | 文档 | v0.1.0 状态 |
 |------|------|-----------|
-| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含 v0.1~v1.0 路线图 |
+| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含 v0.1.0~v1.0 路线图 |
 | #01 Phase-Role Arch | [spec](docs/specs/20260416-01-phase-role-architecture-spec.md) | ✅ Runner/NextStep 已实现 |
 | #02 Tools Invocation | [spec](docs/specs/20260416-02-tools-invocation-spec.md) | ✅ ToolRegistry/Executor 已实现 |
 | #04 Memory Management | [spec](docs/specs/20260416-04-memory-management-spec.md) | ✅ FS MemoryStore 已实现 |
@@ -287,19 +287,19 @@ uv run sloth logs --level INFO --limit 50
 | #13 Session Lifecycle | [spec](docs/specs/20260416-13-session-lifecycle-spec.md) | ✅ Git Checkpoint 已实现 |
 | #20 LLM Routing | [spec](docs/specs/20260417-20-llm-router-spec.md) | ✅ LLMRouter 已实现 |
 | #21 Eval Framework | [spec](docs/specs/20260417-21-eval-framework-spec.md) | ✅ smoke test 已实现 |
-| #07 Chat Mode | [spec](docs/specs/20260416-07-chat-mode-spec.md) | 🚧 v0.2 |
-| #08 Observability | [spec](docs/specs/20260416-08-observability-logging-spec.md) | 🚧 v0.3 |
-| #09 Error Recovery | [spec](docs/specs/20260416-09-error-handling-recovery-spec.md) | 🚧 v0.3 |
-| #12 Cost & Budget | [spec](docs/specs/20260416-12-cost-budget-spec.md) | 🚧 v0.2 |
+| #07 Chat Mode | [spec](docs/specs/20260416-07-chat-mode-spec.md) | 🚧 v0.2.0 |
+| #08 Observability | [spec](docs/specs/20260416-08-observability-logging-spec.md) | 🚧 v0.3.0 |
+| #09 Error Recovery | [spec](docs/specs/20260416-09-error-handling-recovery-spec.md) | 🚧 v0.3.0 |
+| #12 Cost & Budget | [spec](docs/specs/20260416-12-cost-budget-spec.md) | 🚧 v0.2.0 |
 
 ### 指南
 
 | 文档 | 说明 |
 |------|------|
-| [v0.1 安装指南](docs/guides/20260417-v0.1-installation-guide.md) | 安装、配置、快速开始、常见问题 |
+| [v0.1.0 安装指南](docs/guides/20260417-v0.1.0-installation-guide.md) | 安装、配置、快速开始、常见问题 |
 
 ---
 
-*Sloth Agent v0.1*
+*Sloth Agent v0.1.0*
 *最后更新: 2026-04-17*
 *189 tests pass*

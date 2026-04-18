@@ -17,8 +17,8 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.3 已发布** — Phase Execution Pipeline + Skill Management + Chat UX 增强 + Cost Tracking + Adaptive Execution，482 tests pass。
-> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.3) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
+> **v0.3.0 已发布** — Phase Execution Pipeline + Skill Management + Chat UX 增强 + Cost Tracking + Adaptive Execution，482 tests pass。
+> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.3.0) · [安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)
 
 ---
 
@@ -26,7 +26,7 @@
 
 Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + Hermes Agent 的组合体，借鉴 Claude Code 和 Codex 的最佳实践，并针对中国开发者生态进行深度定制。
 
-v0.1 聚焦于 **Plan → 全自主开发 → 部署** 的核心场景：输入一份已完成的 Plan，全自主执行编码、审查、部署，关键节点由自动门控把关质量。
+输入一份 Plan，全自主完成编码、审查、部署全流程。关键节点由自动门控把关质量。
 
 ---
 
@@ -135,9 +135,9 @@ sloth chat
 
 | 版本 | 模式 | 说明 |
 |------|------|------|
-| v0.1 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
-| v0.2 | + 对话模式 | REPL 交互，聊天界面中文优先 |
-| v0.3 | + 技能 + 成本 | Skill 系统 + Cost Tracking + 容错 + 自适应执行 |
+| v0.1.0 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
+| v0.2.0 | + 对话模式 | REPL 交互，聊天界面中文优先 |
+| v0.3.0 | + 技能 + 成本 | Skill 系统 + Cost Tracking + 容错 + 自适应执行 |
 | v0.5 | + 多 Agent 并行 | 知识库 + 事件总线 + Speculative Execution |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+1 Agent + 37 技能 + 8 场景编排 |
@@ -146,7 +146,7 @@ sloth chat
 
 ## 设计原则
 
-| 原则 | 当前（v0.3） | 远期（v0.5+） |
+| 原则 | 当前（v0.3.0） | 远期（v0.5+） |
 |------|------|--------------|
 | **Agent 架构** | 3-Agent 串行流水线 | 8+1 Agent 并行执行 |
 | **工具优先** | Agent 通过工具层操作，可审计 | + Plugin 扩展 |
@@ -161,7 +161,7 @@ sloth chat
 
 ## 与参考框架的对比
 
-| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.3** |
+| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.3.0** |
 |------|----------|--------|-------------|-------|----------------|
 | 多 Agent 架构 | ❌ | ✅ 子代理 | ❌ | ❌ | ✅ **3-Agent Pipeline** |
 | 自动门控 | ❌ | ❌ | ❌ | ❌ | ✅ **lint/type/test/smoke** |
@@ -174,7 +174,7 @@ sloth chat
 | 成本控制 | ❌ | ❌ | ❌ | ❌ | ✅ **CostTracker + 预算限额** |
 | 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **DeepSeek/Qwen/Kimi** |
 
-**v0.3 差异化**：3-Agent 自动流水线 + 技能系统 + 成本追踪 + 容错降级 + 中国 LLM 原生支持。
+**v0.3.0 差异化**：3-Agent 自动流水线 + 技能系统 + 成本追踪 + 容错降级 + 中国 LLM 原生支持。
 
 ---
 
@@ -189,7 +189,7 @@ sloth chat
 | **MiniMax** | minimax-m2.7 (最新)<br>minimax-m1 (MoE) | 自进化能力 |
 | **Xiaomi** | mimo-v2-pro (最新旗舰)<br>mimo-v2-omni (全模态)<br>mimo-v2-flash (轻量) | 高强度 Agent 工作流 |
 
-v0.1 需配置 DeepSeek + Qwen 即可跑通。自动降级将在 v0.2 实现。
+至少配置 DeepSeek + Qwen 即可跑通。
 
 ---
 
@@ -265,7 +265,7 @@ uv run pytest tests/ evals/ -v
 uv run python -c "from evals.smoke_test import run_smoke_test; r = run_smoke_test(); print(f'PASS' if r.passed else 'FAIL')"
 ```
 
-详细安装步骤见 [v0.3 安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
+详细安装步骤见 [v0.3.0 安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)。
 
 ### 卸载
 
@@ -368,9 +368,9 @@ uv run sloth logs --level INFO --limit 50
 
 ### 架构与规格
 
-| 模块 | 文档 | v0.1 状态 |
+| 模块 | 文档 | 当前状态 |
 |------|------|-----------|
-| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含 v0.1~v1.0 路线图 |
+| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含 v0.1.0~v1.0 路线图 |
 | #01 Phase-Role Arch | [spec](docs/specs/20260416-01-phase-role-architecture-spec.md) | ✅ Runner/NextStep 已实现 |
 | #02 Tools Invocation | [spec](docs/specs/20260416-02-tools-invocation-spec.md) | ✅ ToolRegistry/Executor 已实现 |
 | #04 Memory Management | [spec](docs/specs/20260416-04-memory-management-spec.md) | ✅ FS MemoryStore 已实现 |
@@ -379,8 +379,8 @@ uv run sloth logs --level INFO --limit 50
 | #20 LLM Routing | [spec](docs/specs/20260417-20-llm-router-spec.md) | ✅ LLMRouter 已实现 |
 | #21 Eval Framework | [spec](docs/specs/20260417-21-eval-framework-spec.md) | ✅ smoke test 已实现 |
 | #07 Chat Mode | [spec](docs/specs/20260416-07-chat-mode-spec.md) | ✅ REPL + 自主模式 + 技能触发 |
-| #08 Observability | [spec](docs/specs/20260416-08-observability-logging-spec.md) | 🚧 v0.3 |
-| #09 Error Recovery | [spec](docs/specs/20260416-09-error-handling-recovery-spec.md) | 🚧 v0.3 |
+| #08 Observability | [spec](docs/specs/20260416-08-observability-logging-spec.md) | 🚧 待开发 |
+| #09 Error Recovery | [spec](docs/specs/20260416-09-error-handling-recovery-spec.md) | 🚧 待开发 |
 | #12 Cost & Budget | [spec](docs/specs/20260416-12-cost-budget-spec.md) | ✅ CostTracker + 预算限额 |
 | #18 Installation | [spec](docs/specs/20260416-18-installation-onboarding-spec.md) | ✅ 安装脚本 + 卸载命令 + 配置向导 |
 
@@ -388,10 +388,10 @@ uv run sloth logs --level INFO --limit 50
 
 | 文档 | 说明 |
 |------|------|
-| [v0.2 安装指南](docs/guides/20260417-v0.1-installation-guide.md) | 安装、配置向导、快速开始、常见问题 |
+| [v0.3.0 安装指南](docs/guides/20260417-v0.1.0-installation-guide.md) | 安装、配置向导、快速开始、常见问题 |
 
 ---
 
-*Sloth Agent v0.3*
+*Sloth Agent v0.3.0*
 *最后更新: 2026-04-18*
 *482 tests pass*

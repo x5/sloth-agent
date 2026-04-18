@@ -3,7 +3,7 @@
 > 版本: v2.0.0 (草案)
 > 日期: 2026-04-16
 > 参考: Superpowers (14 skills) + gstack (23 skills) = 37 skills
-> v0.1 实现状态: §25 运行时内核定义 (Runner/RunState/NextStep) 已实现
+> v0.1.0 实现状态: §25 运行时内核定义 (Runner/RunState/NextStep) 已实现
 >   - 实现文件: `src/sloth_agent/core/runner.py`, `src/sloth_agent/core/builder.py`
 >   - 实现文件: `src/sloth_agent/core/reflector.py`, `src/sloth_agent/core/context_window.py`
 >   - 测试覆盖: `tests/core/test_runner.py`, `tests/core/test_builder.py`

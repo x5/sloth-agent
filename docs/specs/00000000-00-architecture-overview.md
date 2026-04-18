@@ -1582,12 +1582,12 @@ sloth eval --compare        # 对比最近两次 eval 结果
 
 | 原版本 | 新版本 | 原因 |
 |--------|--------|------|
-| v1.0 | **v0.1** | 最小可用原型，3-Agent 串行流水线刚跑通 |
-| v1.1 | **v0.2** | 在 v0.1 基础上加成本管控和容错，仍非成熟产品 |
-| v1.2 | **v0.3** | 可观测性和错误恢复补齐，产品开始可用 |
+| v1.0 | **v0.1.0** | 最小可用原型，3-Agent 串行流水线刚跑通 |
+| v1.1 | **v0.2.0** | 在 v0.1.0 基础上加成本管控和容错，仍非成熟产品 |
+| v1.2 | **v0.3.0** | 可观测性和错误恢复补齐，产品开始可用 |
 | v2.0 | **v0.5~v1.0** | 8-Agent + 昼夜循环 + 知识库，逐步达到市场竞争力 |
 
-### 14.1 v0.1 — 最小可用原型（当前版本）
+### 14.1 v0.1.0 — 最小可用原型（当前版本）
 
 > 目标：证明 "Plan → 全自主开发 → 部署" 的核心链路能跑通
 > 定位：技术验证品，离可用还有很大距离
@@ -1614,20 +1614,20 @@ sloth eval --compare        # 对比最近两次 eval 结果
 - 无 Chat Mode，只能跑自主流水线
 
 **已实现 spec**：
-- 模块 #01 Phase-Role Architecture（v0.1 子集）→ `20260416-01-phase-role-architecture-spec.md`
-- 模块 #02 Tools Invocation（v0.1 子集）→ `20260416-02-tools-invocation-spec.md`
-- 模块 #04 Memory Management（v0.1 子集）→ `20260416-04-memory-management-spec.md`
-- 模块 #06 Skill Management（v0.1 子集）→ `20260416-06-skill-management-spec.md`
-- 模块 #20 LLM Provider & Routing（v0.1 子集）→ `20260417-20-llm-router-spec.md`
-- 模块 #21 Eval Framework（v0.1 子集）→ `20260417-21-eval-framework-spec.md`
+- 模块 #01 Phase-Role Architecture（v0.1.0 子集）→ `20260416-01-phase-role-architecture-spec.md`
+- 模块 #02 Tools Invocation（v0.1.0 子集）→ `20260416-02-tools-invocation-spec.md`
+- 模块 #04 Memory Management（v0.1.0 子集）→ `20260416-04-memory-management-spec.md`
+- 模块 #06 Skill Management（v0.1.0 子集）→ `20260416-06-skill-management-spec.md`
+- 模块 #20 LLM Provider & Routing（v0.1.0 子集）→ `20260417-20-llm-router-spec.md`
+- 模块 #21 Eval Framework（v0.1.0 子集）→ `20260417-21-eval-framework-spec.md`
 
 **测试覆盖**：189 tests pass
 
 ---
 
-### 14.2 v0.2 — 成本管控与容错
+### 14.2 v0.2.0 — 成本管控与容错
 
-> 目标：让 v0.1 能用在真实环境中，不被天价账单吓到，不因 Provider 抖动而崩溃
+> 目标：让 v0.1.0 能用在真实环境中，不被天价账单吓到，不因 Provider 抖动而崩溃
 > 定位：勉强能在自己项目上试用
 > 状态：**规划完成，待实现**
 
@@ -1652,7 +1652,7 @@ sloth eval --compare        # 对比最近两次 eval 结果
 
 ---
 
-### 14.3 v0.3 — 可观测性与错误恢复
+### 14.3 v0.3.0 — 可观测性与错误恢复
 
 > 目标：出了问题能知道为什么，能自动恢复而不是手动处理
 > 定位：可以作为日常开发工具使用
@@ -1752,7 +1752,7 @@ sloth eval --compare        # 对比最近两次 eval 结果
 
 ### 14.7 版本对比总览
 
-| 维度 | v0.1 | v0.2 | v0.3 | v0.5 | v0.8 | v1.0 |
+| 维度 | v0.1.0 | v0.2.0 | v0.3.0 | v0.5 | v0.8 | v1.0 |
 |------|------|------|------|------|------|------|
 | Agent 数量 | 3 | 3 | 3-5 | 5-7 | 8+1 | 8+1 |
 | 核心场景 | Plan→Build→Deploy | +Chat + 自主模式 | + 自动恢复 | + 并行 + 知识库 | + 昼夜循环 | 全场景 |

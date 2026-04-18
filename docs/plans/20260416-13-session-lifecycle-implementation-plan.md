@@ -2,8 +2,8 @@
 
 > Spec 来源: `docs/specs/20260416-13-session-lifecycle-spec.md`；`docs/specs/00000000-00-architecture-overview.md` §8.3
 > Plan 文件: `docs/plans/20260416-13-session-lifecycle-implementation-plan.md`
-> v0.1 实现状态: Git CheckpointManager (create_git_checkpoint / rollback_to / auto_commit) 已实现 (2 tests pass)
-> v0.1 实现文件: `src/sloth_agent/reliability/checkpoint.py`
+> v0.1.0 实现状态: Git CheckpointManager (create_git_checkpoint / rollback_to / auto_commit) 已实现 (2 tests pass)
+> v0.1.0 实现文件: `src/sloth_agent/reliability/checkpoint.py`
 
 ---
 

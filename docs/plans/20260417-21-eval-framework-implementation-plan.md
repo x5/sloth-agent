@@ -3,8 +3,8 @@
 > Spec 来源: `docs/specs/20260417-21-eval-framework-spec.md`（模块 21）
 > Plan 文件: `docs/plans/20260417-21-eval-framework-implementation-plan.md`
 > 对应 Arch: `docs/specs/00000000-00-architecture-overview.md` §11.5
-> v0.1 实现状态: EvalRunner + SmokeTest 已实现 (2 tests pass), 189 tests 全量通过
-> v0.1 实现文件: `evals/runner.py`, `evals/smoke_test.py`, `evals/tasks.yaml`
+> v0.1.0 实现状态: EvalRunner + SmokeTest 已实现 (2 tests pass), 189 tests 全量通过
+> v0.1.0 实现文件: `evals/runner.py`, `evals/smoke_test.py`, `evals/tasks.yaml`
 
 ---
 

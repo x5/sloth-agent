@@ -2,8 +2,8 @@
 
 > 版本: v1.0.0
 > 日期: 2026-04-16
-> 状态: v0.1 已实现 FS 存储子集
-> v0.1 实现状态: MemoryStore 纯文件系统存储已实现，SQLite/ChromaDB 索引层为远期目标
+> 状态: v0.1.0 已实现 FS 存储子集
+> v0.1.0 实现状态: MemoryStore 纯文件系统存储已实现，SQLite/ChromaDB 索引层为远期目标
 >   - 实现文件: `src/sloth_agent/memory/store.py`
 >   - 测试覆盖: `tests/memory/test_store.py`
 

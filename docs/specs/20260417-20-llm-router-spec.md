@@ -2,8 +2,8 @@
 
 > 版本: v1.0.0
 > 日期: 2026-04-17
-> 状态: v0.1 已实现基础路由子集
-> v0.1 实现状态: LLMRouter (register_provider / get_model) + MockProvider 已实现
+> 状态: v0.1.0 已实现基础路由子集
+> v0.1.0 实现状态: LLMRouter (register_provider / get_model) + MockProvider 已实现
 >   - 实现文件: `src/sloth_agent/providers/llm_router.py`
 >   - 测试覆盖: `tests/providers/test_llm_router.py`
 

@@ -1,9 +1,9 @@
-# v0.2 Implementation Plan
+# v0.2.0 Implementation Plan
 
 > Date: 2026-04-17
-> Goal: v0.2 最小可用扩展 — 成本管控、Provider 容错、Chat Mode 增强
+> Goal: v0.2.0 最小可用扩展 — 成本管控、Provider 容错、Chat Mode 增强
 > 依赖链: `Cost → Fallback → Chat → Context → Adaptive`
-> 版本映射: 此计划原编号 v1.1，现重命名为 v0.2
+> 版本映射: 此计划原编号 v1.1，现重命名为 v0.2.0
 > 状态: 全部完成 (360 tests pass)
 
 ---

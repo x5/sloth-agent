@@ -3,9 +3,9 @@
 > Spec 来源: `docs/specs/20260416-18-installation-onboarding-spec.md`（模块 18）
 > Plan 文件: `docs/plans/20260416-18-installation-onboarding-implementation-plan.md`
 > 对应 Arch: `docs/specs/00000000-00-architecture-overview.md` §9.0, §10
-> v0.1 实现状态: 全局安装脚本 (install.sh / install.ps1) 已实现，采用 Claude Code 安装模型
-> v0.1 实现文件: `scripts/install.sh`, `scripts/install.ps1`
-> v0.2 规划: ConfigManager + config.json 统一配置 + `sloth config` CLI 命令
+> v0.1.0 实现状态: 全局安装脚本 (install.sh / install.ps1) 已实现，采用 Claude Code 安装模型
+> v0.1.0 实现文件: `scripts/install.sh`, `scripts/install.ps1`
+> v0.2.0 规划: ConfigManager + config.json 统一配置 + `sloth config` CLI 命令
 
 ---
 
@@ -20,7 +20,7 @@
 
 ### 步骤 1: 实现 macOS/Linux 安装脚本
 
-**文件**: `scripts/install.sh`（已实现 v0.1）
+**文件**: `scripts/install.sh`（已实现 v0.1.0）
 
 **内容** (spec §10):
 
@@ -39,7 +39,7 @@
 
 ### 步骤 2: 实现 Windows PowerShell 安装脚本
 
-**文件**: `scripts/install.ps1`（已实现 v0.1）
+**文件**: `scripts/install.ps1`（已实现 v0.1.0）
 
 **内容** (spec §10):
 
@@ -170,17 +170,17 @@ sloth config env                          # 列出需要设置的 API Key
 
 | 文件 | 动作 |
 |------|------|
-| `scripts/install.sh` | 已实现 (v0.1) + bugfix |
-| `scripts/install.ps1` | 已实现 (v0.1) + bugfix |
-| `src/sloth_agent/core/config_manager.py` | **新建** (v0.2) + bugfix |
-| `configs/config.json.example` | **新建** (v0.2) |
-| `src/sloth_agent/cli/config_cmd.py` | **新建** (v0.2) |
-| `src/sloth_agent/cli/init_cmd.py` | **新建** (v0.2) |
-| `tests/core/test_config_manager.py` | **新建** (v0.2) |
+| `scripts/install.sh` | 已实现 (v0.1.0) + bugfix |
+| `scripts/install.ps1` | 已实现 (v0.1.0) + bugfix |
+| `src/sloth_agent/core/config_manager.py` | **新建** (v0.2.0) + bugfix |
+| `configs/config.json.example` | **新建** (v0.2.0) |
+| `src/sloth_agent/cli/config_cmd.py` | **新建** (v0.2.0) |
+| `src/sloth_agent/cli/init_cmd.py` | **新建** (v0.2.0) |
+| `tests/core/test_config_manager.py` | **新建** (v0.2.0) |
 | `src/sloth_agent/cli/config_init.py` | **新建** |
 | `tests/cli/test_config_init.py` | **新建** |
-| `src/sloth_agent/cli/uninstall_cmd.py` | **新建** (v0.3) |
-| `tests/cli/test_uninstall_cmd.py` | **新建** (v0.3) |
+| `src/sloth_agent/cli/uninstall_cmd.py` | **新建** (v0.3.0) |
+| `tests/cli/test_uninstall_cmd.py` | **新建** (v0.3.0) |
 
 ---
 

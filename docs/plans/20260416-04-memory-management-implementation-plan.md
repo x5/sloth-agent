@@ -3,8 +3,8 @@
 > Spec 来源: `docs/specs/20260416-04-memory-management-spec.md`
 > Plan 文件: `docs/plans/20260416-04-memory-management-implementation-plan.md`
 > 对应 Arch: `docs/specs/00000000-00-architecture-overview.md` §7.2
-> v0.1 实现状态: MemoryStore 纯文件系统存储已实现 (5 tests pass)
-> v0.1 实现文件: `src/sloth_agent/memory/store.py`
+> v0.1.0 实现状态: MemoryStore 纯文件系统存储已实现 (5 tests pass)
+> v0.1.0 实现文件: `src/sloth_agent/memory/store.py`
 
 ---
 

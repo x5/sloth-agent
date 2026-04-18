@@ -3,8 +3,8 @@
 > Spec 来源: `docs/specs/20260417-20-llm-router-spec.md`（模块 20）
 > Plan 文件: `docs/plans/20260417-20-llm-router-implementation-plan.md`
 > 对应 Arch: `docs/specs/00000000-00-architecture-overview.md` §7.3, §11.0
-> v0.1 实现状态: LLMRouter (register_provider / get_model) + MockProvider 已实现 (2 tests pass)
-> v0.1 实现文件: `src/sloth_agent/providers/llm_router.py`
+> v0.1.0 实现状态: LLMRouter (register_provider / get_model) + MockProvider 已实现 (2 tests pass)
+> v0.1.0 实现文件: `src/sloth_agent/providers/llm_router.py`
 
 ---
 
