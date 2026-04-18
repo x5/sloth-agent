@@ -1,9 +1,9 @@
 # Project TODO
 
-> 最后更新: 20260418 — v0.3.0 发布：Phase Execution Pipeline + Skill Management + Chat UX + Cost/Adaptive wire-in
+> 最后更新: 20260419 — v0.3.1 发布：42 个内建技能全部导入，auto+manual 触发，Chat 自动意图匹配
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
-> 当前目标: v0.3.0 发布准备 — 482 tests pass，全部功能闭环
-> 版本映射: 原 v1.0→v0.1.0, 原 v1.1→v0.2.0, 原 v1.2→v0.3.0, 原 v2.0→v0.5~v1.0
+> 当前目标: v0.3.1 发布准备 — 482 tests pass，技能系统闭环
+> 版本映射: 原 v1.0→v0.1.0, 原 v1.1→v0.2.0, 原 v1.2→v0.3.0, v0.3.1→技能批量导入, 原 v2.0→v0.5~v1.0
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
 
 ---
@@ -194,9 +194,17 @@
 - [x] **[P0]** 结构化 Agent 交接协议落地（BuilderOutput / ReviewerOutput）→ 随 Task 4 完成
 - [x] **[P1]** 阶段级模型路由配置（Builder / Reviewer / Deployer）→ 随 Task 8（LLMRouter）完成
 - [x] **[P1]** 文件系统记忆与 checkpoint 统一格式 → 随 Task 7 完成
-- [x] **[P1]** Skill Management 全链路 → v0.3.0 release: Validator + Router + Injector + Registry + CLI
+- [x] **[P1]** Skill Management 全链路 → v0.3.1 release: Validator + Router + Injector + Registry + CLI + 42 内置 skill
 
 ## 近期 Backlog
+
+### 已完成（v0.3.1 发布）
+
+- [x] **[P0][v0.3.1]** 42 个内建技能批量导入（Superpowers 12 + gstack 30）→ `skills/builtin/` 全部适配完毕
+- [x] **[P0][v0.3.1]** 所有技能 trigger 统一为 `auto+manual` → Chat 自动意图匹配
+- [x] **[P0][v0.3.1]** 所有技能 description 补充 chat 触发短语 → 支持 3 级匹配
+- [x] **[P0][v0.3.1]** 文档同步更新 → spec/plan/ref/README 全部更新为 42 技能
+- [x] **[P1][v0.3.1]** Release Note 创建 → `docs/releases/v0.3.1.md`
 
 ### 已完成（v0.3.0 发布）
 
@@ -329,4 +337,6 @@
 | 20260418 | Cost Tracking 生产路径接入：LLMProviderManager 自动调用 CostTracker.record_call() |
 | 20260418 | AdaptiveTrigger 接入 Runner 循环：gate 失败追踪 + 自动 replan + max_replans 保护 |
 | 20260418 | CLI 增强：`sloth cost summary/breakdown`、`sloth skills`、`sloth uninstall`、Chat 欢迎屏 + 中文帮助 |
-| 20260418 | **482 tests pass**，0 failures |
+| 20260419 | **v0.3.1 发布**：42 个内建技能全部导入（Superpowers 12 + gstack 30），auto+manual 触发，Chat 自动意图匹配 |
+| 20260419 | 42 个技能 description 补充 chat 触发短语，支持自动意图匹配 |
+| 20260419 | 文档同步：spec/plan/ref/README 全部更新为 42 技能 |

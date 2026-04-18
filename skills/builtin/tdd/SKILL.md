@@ -1,9 +1,9 @@
 ---
 name: test-driven-development
 source: builtin (adapted from obra/superpowers, MIT License)
-trigger: manual
+trigger: auto+manual
 version: 2.0.0
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: "Use when implementing any feature or bugfix, before writing implementation code. Chat triggers: 'TDD', 'test-driven development', 'write tests first', 'red green refactor', 'test first', 'tests before code', 'test-driven', 'write the test first', 'TDD approach', 'test-driven implementation', 'red-green loop', 'test-driven design'."
 ---
 
 # Test-Driven Development (TDD)

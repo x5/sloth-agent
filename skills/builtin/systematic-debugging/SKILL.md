@@ -3,7 +3,7 @@ name: systematic-debugging
 source: builtin (adapted from obra/superpowers, MIT License)
 trigger: auto+manual
 version: 2.0.0
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes. Chat triggers: 'debug', 'fix bug', 'test failing', 'unexpected behavior', 'why is this broken', 'troubleshoot', 'root cause', 'something's wrong', 'not working', 'error investigation', 'systematic debugging', 'debugging process', 'find the bug', 'what's broken', 'figure out why it fails'."
 ---
 
 # Systematic Debugging

@@ -202,4 +202,36 @@ S1/S2/S3 可并行。S4 依赖 S1+S2+S3。S5 依赖 S4。
 
 ---
 
-*Plan 版本: v1.0.0 | 创建: 2026-04-17 | 最后更新: 2026-04-18*
+*Plan 版本: v1.1.0 | 创建: 2026-04-17 | 最后更新: 2026-04-19*
+
+---
+
+## v0.4.0 实现状态（已完成）
+
+v0.4.0 批量复用 42 个内建技能到 `skills/builtin/`，全部 `trigger: auto+manual`，每个 skill 的 description 补充了 chat 触发短语。
+
+### 技能清单（42 个）
+
+| 来源 | 数量 | 技能 |
+|------|------|------|
+| Superpowers | 12 | brainstorming, writing-plans, tdd, systematic-debugging, subagent-driven-development, using-git-worktrees, requesting-code-review, verification-before-completion, finishing-a-development-branch, receiving-code-review, dispatching-parallel-agents, writing-skills |
+| gstack | 30 | office-hours, autoplan, investigate, review, qa, qa-only, cso, ship, land-and-deploy, canary, checkpoint, retro, document-release, health, plan-ceo-review, plan-eng-review, plan-design-review, plan-devex-review, design-consultation, design-shotgun, design-html, design-review, devex-review, benchmark, learn, setup-deploy, careful, freeze, guard, unfreeze |
+
+### 每个技能的标准适配流程（已完成）
+
+1. 读取源 SKILL.md
+2. 识别并剥离外部依赖（gstack 二进制、Codex CLI、$B/$D 等）
+3. 复制到 `skills/builtin/{skill-name}/SKILL.md`
+4. 标注 `source` 字段
+5. 设置 `trigger: auto+manual`
+6. 补充 description 中的 chat 触发短语
+7. 运行 `uv run pytest` 确认测试通过
+
+### 验收结果
+
+- [x] 42 个内置 skill 可通过 `sloth skills list` 查看
+- [x] 所有 skill 的 `trigger` 设为 `auto+manual`
+- [x] 所有 skill 的 description 包含 chat 触发短语
+- [x] SkillValidator 拒绝无效 SKILL.md 文件
+- [x] SkillRouter 能根据用户输入匹配到正确 skill
+- [x] 482 个测试全部通过

@@ -1,14 +1,15 @@
 # Skill 管理设计规格
 
-> 版本: v1.1.0
+> 版本: v1.2.0
 > 日期: 2026-04-16
-> 最后更新: 2026-04-18
+> 最后更新: 2026-04-19
 > 状态:
 >   - v0.1.0 已实现: SkillManager (from_markdown / load_all_skills / get_skill_content)
 >     实现文件: `src/sloth_agent/memory/skills.py` | 测试: `tests/memory/test_skills.py`
 >   - v0.2.0 已实现: Chat REPL `/skills` 命令（扫描 local_skills/ 目录）
 >     实现文件: `src/sloth_agent/chat/repl.py`
->   - v0.3.0 规划中: SkillValidator + SkillRouter + 内置 skill + SkillInjector + SkillRegistry
+>   - v0.3.0 已实现: SkillValidator + SkillRouter + 内置 skill + SkillInjector + SkillRegistry
+>   - v0.4.0 已实现: 批量复用 42 个内建 skill（superpowers 12 + gstack 30），全部 trigger: auto+manual
 
 ---
 
@@ -42,7 +43,7 @@
 │                    Skill 来源                                │
 ├──────────────┬──────────────┬────────────────────────────────┤
 │ Superpowers  │ gstack       │ 用户 / 进化                     │
-│ (14 个)      │ (23 个)      │                                │
+│ (12 个)      │ (30 个)      │                                │
 │ skills/      │ skills/      │ skills/user/  skills/evolved/  │
 │ superpowers/ │ gstack/      │                                │
 └──────────────┴──────────────┴────────────────────────────────┘
@@ -50,7 +51,7 @@
                           ▼
               ┌───────────────────────┐
               │    SkillRegistry      │
-              │ (37 个预定义 skills)   │
+              │ (42 个预定义 skills)   │
               │ src/workflow/registry │
               └───────────────────────┘
                           │
@@ -66,12 +67,12 @@
 
 | 来源 | 数量 | 自动触发 | 手动触发（/skill） | 可自我进化 |
 |------|------|---------|-------------------|-----------|
-| Superpowers | 14 | 是 | 是 | 是（就地修订） |
-| gstack | 23 | 否 | 是 | 是（就地修订） |
+| Superpowers | 12 | 是 | 是 | 是（就地修订） |
+| gstack | 30 | 是 | 是 | 是（就地修订） |
 | 用户自定义 | 不限 | 否 | 是 | 是 |
 | 自动进化 | 不限 | 否 | 是 | 是 |
 
-> Superpowers 同时支持自动触发和手动触发：自动触发时由 ChatSession 根据意图匹配激活；手动触发时通过 `/skill <name>` 调用。
+> 所有 42 个内建技能均支持自动触发和手动触发（`trigger: auto+manual`）。
 
 ### 2.2 Skill 格式统一
 
@@ -113,9 +114,9 @@ Skill instructions go here...
 ```
 
 **`trigger` 字段说明**：
-- `auto` — 由 ChatSession 自动匹配触发（仅 Superpowers 中的部分技能）
+- `auto` — 由 ChatSession 自动匹配触发
 - `manual` — 只能通过 `/skill <name>` 或 LLM 主动调用触发
-- `auto+manual` — 同时支持自动和手动触发（Superpowers 的全部技能）
+- `auto+manual` — 同时支持自动和手动触发（所有 42 个内建技能）
 - `error-driven` — 在错误处理流程中被触发
 
 **`source` 字段说明**：
@@ -207,12 +208,12 @@ class Skill:
 
 | 来源 | 目录 | 说明 |
 |------|------|------|
-| Superpowers | `skills/superpowers/` | 14 个内建技能，auto+manual 触发 |
-| gstack | `skills/gstack/` | 23 个内建技能，manual 触发 |
+| Superpowers | `skills/builtin/` | 12 个内建技能（auto+manual 触发） |
+| gstack | `skills/builtin/` | 30 个内建技能（auto+manual 触发） |
 | 用户自定义 | `skills/user/` | 用户创建的技能 |
 | 自动进化 | `skills/evolved/` | 从错误/经验生成的**新**技能 |
 
-> 内建技能的自我进化直接原地修改 `skills/superpowers/{skill}/SKILL.md` 或 `skills/gstack/{skill}/SKILL.md`，版本号递增。只有 37 个预定义之外的全新技能才放到 `skills/evolved/`。
+> 内建技能的自我进化直接原地修改 `skills/builtin/{skill}/SKILL.md`，版本号递增。只有 42 个预定义之外的全新技能才放到 `skills/evolved/`。
 
 ---
 
@@ -220,9 +221,9 @@ class Skill:
 
 ```
 Sloth Agent 启动:
-  1. SkillRegistry.get_all() → 获取 37 个预定义技能元数据
+  1. SkillRegistry.get_all() → 获取 42 个预定义技能元数据
   2. SkillManager.load_all_skills() → 从文件系统加载技能内容
-     ├── 扫描内建目录（superpowers/, gstack/）
+     ├── 扫描内建目录（builtin/）
      ├── 扫描用户目录（user/）
      └── 扫描进化目录（evolved/）
   3. 合并元数据和内容 → 完整技能库
@@ -253,7 +254,7 @@ Sloth Agent 启动:
   └── Knowledge-Gap: 发现无对应技能处理的任务 → 创建新技能
 
 进化路径:
-  ├── 已有技能（37 个预定义之一）→ 就地修订 SKILL.md，版本号递增
+  ├── 已有技能（42 个预定义之一）→ 就地修订 SKILL.md，版本号递增
   └── 全新技能 → 保存到 skills/evolved/，分配新 skill_id
 
 生成流程:
@@ -292,10 +293,9 @@ src/
     skill_router.py        # 新增 (v1.1), SkillRouter
     skill_validator.py     # 新增, SkillValidator
 skills/                    # 技能目录
-  ├── superpowers/         # 14 个内建技能（auto+manual，可就地进化）
-  ├── gstack/              # 23 个内建技能（manual，可就地进化）
+  ├── builtin/             # 42 个内建技能（auto+manual，可就地进化）
   ├── user/                # 用户自定义
-  └── evolved/             # 全新技能（37 个预定义之外的）
+  └── evolved/             # 全新技能（42 个预定义之外的）
 tests/
   memory/
     test_skills.py         # 新增
@@ -310,7 +310,7 @@ tests/
 | 测试 | 说明 |
 |------|------|
 | `test_load_skill` | 从文件加载技能，内容正确 |
-| `test_load_all_skills` | 加载所有技能，数量 >= 37 |
+| `test_load_all_skills` | 加载所有技能，数量 >= 42 |
 | `test_get_skill_content` | 获取技能内容，非空 |
 | `test_search_skills` | 按关键词搜索，返回相关技能 |
 | `test_save_skill` | 保存技能，文件存在 |
@@ -454,11 +454,11 @@ docs/reports/
 
 ---
 
-## 11. 37 技能路由表（从 20260416-37-skills-route-table.md 迁入）
+## 11. 42 技能路由表（从 20260416-37-skills-route-table.md 迁入，v0.4 扩展至 42）
 
-> 参考: Superpowers (14 skills) + gstack (23 skills) = 37 skills
+> 参考: Superpowers (12 skills) + gstack (30 skills) = 42 skills
 
-### 11.1 Superpowers 技能（14 个，auto+manual）
+### 11.1 Superpowers 技能（12 个，auto+manual）
 
 | 技能 | 阶段 | 说明 |
 |------|------|------|
@@ -472,50 +472,58 @@ docs/reports/
 | `verification-before-completion` | 阶段五 | 完成前收集证据 |
 | `finishing-a-development-branch` | 阶段七 | 分支收尾，合并/PR 决策 |
 | `receiving-code-review` | - | 接收审查反馈 |
-| `executing-plans` | - | 批量执行计划，带 checkpoint |
 | `dispatching-parallel-agents` | - | 并发子代理工作流 |
 | `writing-skills` | - | 创建/修改技能 |
-| `using-superpowers` | - | 技能系统介绍 |
 
-### 11.2 gstack 命令（23 个手动命令）
+### 11.2 gstack 技能（30 个，auto+manual）
 
 | 技能 | 阶段 | 说明 |
 |------|------|------|
 | `/office-hours` | 阶段一 | 6 个强制问题诊断产品方向 |
 | `/autoplan` | 阶段二 | CEO → 设计 → 工程三阶段自动审查 |
-| `/browse` | 阶段四 | 真实 Chromium 浏览器 |
 | `/investigate` | 阶段四 | 浏览器级系统调试 |
 | `/review` | 阶段五 | 发现通过 CI 但生产会炸的 bug |
-| `/codex` | 阶段五 | 通过 OpenAI Codex CLI 交叉分析 |
-| `/qa` | 阶段六 | 真实浏览器端到端测试 |
+| `/qa` | 阶段六 | 真实浏览器端到端测试 + 修复 |
+| `/qa-only` | 阶段六 | 报告模式（不修改代码） |
 | `/cso` | 阶段六 | OWASP Top 10 + STRIDE 威胁模型 |
-| `/plan-design-review` | 阶段六 | 80 项设计审计 |
 | `/ship` | 阶段七 | 测试 + 覆盖率 + PR |
 | `/land-and-deploy` | 阶段七 | CI + 部署验证 |
 | `/canary` | 阶段八 | 控制台错误 + 性能回归监控 |
-| `/qa-only` | 阶段六 | 报告模式（不修改代码） |
+| `/checkpoint` | - | 进度保存/恢复 |
+| `/retro` | - | 每周团队回顾 |
+| `/document-release` | - | 发布后文档更新 |
+| `/health` | - | 代码质量健康检查 |
 | `/plan-ceo-review` | 阶段二 | 重新思考问题，4 种模式 |
 | `/plan-eng-review` | 阶段二 | 锁定架构、数据流、边界条件 |
+| `/plan-design-review` | 阶段六 | 80 项设计审计 |
 | `/plan-devex-review` | 阶段二 | 交互式 DX 审查 |
 | `/design-consultation` | 阶段一 | 从零构建设计系统 |
-| `/design-shotgun` | 阶段一 | 生成 4-6 个 AI 方案变体 |
+| `/design-shotgun` | 阶段一 | 生成 3 个方案变体 |
 | `/design-html` | - | 生成生产级 HTML/CSS |
-| `/design-review` | - | 审计 + 修复 |
+| `/design-review` | - | 视觉审计 + 修复 |
 | `/devex-review` | - | 实时审计 onboarding 流程 |
-| `/retro` | - | 每周团队回顾 |
+| `/benchmark` | - | 性能基准测试 |
+| `/learn` | - | 项目知识库搜索 |
+| `/setup-deploy` | 阶段七 | 部署配置 |
+| `/careful` | - | 破坏性命令防护 |
+| `/freeze` | - | 编辑范围限制 |
+| `/guard` | - | careful + freeze 组合 |
+| `/unfreeze` | - | 移除冻结边界 |
 
 ### 11.3 技能与阶段映射
 
 | 阶段 | Superpowers | gstack | 时段 |
 | :--- | :--- | :--- | :--- |
 | 阶段一 需求分析 | `brainstorming` | `/office-hours` | 晚上 |
-| 阶段二 计划制定 | `writing-plans` | `/autoplan` | 晚上 |
-| 阶段三 编码实现 | `TDD`, `subagent`, `git-worktrees` | | 白天 |
-| 阶段四 调试排错 | `systematic-debugging` | `/browse`, `/investigate` | 白天 |
-| 阶段五 代码审查 | `requesting-code-review`, `verification` | `/review`, `/codex` | 白天 |
-| 阶段六 质量验证 | | `/qa`, `/cso`, `/plan-design-review` | 白天 |
-| 阶段七 发布上线 | `finishing-a-branch` | `/ship`, `/land-and-deploy` | 白天 |
+| 阶段二 计划制定 | `writing-plans` | `/autoplan`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-devex-review` | 晚上 |
+| 阶段三 编码实现 | `TDD`, `subagent`, `git-worktrees` | `/checkpoint`, `/learn` | 白天 |
+| 阶段四 调试排错 | `systematic-debugging` | `/investigate`, `/benchmark` | 白天 |
+| 阶段五 代码审查 | `requesting-code-review`, `verification` | `/review`, `/receiving-code-review` | 白天 |
+| 阶段六 质量验证 | | `/qa`, `/qa-only`, `/cso`, `/design-review`, `/plan-design-review` | 白天 |
+| 阶段七 发布上线 | `finishing-a-branch` | `/ship`, `/land-and-deploy`, `/document-release`, `/setup-deploy`, `/retro` | 白天 |
 | 阶段八 上线监控 | | `/canary` | 白天 |
+| 全程安全 | | `/careful`, `/freeze`, `/guard`, `/unfreeze` | 按需 |
+| 设计相关 | | `/design-consultation`, `/design-shotgun`, `/design-html`, `/devex-review` | 按需 |
 
 ---
 
