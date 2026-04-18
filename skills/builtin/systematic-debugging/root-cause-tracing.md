@@ -91,7 +91,7 @@ If something appears during tests but you don't know which test:
 Use the bisection script `find_polluter.py` in this directory:
 
 ```bash
-python scripts/find_polluter.py "output/results.json" "tests/**/test_*.py"
+uv run python find_polluter.py "output/results.json" "tests/**/test_*.py"
 ```
 
 Runs tests one-by-one, stops at first polluter.

@@ -2,11 +2,11 @@
 """Bisection script to find which test creates unwanted files/state.
 
 Usage:
-    python find_polluter.py <file_or_dir_to_check> <test_pattern>
+    uv run python find_polluter.py <file_or_dir_to_check> <test_pattern>
 
 Examples:
-    python find_polluter.py ".git" "tests/**/test_*.py"
-    python find_polluter.py "output/results.json" "tests/test_pipeline.py"
+    uv run python find_polluter.py ".git" "tests/**/test_*.py"
+    uv run python find_polluter.py "output/results.json" "tests/test_pipeline.py"
 """
 
 import glob
