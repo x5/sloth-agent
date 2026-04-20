@@ -3,8 +3,8 @@
 # Installs Sloth Agent globally so you can run `sloth` from any project directory.
 #
 # Usage:
-#   iwr -useb https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.ps1 | iex
-#   iwr -useb https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.ps1 | iex -args "--no-init"
+#   iwr -useb https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.ps1 | iex
+#   iwr -useb https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.ps1 | iex -args "--no-init"
 
 param(
     [switch]$NoInit
@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 $SLOTH_DIR = "$HOME\.sloth-agent"
 $LOCAL_BIN = "$HOME\.local\bin"
 $REPO_URL = "https://github.com/x5/sloth-agent.git"
-$BRANCH = "main"
+$BRANCH = "master"
 
 # Colors
 $GREEN = "`e[0;32m"

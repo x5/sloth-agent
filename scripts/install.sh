@@ -4,8 +4,8 @@
 # Installs Sloth Agent globally so you can run `sloth` from any project directory.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/main/scripts/install.sh | bash -s -- --no-init
+#   curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash -s -- --no-init
 
 set -e
 
