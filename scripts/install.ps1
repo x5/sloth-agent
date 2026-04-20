@@ -17,133 +17,193 @@ $LOCAL_BIN = "$HOME\.local\bin"
 $REPO_URL = "https://github.com/x5/sloth-agent.git"
 $BRANCH = "master"
 
-# Colors
-$GREEN = "`e[0;32m"
-$RED = "`e[0;31m"
-$YELLOW = "`e[1;33m"
-$NC = "`e[0m"
+# Colors (ANSI escape sequences — supported in PowerShell 5.1+ and PS7)
+$e = [char]27
+$GREEN  = "${e}[0;32m"
+$RED    = "${e}[0;31m"
+$YELLOW = "${e}[1;33m"
+$CYAN   = "${e}[0;36m"
+$BOLD   = "${e}[1m"
+$NC     = "${e}[0m"
 
-function Write-Step { param([string]$Message) Write-Host "${GREEN}>${NC} $Message" }
-function Write-Ok   { param([string]$Message) Write-Host "  ${GREEN}v${NC} $Message" }
-function Write-Warn { param([string]$Message) Write-Host "  ${YELLOW}!${NC} $Message" }
-function Write-Fail { param([string]$Message) Write-Host "  ${RED}x${NC} $Message" }
-
-# Banner
-Write-Host ""
-Write-Host "${GREEN}"
-Write-Host "======================================"
-Write-Host "        Sloth Agent Installer         "
-Write-Host "======================================"
-Write-Host "${NC}"
-Write-Host ""
-Write-Host "Sloth Agent will be installed to: $SLOTH_DIR"
-Write-Host "CLI shim will be placed in: $LOCAL_BIN"
-Write-Host "After installation, run sloth from any project directory."
-Write-Host ""
-
-$SkipInit = $NoInit.IsPresent
-
-# ─── Step 1: Self-check ─────────────────────────────────────
-Write-Host "Checking prerequisites..."
-
-if (Get-Command git -ErrorAction SilentlyContinue) {
-    $gitVer = git --version
-    Write-Ok "git: $gitVer"
-} else {
-    Write-Fail "git not found"
-    Write-Host "  Install: https://git-scm.com/download/win"
+function Write-Step   { param([string]$Message) Write-Host "${GREEN}▸${NC} ${BOLD}$Message${NC}" }
+function Write-Ok     { param([string]$Message) Write-Host "  ${GREEN}✓${NC} $Message" }
+function Write-Warn   { param([string]$Message) Write-Host "  ${YELLOW}⚠${NC} $Message" }
+function Write-Fail   { param([string]$Message) Write-Host "  ${RED}✗${NC} $Message" }
+function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}── $Message ${NC}" }
+function Write-Exit {
+    param([string]$What, [string]$Next)
+    Write-Host ""
+    Write-Host "${RED}${BOLD}  ✗  Installation failed${NC}"
+    Write-Host "${CYAN}─────────────────────────────────────────────${NC}"
+    Write-Host ""
+    Write-Host "  ${BOLD}What happened?${NC}"
+    Write-Host "    $What"
+    Write-Host ""
+    Write-Host "  ${BOLD}What to do next?${NC}"
+    Write-Host "    $Next"
+    Write-Host ""
+    Write-Host "  If the issue persists, report it at:"
+    Write-Host "    https://github.com/x5/sloth-agent/issues"
+    Write-Host ""
     exit 1
 }
 
-if (Get-Command uv -ErrorAction SilentlyContinue) {
-    $uvVer = uv --version
-    Write-Ok "uv: $uvVer"
+# ─── Resolve version ────────────────────────────────────────
+$tags = git ls-remote --tags --sort=-v:refname $REPO_URL 'v*' 2>$null
+if ($tags) {
+    $VERSION = ($tags -split "`n" | Select-Object -First 1).Trim() -replace '.*/' -replace '^v'
 } else {
-    Write-Warn "uv not found, installing..."
-    $uvInstaller = "$env:TEMP\uv-install.ps1"
+    $VERSION = "dev"
+}
+
+# ─── Banner ─────────────────────────────────────────────────
+Write-Host ""
+Write-Host "${GREEN}${BOLD}"
+Write-Host "  ╭─────────────────────────────────────╮"
+Write-Host "  │   Sloth Agent  $($VERSION.PadRight(14)) │"
+Write-Host "  │   Installation                      │"
+Write-Host "  ╰─────────────────────────────────────╯"
+Write-Host "${NC}"
+
+# ─── Installation Info ──────────────────────────────────────
+Write-Host "  ${BOLD}Install Location${NC}"
+Write-Host "    $SLOTH_DIR"
+Write-Host ""
+Write-Host "  ${BOLD}CLI Shim${NC}"
+Write-Host "    $LOCAL_BIN\sloth.ps1"
+Write-Host ""
+Write-Host "  ${BOLD}After install${NC}"
+Write-Host "    run ``sloth`` from any project directory"
+Write-Host ""
+
+# ─── Step 1: Prerequisites ──────────────────────────────────
+Write-Section "Checking prerequisites"
+
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $gitVer = (git --version).Trim()
+    Write-Host "    $gitVer"
+    Write-Ok "git $gitVer"
+} else {
+    Write-Exit \
+        "Git is not installed on your system." \
+        "Install Git: https://git-scm.com/download/win"
+}
+
+if (Get-Command uv -ErrorAction SilentlyContinue) {
+    $uvVer = (uv --version).Trim()
+    Write-Ok "uv $uvVer"
+} else {
+    Write-Warn "uv not found — installing..."
+    $uvInstaller = "$env:TEMP\sloth-uv-install.ps1"
     try {
-        Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -OutFile $uvInstaller
+        Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -OutFile $uvInstaller -UseBasicParsing
         powershell -ExecutionPolicy Bypass -File $uvInstaller
         Remove-Item $uvInstaller -ErrorAction SilentlyContinue
         $env:PATH = "$LOCAL_BIN;$env:PATH"
         if (Get-Command uv -ErrorAction SilentlyContinue) {
-            Write-Ok "uv installed: $(uv --version)"
+            $uvVer = (uv --version).Trim()
+            Write-Ok "uv $uvVer"
         } else {
-            Write-Fail "uv install failed. Please install manually."
-            exit 1
+            Write-Exit \
+                "Failed to install uv automatically." \
+                "Install uv manually: https://docs.astral.sh/uv/getting-started/installation/"
         }
     } catch {
-        Write-Fail "uv install failed: $_"
-        exit 1
+        Write-Exit \
+            "Failed to download the uv installer." \
+            "Check your network and try again. Or install uv manually: https://docs.astral.sh/uv/getting-started/installation/"
     }
 }
 
 if (Get-Command python3 -ErrorAction SilentlyContinue) {
-    $pyVer = python3 --version
-    Write-Ok "python3: $pyVer"
-} else {
-    Write-Warn "python3 not found - uv will manage Python for you"
+    try {
+        $pyVer = (python3 --version 2>&1).Trim()
+        Write-Ok "python3 $pyVer"
+    } catch {
+        $pyVer = $null
+    }
+}
+if (-not $pyVer) {
+    try {
+        $uvPython = (uv python find 2>&1).Trim()
+        if ($uvPython -and (Test-Path $uvPython)) {
+            $pyVer = (& $uvPython --version 2>&1).Trim()
+            Write-Ok "python $pyVer (uv-managed)"
+        } else {
+            $uvPython = $null
+        }
+    } catch {
+        $uvPython = $null
+    }
+}
+if (-not $pyVer) {
+    Write-Warn "no system Python — installing Python 3.12 via uv..."
+    uv python install 3.12 *>$null
+    $uvPython = (uv python find 2>&1).Trim()
+    if ($uvPython -and (Test-Path $uvPython)) {
+        $pyVer = (& $uvPython --version 2>&1).Trim()
+        Write-Ok "python $pyVer (uv-managed)"
+    } else {
+        Write-Exit \
+            "Failed to install Python via uv." \
+            "Try running: uv python install 3.12"
+    }
 }
 
 # ─── Step 2: Clone or update ────────────────────────────────
-# Resolve the latest release tag
-$tags = git ls-remote --tags --sort=-v:refname $REPO_URL 'v*'
-if ($tags) {
-    $LATEST_TAG = ($tags -split "`n" | Select-Object -First 1) -replace '.*/'
-} else {
+Write-Section "Installing"
+
+if ($VERSION -eq "dev") {
+    Write-Warn "no release tag found, installing from $BRANCH"
     $LATEST_TAG = $BRANCH
-    Write-Warn "no release tag found, falling back to $BRANCH"
+} else {
+    Write-Step "Release v$VERSION"
+    $LATEST_TAG = "v$VERSION"
 }
 
 if (Test-Path "$SLOTH_DIR\.git") {
-    Write-Step "Updating existing installation at $SLOTH_DIR..."
     Push-Location $SLOTH_DIR
-    git fetch origin --tags --force
-    git checkout $LATEST_TAG
-    git reset --hard $LATEST_TAG
+    git fetch origin --tags --force *>$null
+    git checkout $LATEST_TAG *>$null
+    git reset --hard $LATEST_TAG *>$null
     Pop-Location
-    Write-Ok "pinned to $LATEST_TAG"
+    Write-Ok "updated to $LATEST_TAG"
 } else {
-    Write-Step "Cloning Sloth Agent to $SLOTH_DIR..."
-    git clone --depth 1 --branch $LATEST_TAG $REPO_URL $SLOTH_DIR
-    Write-Ok "cloned ($LATEST_TAG)"
+    Write-Step "Cloning repository..."
+    git clone --quiet --depth 1 --branch $LATEST_TAG $REPO_URL $SLOTH_DIR
+    Write-Ok "cloned to $SLOTH_DIR"
 }
 
 # ─── Step 3: Create venv and install ────────────────────────
-Write-Step "Setting up Python environment..."
+Write-Step "Setting up environment..."
 Push-Location $SLOTH_DIR
-uv venv "$SLOTH_DIR\.venv" --quiet
-
-# Install via uv (always use uv, never bare pip)
-uv pip install -e . --quiet
+uv venv "$SLOTH_DIR\.venv" --quiet *>$null
+uv pip install -e . --quiet *>$null
 Pop-Location
 Write-Ok "dependencies installed"
 
 # ─── Step 4: Create global CLI shim ────────────────────────
-Write-Step "Installing CLI shim to $LOCAL_BIN\sloth..."
-
+Write-Step "Installing CLI shim..."
 New-Item -ItemType Directory -Force -Path $LOCAL_BIN | Out-Null
 
-$shimPath = "$LOCAL_BIN\sloth.ps1"
-$shimContent = @"
-# Sloth Agent CLI shim — delegates to the hidden venv
+# .ps1 shim
+$shimPs1 = @"
 & "$HOME\.sloth-agent\.venv\Scripts\sloth.exe" `$args
 "@
-Set-Content -Path $shimPath -Value $shimContent -Encoding UTF8
-Write-Ok "sloth shim installed"
+Set-Content -Path "$LOCAL_BIN\sloth.ps1" -Value $shimPs1 -Encoding UTF8
 
-# Also create a .bat shim for cmd.exe compatibility
-$batShimPath = "$LOCAL_BIN\sloth.bat"
-$batShimContent = @"
+# .bat shim for cmd.exe compatibility
+$batShim = @"
 @echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0sloth.ps1" %*
+"%~dp0sloth.ps1" %*
 "@
-Set-Content -Path $batShimPath -Value $batShimContent -Encoding ASCII
-Write-Ok "sloth.bat shim installed (cmd.exe compatibility)"
+Set-Content -Path "$LOCAL_BIN\sloth.bat" -Value $batShim -Encoding ASCII
+Write-Ok "sloth shim installed"
 
 # ─── Step 5: Ensure ~/.local/bin is on PATH ────────────────
 $profilePaths = @()
-if ($PROFILE -and (Test-Path $PROFILE)) {
+if ($PROFILE) {
     $profilePaths += $PROFILE
 }
 $bashrcPath = "$HOME\.bashrc"
@@ -153,53 +213,52 @@ if (Test-Path $bashrcPath) {
 
 $pathUpdated = $false
 foreach ($p in $profilePaths) {
-    $content = Get-Content $p -Raw -ErrorAction SilentlyContinue
-    if ($content -and $content -notmatch "\.local\\bin") {
-        Add-Content -Path $p -Value ""
-        Add-Content -Path $p -Value "# Sloth Agent: add local bin to PATH"
-        Add-Content -Path $p -Value "`$env:PATH = `"$LOCAL_BIN;`$env:PATH`""
-        Write-Ok "added $LOCAL_BIN to PATH in $p"
-        $pathUpdated = $true
-    } elseif ($content -and $content -match "\.local\\bin") {
-        Write-Ok "$LOCAL_BIN already on PATH"
+    if (Test-Path $p) {
+        $content = Get-Content $p -Raw -ErrorAction SilentlyContinue
+        if ($content -match "\.local\\bin") {
+            Write-Ok "$LOCAL_BIN already on PATH"
+        } else {
+            Add-Content -Path $p -Value ""
+            Add-Content -Path $p -Value "# Sloth Agent: add local bin to PATH"
+            Add-Content -Path $p -Value "`$env:PATH = `"$LOCAL_BIN;`$env:PATH`""
+            $profileName = Split-Path $p -Leaf
+            Write-Ok "added $LOCAL_BIN to PATH in $profileName"
+        }
         $pathUpdated = $true
     }
 }
 
 if (-not $pathUpdated) {
-    # Create profile if it doesn't exist
     if ($PROFILE -and -not (Test-Path $PROFILE)) {
         New-Item -ItemType File -Force -Path $PROFILE | Out-Null
         Add-Content -Path $PROFILE -Value "# Sloth Agent: add local bin to PATH"
         Add-Content -Path $PROFILE -Value "`$env:PATH = `"$LOCAL_BIN;`$env:PATH`""
-        Write-Ok "created $PROFILE and added $LOCAL_BIN to PATH"
+        $profileName = Split-Path $PROFILE -Leaf
+        Write-Ok "created $profileName and added $LOCAL_BIN to PATH"
     } else {
         Write-Warn "please ensure $LOCAL_BIN is on your PATH"
     }
 }
 
 # ─── Step 6: Verify ────────────────────────────────────────
-Write-Host ""
-Write-Step "Verifying installation..."
+Write-Section "Verifying"
 
 $venvSloth = "$SLOTH_DIR\.venv\Scripts\sloth.exe"
 if (Test-Path $venvSloth) {
     try {
         & $venvSloth --help 2>$null | Out-Null
-        Write-Ok "sloth CLI is functional"
+        Write-Ok "sloth CLI functional"
     } catch {
-        Write-Fail "sloth CLI failed to start"
-        Write-Host "  Debug: $venvSloth --help"
-        exit 1
+        Write-Exit \
+            "The sloth CLI failed to start after installation." \
+            "Run manually: $venvSloth --help`n    If the error persists, report it at: https://github.com/x5/sloth-agent/issues"
     }
 } else {
-    Write-Fail "sloth CLI not found"
-    Write-Host "  Debug: $venvSloth"
-    exit 1
+    Write-Exit \
+        "sloth.exe not found at $venvSloth" \
+        "The installation may be incomplete. Try removing $SLOTH_DIR and running the installer again."
 }
 
-# ─── Step 7: Quick smoke ────────────────────────────────────
-Write-Step "Running smoke test..."
 $venvPython = "$SLOTH_DIR\.venv\Scripts\python.exe"
 $smokeScript = "from evals.smoke_test import run_smoke_test; r = run_smoke_test(); print('PASS' if r.passed else 'FAIL')"
 try {
@@ -209,15 +268,15 @@ try {
     if ($smokeOutput -match "PASS") {
         Write-Ok "smoke test passed"
     } else {
-        Write-Warn "smoke test skipped or failed (normal if API keys not configured)"
+        Write-Warn "smoke test skipped (API keys not configured)"
     }
 } catch {
     Pop-Location 2>$null
-    Write-Warn "smoke test skipped (normal if API keys not configured)"
+    Write-Warn "smoke test skipped (API keys not configured)"
 }
 
-# ─── Step 8: Setup global API keys ────────────────────────
-Write-Step "Setting up global API key template..."
+# ─── Step 7: API keys ──────────────────────────────────────
+Write-Section "Configuration"
 
 $envExample = "$SLOTH_DIR\.env.example"
 $envFile = "$SLOTH_DIR\.env"
@@ -236,68 +295,58 @@ QWEN_API_KEY=
 # XIAOMI_API_KEY=
 "@
     Set-Content -Path $envExample -Value $exampleContent -Encoding UTF8
-    Write-Ok "created .env.example template"
+    Write-Ok "created .env.example"
 
-    # If user has env vars set, auto-populate
-    $hasKeys = $false
     if ($env:DEEPSEEK_API_KEY -or $env:QWEN_API_KEY) {
         $envContent = "# Global API Keys`n"
         $envContent += "DEEPSEEK_API_KEY=$($env:DEEPSEEK_API_KEY)`n"
         $envContent += "QWEN_API_KEY=$($env:QWEN_API_KEY)`n"
         $envContent += "`n# Optional providers (uncomment if needed)`n"
-        $envContent += "# KIMI_API_KEY=`n"
-        $envContent += "# GLM_API_KEY=`n"
-        $envContent += "# MINIMAX_API_KEY=`n"
-        $envContent += "# XIAOMI_API_KEY=`n"
+        $envContent += "# KIMI_API_KEY=`n# GLM_API_KEY=`n# MINIMAX_API_KEY=`n# XIAOMI_API_KEY=`n"
         Set-Content -Path $envFile -Value $envContent -Encoding UTF8
-        Write-Ok "auto-filled .env from current environment variables"
+        Write-Ok "auto-filled .env from environment"
     } else {
-        Write-Warn "please configure API keys: copy .env.example to .env and edit"
+        Write-Warn "configure API keys: copy .env.example to .env"
     }
 } else {
-    Write-Ok "global .env already exists"
+    Write-Ok ".env already exists"
 }
 
-# Setup global config.json template
 $configJson = "$SLOTH_DIR\config.json"
 if (-not (Test-Path $configJson)) {
     $srcConfig = "$SLOTH_DIR\configs\config.json.example"
     if (Test-Path $srcConfig) {
         Copy-Item -Path $srcConfig -Destination $configJson -Force
-        Write-Ok "created config.json template"
+        Write-Ok "created config.json"
     } else {
-        Write-Warn "config.json.example not found, please run: sloth config init"
+        Write-Warn "run ``sloth config init`` to create config"
     }
 } else {
-    Write-Ok "global config.json already exists"
+    Write-Ok "config.json already exists"
 }
 
 # ─── Done ───────────────────────────────────────────────────
 Write-Host ""
-Write-Host "${GREEN}=============================================${NC}"
-Write-Host "${GREEN}  Sloth Agent installed successfully!${NC}"
-Write-Host "${GREEN}=============================================${NC}"
+Write-Host "${GREEN}${BOLD}  ✓  Sloth Agent v$VERSION installed successfully${NC}"
+Write-Host "${CYAN}─────────────────────────────────────────────${NC}"
 Write-Host ""
-Write-Host "API Key 配置（项目级 .env 优先级高于全局）："
+Write-Host "  ${BOLD}Welcome to Sloth Agent!${NC}"
 Write-Host ""
-Write-Host "  方式一：全局配置（所有项目共用）"
-Write-Host "    编辑 $envFile"
+Write-Host "  You're all set. Run ``sloth`` from any project"
+Write-Host "  directory to get started."
 Write-Host ""
-Write-Host "  方式二：项目配置（覆盖全局，仅当前项目生效）"
-Write-Host "    编辑 [项目目录]/.env"
+Write-Host "  ${BOLD}Next steps:${NC}"
 Write-Host ""
-Write-Host "Next steps:"
+Write-Host "    1.  Reload shell:  . `$PROFILE"
 Write-Host ""
-Write-Host "  1. Restart PowerShell or run: . `$PROFILE"
+Write-Host "    2.  Set API keys:"
+Write-Host "        copy $envExample $envFile"
+Write-Host "        notepad $envFile"
 Write-Host ""
-Write-Host "  2. Configure your API keys:"
-Write-Host "       copy $envExample $envFile"
-Write-Host "       notepad $envFile"
+Write-Host "    3.  Initialize your project:"
+Write-Host "        cd ~\my-project"
+Write-Host "        sloth init"
 Write-Host ""
-Write-Host "  3. Go to your project and initialize:"
-Write-Host "       cd ~/my-project"
-Write-Host "       sloth init"
-Write-Host ""
-Write-Host "  4. Run your first plan:"
-Write-Host "       sloth run --plan plan.md"
+Write-Host "    4.  Run your first plan:"
+Write-Host "        sloth run --plan plan.md"
 Write-Host ""

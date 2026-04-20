@@ -17,8 +17,8 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.3.1 已发布** — 42 个内建技能全部导入（Superpowers 12 + gstack 30），全部 `auto+manual` 触发，Chat 自动意图匹配。482 tests pass。
-> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.3.1) · [安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)
+> **v0.3.2 已发布** — 42 个内建技能全部导入（Superpowers 12 + gstack 30），全部 `auto+manual` 触发，Chat 自动意图匹配。482 tests pass。
+> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.3.2) · [安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)
 
 ---
 
@@ -138,7 +138,7 @@ sloth chat
 | v0.1.0 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
 | v0.2.0 | + 对话模式 | REPL 交互，聊天界面中文优先 |
 | v0.3.0 | + 技能 + 成本 | Skill 系统 + Cost Tracking + 容错 + 自适应执行 |
-| v0.3.1 | + 42 内建技能 | 42 个预定义技能（auto+manual），Chat 自动意图匹配 |
+| v0.3.2 | + 42 内建技能 | 42 个预定义技能（auto+manual），Chat 自动意图匹配 |
 | v0.5 | + 多 Agent 并行 | 知识库 + 事件总线 + Speculative Execution |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+1 Agent + 37 技能 + 8 场景编排 |
@@ -147,7 +147,7 @@ sloth chat
 
 ## 设计原则
 
-| 原则 | 当前（v0.3.1） | 远期（v0.5+） |
+| 原则 | 当前（v0.3.2） | 远期（v0.5+） |
 |------|------|--------------|
 | **Agent 架构** | 3-Agent 串行流水线 | 8+1 Agent 并行执行 |
 | **工具优先** | Agent 通过工具层操作，可审计 | + Plugin 扩展 |
@@ -162,7 +162,7 @@ sloth chat
 
 ## 与参考框架的对比
 
-| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.3.1** |
+| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.3.2** |
 |------|----------|--------|-------------|-------|----------------|
 | 多 Agent 架构 | ❌ | ✅ 子代理 | ❌ | ❌ | ✅ **3-Agent Pipeline** |
 | 自动门控 | ❌ | ❌ | ❌ | ❌ | ✅ **lint/type/test/smoke** |
@@ -175,7 +175,7 @@ sloth chat
 | 成本控制 | ❌ | ❌ | ❌ | ❌ | ✅ **CostTracker + 预算限额** |
 | 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **DeepSeek/Qwen/Kimi** |
 
-| **v0.3.1** | 3-Agent Pipeline + 42 Skills | 482 tests pass |
+| **v0.3.2** | 3-Agent Pipeline + 42 Skills | 482 tests pass |
 
 ---
 
@@ -393,6 +393,6 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-*Sloth Agent v0.3.1*
+*Sloth Agent v0.3.2*
 *最后更新: 2026-04-19*
 *482 tests pass*
