@@ -170,7 +170,7 @@ v0.1.0 需配置 DeepSeek + Qwen 即可跑通。自动降级将在 v0.2.0 实现
 ### macOS / Linux / WSL2
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash
 ```
 
 或手动安装：

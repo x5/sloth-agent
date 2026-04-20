@@ -7,7 +7,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash -s -- --no-init
 
-set -eo pipefail
+set -e
 
 SLOTH_DIR="${HOME}/.sloth-agent"
 LOCAL_BIN="${HOME}/.local/bin"
@@ -21,6 +21,27 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
+
+check_no_init() {
+    for arg in "$@"; do
+        if [ "$arg" = "--no-init" ]; then
+            echo "true"
+            return
+        fi
+    done
+    echo "false"
+}
+
+SKIP_INIT=$(check_no_init "$@")
+
+# Detect non-interactive mode (curl | bash)
+# When stdin is not a terminal, prompts that read from stdin will hit EOF
+# and cause set -e to silently abort.
+if [ -t 0 ]; then
+    IS_INTERACTIVE=true
+else
+    IS_INTERACTIVE=false
+fi
 
 check_no_init() {
     for arg in "$@"; do

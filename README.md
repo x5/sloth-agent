@@ -215,14 +215,8 @@ sloth chat
 ### macOS / Linux / WSL2
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh | bash
 ```
-
-> **Windows Git Bash 用户**：如果遇到 `Failed writing body` 错误，请下载后执行：
-> ```bash
-> curl -sSL -o /tmp/sloth-install.sh https://raw.githubusercontent.com/x5/sloth-agent/master/scripts/install.sh
-> bash /tmp/sloth-install.sh
-> ```
 
 或手动安装：
 

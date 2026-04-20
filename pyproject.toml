@@ -1,6 +1,6 @@
 [project]
 name = "sloth-agent"
-version = "0.3.2"
+version = "0.3.4"
 description = "Self-driving, self-evolving AI Agent framework"
 readme = "docs/README.md"
 requires-python = ">=3.10"
