@@ -47,13 +47,13 @@ class TestModelSelection:
         assert result is not None
 
 
-class TestGetModel:
+class TestGetProvider:
     def test_ok_budget_returns_original_provider(self):
         br, _ = _make_router_and_tracker()
         br.router.routes = {
-            "builder": {"stages": {"coding": {"provider": "deepseek"}}},
+            "engineer": {"provider": "deepseek"},
         }
-        provider = br.get_model("builder", "coding")
+        provider = br.get_provider("engineer")
         assert provider.response == "deepseek-ok"
 
     def test_hard_limit_downgrades_to_cheapest(self):
@@ -61,16 +61,16 @@ class TestGetModel:
         tracker.budget["daily_limit"] = 0.0001
         tracker.record_call("deepseek", "deepseek-v3.2", 1000, 1000)
         br.router.routes = {
-            "builder": {"stages": {"coding": {"provider": "deepseek"}}},
+            "engineer": {"provider": "deepseek"},
         }
-        provider = br.get_model("builder", "coding")
+        provider = br.get_provider("engineer")
         # deepseek is not in cheap tier but it's the only matching registered provider
         # that the route points to — should still return it if no cheap alternative
         assert provider is not None
 
     def test_no_route_returns_mock_fallback(self):
         br, _ = _make_router_and_tracker()
-        provider = br.get_model("unknown_agent", "unknown_stage")
+        provider = br.get_provider("unknown_agent")
         assert isinstance(provider, MockProvider)
 
 

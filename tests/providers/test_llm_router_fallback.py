@@ -7,23 +7,23 @@ from sloth_agent.errors.circuit_manager import ProviderCircuitManager
 
 
 class TestRouterWithoutCircuitManager:
-    def test_get_model_returns_provider(self):
+    def test_get_provider_returns_provider(self):
         router = LLMRouter()
         router.register_provider("deepseek", MockProvider("ds"))
-        router.routes = {"builder": {"stages": {"coding": {"provider": "deepseek"}}}}
-        provider = router.get_model("builder", "coding")
+        router.routes = {"engineer": {"provider": "deepseek"}}
+        provider = router.get_provider("engineer")
         assert provider.response == "ds"
 
     def test_no_route_raises(self):
         router = LLMRouter()
         with pytest.raises(ValueError, match="No route"):
-            router.get_model("unknown", "stage")
+            router.get_provider("unknown")
 
     def test_unregistered_provider_raises(self):
         router = LLMRouter()
-        router.routes = {"builder": {"stages": {"coding": {"provider": "missing"}}}}
+        router.routes = {"engineer": {"provider": "missing"}}
         with pytest.raises(ValueError, match="not registered"):
-            router.get_model("builder", "coding")
+            router.get_provider("engineer")
 
 
 class TestRouterWithCircuitManager:
@@ -34,12 +34,12 @@ class TestRouterWithCircuitManager:
         router.register_provider("deepseek", MockProvider("ds"))
         router.register_provider("qwen", MockProvider("qw"))
         router.register_provider("glm", MockProvider("glm-free"))
-        router.routes = {"builder": {"stages": {"coding": {"provider": "deepseek"}}}}
+        router.routes = {"engineer": {"provider": "deepseek"}}
         return router
 
     def test_preferred_available_returns_it(self):
         router = self._make_router()
-        provider = router.get_model("builder", "coding")
+        provider = router.get_provider("engineer")
         assert provider.response == "ds"
 
     def test_fallback_when_preferred_tripped(self):
@@ -47,7 +47,7 @@ class TestRouterWithCircuitManager:
         # Trip deepseek
         router.record_provider_result("deepseek", False)
         router.record_provider_result("deepseek", False)
-        provider = router.get_model("builder", "coding")
+        provider = router.get_provider("engineer")
         # Should fallback to qwen (next registered)
         assert provider.response in ("qw", "glm-free")
 
@@ -56,7 +56,7 @@ class TestRouterWithCircuitManager:
         router.record_provider_result("deepseek", False)
         router.record_provider_result("qwen", False)
         router.record_provider_result("glm", False)
-        provider = router.get_model("builder", "coding")
+        provider = router.get_provider("engineer")
         assert isinstance(provider, MockProvider)
         assert "unavailable" in provider.response
 

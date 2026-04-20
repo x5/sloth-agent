@@ -66,6 +66,7 @@ class AgentConfig(BaseModel):
     name: str = "sloth-agent"
     workspace: str = "./workspace"
     timezone: str = "Asia/Shanghai"
+    agents_directory: str = "./agents"
 
 
 class ExecutionConfig(BaseModel):

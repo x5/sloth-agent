@@ -2,6 +2,7 @@ agent:
   name: "sloth-agent"
   workspace: "./workspace"
   timezone: "Asia/Shanghai"
+  agents_directory: "./agents"
 
 execution:
   auto_execute_hours: "09:00-18:00"

@@ -260,26 +260,47 @@ v1.0 不需要需求分析和计划制定（输入已是 plan），不需要 Cha
 
 ## 5. Agent 架构
 
-### 5.1 v1.0: 3-Agent 架构（按上下文耦合度分组）
+### 5.1 Agent-First 架构（无 Stage 概念）
 
-v1.0 采用 3 个 Agent 的设计，分组原则：**按上下文耦合度 + 审查独立性分组**。编码和调试必须共享上下文，审查必须独立于编码（不同模型、新鲜视角、避免自我认同偏差）。
+每个 Agent 是独立的执行实体，在 `agents/*.md` 中声明自己的角色、工具、模型。Phase 直接指向 Agent 名字，不再绑定 `agent + stage`。
 
-| Agent | 包含阶段 | 推荐模型 | 职责 | 上下文量级 |
-|-------|---------|---------|------|-----------|
-| **Builder** | Plan 解析 → 编码 → 调试 → 单元测试 | deepseek-v3.2（编码）<br>deepseek-r1-0528（调试） | 读取 plan、拆分任务、编写代码、运行测试、修复错误 | 重 (~50-60K tokens) |
-| **Reviewer** | 代码审查 + 质量验证 | qwen-max 或 claude | 独立审查 Builder 产出，检查代码质量、安全、性能 | 中 (~10-15K tokens) |
-| **Deployer** | 部署 + 验证 | deepseek-v3.2 | 执行部署脚本、运行 smoke test、验证上线结果 | 轻 (~3-5K tokens) |
+| Agent | 对应 Phase | 模型 | 职责 |
+|-------|-----------|------|------|
+| **architect** | Phase 1 需求分析 | glm-4 | 系统设计和关键技术决策 |
+| **planner** | Phase 2 计划制定 | claude | 将设计分解为可执行微任务 |
+| **engineer** | Phase 3 编码实现 | deepseek | 编写代码和测试 |
+| **debugger** | Phase 4 调试排错 | deepseek-r1 | 系统化根因分析 |
+| **reviewer** | Phase 5 代码审查 | qwen | 独立代码审查 |
+| **qa-engineer** | Phase 6 质量验证 | qwen | 端到端测试和安全审计 |
+| **release-engineer** | Phase 7 发布上线 | deepseek | 代码合并和部署验证 |
 
 核心设计原则：
-- **Reviewer 必须使用不同于 Builder 的 LLM**（同一模型审自己的代码几乎无价值）
+- **每个 Agent 独立声明自己的模型**（不需要 agent + stage 两层路由）
 - **Agent 间通过结构化数据交接**（不是 LLM 摘要，不会丢信息）
-- **每个 Agent 内部管理自己的上下文窗口**（滑动窗口 + 工具结果压缩）
+- **每个 Agent 在 `agents/*.md` 中声明角色、工具、模型**（参考 everything-claude-code 格式）
 
-#### 5.1.1 Agent 间结构化交接协议
+#### 5.1.1 Agent 定义格式
+
+每个 Agent 一个 `.md` 文件：
+
+```yaml
+---
+name: architect
+description: 软件架构师。负责系统设计和关键技术决策。
+tools: ["Read", "Grep", "Glob"]
+model: glm-4
+---
+
+You are a senior software architect...
+```
+
+框架从 `agents/` 目录自动加载所有 `.md` 文件，解析 frontmatter，注册到 `AgentRegistry`。
+
+#### 5.1.2 Agent 间结构化交接协议
 
 Agent 间传递确定性数据（git diff、pytest 输出、覆盖率数字），而非 LLM 生成的摘要。数据模型见模块 03 spec。
 
-#### 5.1.1.1 Ownership Contract：handoff 与 skill-as-tool 必须区分
+#### 5.1.2.1 Ownership Contract：handoff 与 skill-as-tool 必须区分
 
 Agent 协作必须区分两种不同语义：
 
@@ -289,12 +310,12 @@ Agent 协作必须区分两种不同语义：
 2. `skill-as-tool`
 当前 owner 调用一个受限能力来辅助决策或执行，但控制权不转移。返回值进入当前 agent 的上下文，继续由当前 owner 决定下一步。
 
-在 v1.0 的 3-Agent 架构里：
-- Builder → Reviewer = `phase_handoff`
-- Reviewer → Deployer = `phase_handoff`
-- Builder 内调用 investigate / browse / codex 类能力 = `skill-as-tool`
+在 Agent-First 架构里：
+- architect → planner = `phase_handoff`
+- engineer → reviewer = `phase_handoff`
+- engineer 内调用 investigate / browse / codex 类能力 = `skill-as-tool`
 
-#### 5.1.1.2 Runtime NextStep 协议
+#### 5.1.2.2 Runtime NextStep 协议
 
 运行时统一使用 `NextStep` 协议（type: `final_output` | `tool_call` | `phase_handoff` | `retry_same` | `retry_different` | `replan` | `interruption` | `abort`），详见模块 01 spec。
 
@@ -1222,61 +1243,46 @@ Coordinator 分发任务
 
 ## 11. 配置模型
 
-### 11.0 v1.0 阶段级 LLM 路由配置
+### 11.0 Agent-First 配置
 
-v1.0 的核心配置增量——按 Agent 和阶段配置不同的 LLM：
+Agent 定义全部在 `agents/*.md` 文件中，YAML 配置只指定加载路径：
 
 ```yaml
-# configs/agent.yaml (v1.0 新增部分)
+# configs/agent.yaml
 
-# 阶段级 LLM 路由
-agents:
-  builder:
-    stages:
-      plan_parsing:
-        provider: "deepseek"
-        model: "deepseek-r1-0528"     # 推理强，理解复杂 plan
-      coding:
-        provider: "deepseek"
-        model: "deepseek-v3.2"        # 代码生成质量好 + 便宜
-      debugging:
-        provider: "deepseek"
-        model: "deepseek-r1-0528"     # 需要分析错误根因
-    context:
-      max_tokens: 60000               # Builder 上下文上限
-      keep_recent_turns: 3            # 保留最近 3 轮完整对话
-      compress_old_results: true      # 旧工具结果压缩
-      plan_in_system_prompt: true     # Plan 始终固定在 system prompt
+agent:
+  name: "sloth-agent"
+  workspace: "./workspace"
+  agents_directory: "./agents"   # Agent 定义目录
+```
 
-  reviewer:
-    stages:
-      review:
-        provider: "qwen"
-        model: "qwen3.6-plus"         # 必须不同于 coding 的 provider
-    context:
-      max_tokens: 20000
+每个 Agent 在 `.md` frontmatter 中声明自己的模型和工具：
 
-  deployer:
-    stages:
-      deploy:
-        provider: "deepseek"
-        model: "deepseek-v3.2"
-    context:
-      max_tokens: 8000
+```yaml
+# agents/engineer.md
+---
+name: engineer
+description: 编码工程师。负责根据计划编写代码和测试。
+tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+model: deepseek
+---
+```
+
+框架从 `agents/` 目录自动加载，不需要 YAML 中的 stages 配置。
 
 # 自动门控阈值
 gates:
-  build_quality:                       # Gate1: Builder → Reviewer
-    lint: true                         # lint 必须通过
-    type_check: true                   # type check 必须通过
-    tests_pass: true                   # 单元测试必须通过
-    max_retry: 3                       # Builder 最多重试 3 次
-  review_quality:                      # Gate2: Reviewer → Deployer
-    no_blocking_issues: true           # 无阻塞问题
-    min_coverage: 0.80                 # 覆盖率 ≥ 80%
-  deploy_verify:                       # Gate3: Deployer → Done
-    smoke_test: true                   # smoke test 必须通过
-    auto_rollback: true                # 失败自动回滚
+  build_quality:
+    lint: true
+    type_check: true
+    tests_pass: true
+    max_retry: 3
+  review_quality:
+    no_blocking_issues: true
+    min_coverage: 0.80
+  deploy_verify:
+    smoke_test: true
+    auto_rollback: true
 ```
 
 ### 11.1 完整配置模型

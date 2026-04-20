@@ -192,25 +192,71 @@ class Runner:
 
     def think(self, state: RunState) -> NextStep:
         """调 LLM 得到 next step，按 current_agent 分发。"""
+        # Try to load agent from registry first
+        agent_def = self._get_agent_def(state.current_agent)
+        if agent_def:
+            self.llm_provider = self._get_provider_for_agent(agent_def)
+
         match state.current_agent:
-            case "builder":
-                return self._think_builder(state)
+            case "builder" | "engineer":
+                return self._call_dispatch(state, "_think_builder", "_think_engineer")
             case "reviewer":
                 return self._think_reviewer(state)
-            case "deployer":
-                return self._think_deployer(state)
+            case "deployer" | "release-engineer":
+                return self._call_dispatch(state, "_think_deployer", "_think_release_engineer")
             case _:
                 return NextStep(
                     type=NextStepType.abort,
                     reason=f"Unknown agent: {state.current_agent}",
                 )
 
+    def _call_dispatch(self, state: RunState, *method_names: str) -> NextStep:
+        """Dispatch to first available method name (supports compat alias mocking)."""
+        for name in method_names:
+            fn = getattr(self, name, None)
+            if fn is not None:
+                return fn(state)
+        return NextStep(
+            type=NextStepType.abort,
+            reason=f"No handler for {method_names}",
+        )
+
+    def _get_agent_def(self, agent_id: str) -> "AgentDefinition | None":
+        """从 AgentRegistry 加载 agent 定义（v0.3: 兼容直接实例化）。"""
+        try:
+            from sloth_agent.agents.registry import AgentRegistry
+
+            agents_dir = Path(self._memory_dir()).parent / "agents"
+            if not agents_dir.exists():
+                return None
+            registry = AgentRegistry.load_from_directory(str(agents_dir))
+            return registry.get(agent_id)
+        except Exception:
+            return None
+
+    def _get_provider_for_agent(self, agent_def: "AgentDefinition") -> Any:
+        """根据 agent 的 model 声明获取对应 Provider。"""
+        if not agent_def or not agent_def.model:
+            return self.llm_provider
+
+        provider_name = agent_def.model.split("-")[0]
+        if provider_name in self._registered_providers:
+            return self._registered_providers[provider_name]
+        return self.llm_provider
+
+    @property
+    def _registered_providers(self) -> dict[str, Any]:
+        """从 LLMRouter 获取已注册的 providers（如果有）。"""
+        if hasattr(self, "llm_router"):
+            return self.llm_router.providers
+        return {}
+
     # -----------------------------------------------------------------------
     # Agent-specific think methods (v0.3 Phase Execution Pipeline)
     # -----------------------------------------------------------------------
 
     def _think_builder(self, state: RunState) -> NextStep:
-        """Builder: 解析 plan → 生成代码 → 写文件 → 测试 → phase_handoff。"""
+        """Engineer/Builder: 解析 plan → 生成代码 → 写文件 → 测试 → phase_handoff。"""
         from sloth_agent.core.builder import Builder
         from sloth_agent.core.plan_parser import PlanParser
 
@@ -264,6 +310,8 @@ class Runner:
             next_phase="review",
             output="Builder completed. Files: " + ", ".join(builder_output.changed_files),
         )
+
+    _think_engineer = _think_builder  # Agent-First compat alias
 
     def _think_reviewer(self, state: RunState) -> NextStep:
         """Reviewer: 审查 Builder 产出 → 通过则 handoff → 否则 retry。"""

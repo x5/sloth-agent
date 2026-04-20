@@ -37,7 +37,6 @@ class BudgetAwareLLMRouter:
         self,
         preferred: str,
         agent: str = "",
-        stage: str = "",
         task_complexity: str = "medium",
     ) -> str:
         """Select a model based on budget status.
@@ -60,16 +59,16 @@ class BudgetAwareLLMRouter:
         """Forward budget check."""
         return self.tracker.check_budget(scope)
 
-    def get_model(self, agent: str, stage: str, task_complexity: str = "medium") -> Any:
-        """Get the provider for agent+stage, respecting budget constraints.
+    def get_provider(self, agent_name: str, task_complexity: str = "medium") -> Any:
+        """Get the provider for agent_name, respecting budget constraints.
 
-        Wraps the underlying LLMRouter.get_model() with budget-aware model selection.
+        Wraps the underlying LLMRouter.get_provider() with budget-aware model selection.
         """
         budget = self.tracker.check_budget("daily")
 
         # Try to get the originally routed model
         try:
-            provider = self.router.get_model(agent, stage)
+            provider = self.router.get_provider(agent_name)
             model_name = getattr(provider, "name", "")
         except (ValueError, AttributeError):
             # Router failed, return mock fallback

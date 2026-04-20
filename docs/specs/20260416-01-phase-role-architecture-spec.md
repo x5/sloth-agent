@@ -246,22 +246,43 @@ class PhaseOwnershipContract:
 
 ## 3. Agent 定义
 
-### 3.1 Agent 结构
+### 3.1 Agent 文件格式
 
-```python
-@dataclass
-class Agent:
-    """执行 Phase 的 Agent"""
-    id: str                    # "analyst", "planner"
-    name: str                  # "需求分析师", "计划制定者"
-    skills: list[str]          # 技能列表
-    llm_config: LLMConfig      # LLM 配置
-    description: str           # 角色描述
+每个 Agent 在 `agents/*.md` 中定义，采用 YAML frontmatter + Markdown body 格式：
+
+```markdown
+---
+name: architect
+description: 软件架构师。负责系统设计和关键技术决策。
+tools: ["Read", "Grep", "Glob"]
+model: glm-4
+---
+
+You are a senior software architect...
 ```
 
-### 3.1.1 Agent 的两种协作方式
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `name` | Agent ID，也是文件名 | "architect" |
+| `description` | 角色描述（用作 System Prompt） | 一行描述 |
+| `tools` | 可用工具列表 | `["Read", "Grep", "Glob"]` |
+| `model` | 使用的模型 | "glm-4", "deepseek", "qwen" |
 
-在 Phase-Role-Architecture 中，Agent 协作必须区分两种语义：
+**框架从 `agents/` 目录自动加载，不需要 YAML 配置文件定义 Agent。**
+
+### 3.2 Agent 列表
+
+| Agent ID | 名称 | 模型 | 负责 Phase |
+|----------|------|------|-----------|
+| `architect` | 架构师 | glm-4 | Phase 1 |
+| `planner` | 计划师 | claude | Phase 2 |
+| `engineer` | 工程师 | deepseek | Phase 3 |
+| `debugger` | 调试员 | deepseek-r1 | Phase 4 |
+| `reviewer` | 审查员 | qwen | Phase 5 |
+| `qa-engineer` | QA 工程师 | qwen | Phase 6 |
+| `release-engineer` | 发布工程师 | deepseek | Phase 7 |
+
+### 3.3 Agent 的两种协作方式
 
 #### 1. Phase handoff
 

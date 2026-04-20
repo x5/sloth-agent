@@ -1,4 +1,4 @@
-"""LLM Router - Route requests to providers based on agent and stage.
+"""LLM Router - Route requests to providers based on agent name.
 
 Supports circuit-breaker-backed fallback chains.
 """
@@ -23,8 +23,9 @@ class MockProvider:
 
 
 class LLMRouter:
-    """Route LLM requests to different providers based on agent + stage.
+    """Route LLM requests to different providers based on agent name.
 
+    Each agent declares its own model/provider in agents/*.md.
     Supports optional circuit breaker integration for automatic fallback.
     """
 
@@ -37,8 +38,8 @@ class LLMRouter:
         Args:
             routes: dict like
                 {
-                    "builder": {"stages": {"coding": {"provider": "deepseek"}}},
-                    "reviewer": {"stages": {"review": {"provider": "qwen"}}},
+                    "architect": {"provider": "glm"},
+                    "engineer": {"provider": "deepseek"},
                 }
             circuit_manager: Optional circuit manager for provider health tracking.
         """
@@ -52,15 +53,15 @@ class LLMRouter:
         if self.circuit_manager:
             self.circuit_manager.register(name)
 
-    def get_model(self, agent: str, stage: str) -> Any:
-        """Get the provider for a given agent + stage combination.
+    def get_provider(self, agent_name: str) -> Any:
+        """Get the provider for a given agent name.
 
         If circuit_manager is configured, will fallback to an available
         provider when the preferred one is tripped.
         """
-        route = self.routes.get(agent, {}).get("stages", {}).get(stage)
+        route = self.routes.get(agent_name)
         if route is None:
-            raise ValueError(f"No route for agent={agent}, stage={stage}")
+            raise ValueError(f"No route for agent={agent_name}")
 
         provider_name = route["provider"]
 
