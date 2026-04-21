@@ -170,8 +170,15 @@ if [ -d "${SLOTH_DIR}/.git" ]; then
     ok "updated to ${LATEST_TAG}"
 else
     step "Cloning repository..."
-    git clone --quiet --depth 1 --branch "${LATEST_TAG}" "${REPO_URL}" "${SLOTH_DIR}"
-    ok "cloned to ${SLOTH_DIR}"
+    # Clone master with shallow depth, then fetch + checkout the target tag.
+    # This two-step approach is needed because annotated tags don't resolve
+    # correctly with --depth 1 --branch (git only fetches the tag object
+    # but not the commit it points to in a shallow clone).
+    git clone --quiet --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}"
+    cd "${SLOTH_DIR}"
+    git fetch --quiet origin "refs/tags/${LATEST_TAG}:refs/tags/${LATEST_TAG}"
+    git checkout --quiet "${LATEST_TAG}"
+    ok "cloned to ${SLOTH_DIR} at ${LATEST_TAG}"
 fi
 
 # ─── Step 3: Create venv and install ────────────────────────
