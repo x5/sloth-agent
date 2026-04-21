@@ -85,8 +85,8 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
     Write-Host "    $gitVer"
     Write-Ok "git $gitVer"
 } else {
-    Write-Exit \
-        "Git is not installed on your system." \
+    Write-Exit `
+        "Git is not installed on your system." `
         "Install Git: https://git-scm.com/download/win"
 }
 
@@ -105,13 +105,13 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
             $uvVer = (uv --version).Trim()
             Write-Ok "uv $uvVer"
         } else {
-            Write-Exit \
-                "Failed to install uv automatically." \
+            Write-Exit `
+                "Failed to install uv automatically." `
                 "Install uv manually: https://docs.astral.sh/uv/getting-started/installation/"
         }
     } catch {
-        Write-Exit \
-            "Failed to download the uv installer." \
+        Write-Exit `
+            "Failed to download the uv installer." `
             "Check your network and try again. Or install uv manually: https://docs.astral.sh/uv/getting-started/installation/"
     }
 }
@@ -145,8 +145,8 @@ if (-not $pyVer) {
         $pyVer = (& $uvPython --version 2>&1).Trim()
         Write-Ok "python $pyVer (uv-managed)"
     } else {
-        Write-Exit \
-            "Failed to install Python via uv." \
+        Write-Exit `
+            "Failed to install Python via uv." `
             "Try running: uv python install 3.12"
     }
 }
@@ -171,8 +171,14 @@ if (Test-Path "$SLOTH_DIR\.git") {
     Write-Ok "updated to $LATEST_TAG"
 } else {
     Write-Step "Cloning repository..."
-    git clone --quiet --depth 1 --branch $LATEST_TAG $REPO_URL $SLOTH_DIR
-    Write-Ok "cloned to $SLOTH_DIR"
+    # Clone master with shallow depth, then fetch + checkout the target tag.
+    # Annotated tags don't resolve correctly with --depth 1 --branch.
+    git clone --quiet --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR
+    Push-Location $SLOTH_DIR
+    git fetch --quiet origin "refs/tags/$LATEST_TAG`:refs/tags/$LATEST_TAG"
+    git checkout --quiet $LATEST_TAG
+    Pop-Location
+    Write-Ok "cloned to $SLOTH_DIR at $LATEST_TAG"
 }
 
 # ─── Step 3: Create venv and install ────────────────────────
@@ -249,13 +255,13 @@ if (Test-Path $venvSloth) {
         & $venvSloth --help 2>$null | Out-Null
         Write-Ok "sloth CLI functional"
     } catch {
-        Write-Exit \
-            "The sloth CLI failed to start after installation." \
+        Write-Exit `
+            "The sloth CLI failed to start after installation." `
             "Run manually: $venvSloth --help`n    If the error persists, report it at: https://github.com/x5/sloth-agent/issues"
     }
 } else {
-    Write-Exit \
-        "sloth.exe not found at $venvSloth" \
+    Write-Exit `
+        "sloth.exe not found at $venvSloth" `
         "The installation may be incomplete. Try removing $SLOTH_DIR and running the installer again."
 }
 
