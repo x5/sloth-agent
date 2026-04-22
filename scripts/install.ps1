@@ -55,10 +55,14 @@ function Write-Exit {
 }
 
 # ─── Resolve version ────────────────────────────────────────
-$tags = git ls-remote --tags --sort=-v:refname $REPO_URL 'v*' 2>$null
-if ($tags) {
-    $VERSION = ($tags -split "`n" | Select-Object -First 1).Trim() -replace '.*/' -replace '^v'
-} else {
+try {
+    $tags = & git ls-remote --tags --sort=-v:refname $REPO_URL 'v*' 2>$null
+    if ($tags) {
+        $VERSION = ($tags -split "`n" | Select-Object -First 1).Trim() -replace '.*/' -replace '^v'
+    } else {
+        $VERSION = "dev"
+    }
+} catch {
     $VERSION = "dev"
 }
 
