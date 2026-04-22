@@ -17,7 +17,7 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **最新版本 v0.3.4** — Agent-First 架构，自适应重规划，CircuitBreaker 容错。
+> **最新版本 v0.3.6** — 安装脚本兼容性修复，产品描述统一。
 > [查看 Release](https://github.com/x5/sloth-agent/releases) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
@@ -392,5 +392,5 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-*Sloth Agent v0.3.4*
+*Sloth Agent v0.3.6*
 *最后更新: 2026-04-22*
