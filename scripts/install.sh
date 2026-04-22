@@ -170,6 +170,29 @@ else
     fi
 fi
 
+# ─── Network helper with timeout ─────────────────────────────
+run_git_cmd() {
+    local label="$1" timeout="${2:-30}"
+    shift 2
+    echo -e "  ${BOLD}${label}${NC}"
+    echo "    Connecting to github.com..."
+    local tmpfile=$(mktemp)
+    if timeout "${timeout}" "$@" >"$tmpfile" 2>&1; then
+        rm -f "$tmpfile"
+        return 0
+    else
+        local exitCode=$?
+        if [ $exitCode -eq 124 ]; then
+            echo "    Timed out after ${timeout}s — network is slow or unreachable"
+            rm -f "$tmpfile"
+            return 1
+        fi
+        cat "$tmpfile" | while IFS= read -r line; do echo "    $line"; done
+        rm -f "$tmpfile"
+        return $exitCode
+    fi
+}
+
 # ─── Step 2: Clone or update ────────────────────────────────
 section "Installing"
 
@@ -183,10 +206,9 @@ fi
 
 if [ -d "${SLOTH_DIR}/.git" ]; then
     cd "${SLOTH_DIR}"
-    echo -e "  ${BOLD}Fetching latest tags...${NC}"
-    if git fetch origin --tags --force >/dev/null 2>&1 && \
-       git checkout "${LATEST_TAG}" >/dev/null 2>&1 && \
-       git reset --hard "${LATEST_TAG}" >/dev/null 2>&1; then
+    if run_git_cmd "Fetching latest tags..." 30 git fetch origin --tags --force && \
+       run_git_cmd "Checking out ${LATEST_TAG}..." 10 git checkout "${LATEST_TAG}" && \
+       run_git_cmd "Resetting to ${LATEST_TAG}..." 10 git reset --hard "${LATEST_TAG}"; then
         ok "updated to ${LATEST_TAG}"
     else
         die \
@@ -194,18 +216,20 @@ if [ -d "${SLOTH_DIR}/.git" ]; then
             "Cannot reach GitHub — check your network or proxy settings."
     fi
 else
-    echo -e "  ${BOLD}Cloning repository...${NC}"
-    if ! git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}" 2>&1 | while IFS= read -r line; do echo "    $line"; done; then
+    if ! run_git_cmd "Cloning repository..." 60 git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}" 2>&1 | while IFS= read -r line; do echo "    $line"; done; then
         die \
             "Failed to clone repository (network error)." \
             "Cannot reach GitHub — check your network or proxy settings."
     fi
     cd "${SLOTH_DIR}"
-    echo -e "  ${BOLD}Fetching release tag...${NC}"
-    git fetch --quiet origin "refs/tags/${LATEST_TAG}:refs/tags/${LATEST_TAG}" >/dev/null 2>&1
-    echo -e "  ${BOLD}Checking out ${LATEST_TAG}...${NC}"
-    git checkout --quiet "${LATEST_TAG}"
-    ok "cloned to ${SLOTH_DIR} at ${LATEST_TAG}"
+    if run_git_cmd "Fetching release tag..." 30 git fetch origin "refs/tags/${LATEST_TAG}:refs/tags/${LATEST_TAG}"; then
+        run_git_cmd "Checking out ${LATEST_TAG}..." 10 git checkout --quiet "${LATEST_TAG}"
+        ok "cloned to ${SLOTH_DIR} at ${LATEST_TAG}"
+    else
+        die \
+            "Failed to fetch release tag (network error)." \
+            "Cannot reach GitHub — check your network or proxy settings."
+    fi
 fi
 
 # ─── Step 3: Create venv and install ────────────────────────

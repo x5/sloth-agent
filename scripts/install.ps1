@@ -19,25 +19,28 @@ $BRANCH = "master"
 
 # ─── Unicode detection ──────────────────────────────────────
 function Test-UnicodeSupport {
-    if ($env:WT_SESSION -or $env:ConEmuPID -or $env:TERM_PROGRAM) { return $true }
-    if ($PSVersionTable.PSVersion.Major -ge 7) { return $true }
-    try {
-        $cp = [Console]::OutputEncoding.CodePage
-        return $cp -eq 65001 -or $cp -eq 1200
-    } catch {
-        return $false
-    }
+    # Only enable box-drawing on known-good terminals.
+    # Windows PowerShell 5.1 reads UTF-8 files as system codepage,
+    # causing box-drawing chars to be misread. Default to ASCII.
+    if ($PSVersionTable.PSVersion.Major -ge 7 -and (
+        ($env:WT_SESSION) -or
+        ($env:TERM_PROGRAM -eq "iTerm.app") -or
+        ($env:TERM -eq "xterm-256color")
+    )) { return $true }
+    return $false
 }
 
 $HAS_UNICODE = Test-UnicodeSupport
 
 # ─── Character sets (Unicode / ASCII fallback) ──────────────
 if ($HAS_UNICODE) {
-    $BOX_TL = "╭"; $BOX_TR = "╮"; $BOX_BL = "╰"; $BOX_BR = "╯"
-    $BOX_H  = "─"; $BOX_V    = "│"
+    # Explicit [char] codes to avoid file-encoding issues
+    $BOX_TL = "$([char]0x256D)"; $BOX_TR = "$([char]0x256E)"
+    $BOX_BL = "$([char]0x2570)"; $BOX_BR = "$([char]0x256F)"
+    $BOX_H  = "$([char]0x2500)"; $BOX_V = "$([char]0x2502)"
     $ICON_STEP = "$([char]0x25B8)"; $ICON_OK   = "$([char]0x2713)"
     $ICON_WARN = "$([char]0x26A0)"; $ICON_FAIL = "$([char]0x2717)"
-    $DIVIDER   = "─"
+    $DIVIDER   = "$([char]0x2500)"
 } else {
     $BOX_TL = "+"; $BOX_TR = "+"; $BOX_BL = "+"; $BOX_BR = "+"
     $BOX_H  = "-"; $BOX_V  = "|"
@@ -201,6 +204,28 @@ if (-not $pyVer) {
     }
 }
 
+# ─── Network helper with timeout ─────────────────────────────
+function Invoke-GitWithProgress {
+    param([string]$Message, [ScriptBlock]$Command, [int]$TimeoutSec = 60)
+    Write-Host "  ${BOLD}$Message${NC}"
+    Write-Host "    Connecting to github.com..."
+    $job = Start-Job -ScriptBlock $Command
+    $completed = Wait-Job $job -Timeout $TimeoutSec
+    if (-not $completed) {
+        Write-Host "    Still trying (this may take a while if network is slow)..."
+        # Give it more time but keep user informed
+        $completed = Wait-Job $job -Timeout 60
+        if (-not $completed) {
+            Stop-Job $job; Remove-Job $job -Force
+            return $false
+        }
+    }
+    $result = Receive-Job $job
+    Remove-Job $job
+    if ($result) { $result | ForEach-Object { Write-Host "    $_" } }
+    return ($job.State -eq "Completed")
+}
+
 # ─── Step 2: Clone or update ────────────────────────────────
 Write-Section "Installing"
 
@@ -213,46 +238,49 @@ if ($VERSION -eq "dev") {
 }
 
 if (Test-Path "$SLOTH_DIR\.git") {
-    Push-Location $SLOTH_DIR
-    $updateOk = $true
-    try {
-        Write-Host "  ${BOLD}Fetching latest tags...${NC}"
-        git fetch origin --tags --force *>$null
-        Write-Host "  ${BOLD}Checking out $LATEST_TAG...${NC}"
-        git checkout $LATEST_TAG *>$null
-        git reset --hard $LATEST_TAG *>$null
-    } catch {
-        $updateOk = $false
-    }
-    Pop-Location
+    $updateOk = Invoke-GitWithProgress `
+        -Message "Fetching latest tags..." `
+        -Command { Push-Location $using:SLOTH_DIR; git fetch origin --tags --force 2>&1; Pop-Location } `
+        -TimeoutSec 30
     if ($updateOk) {
-        Write-Ok "updated to $LATEST_TAG"
-    } else {
+        Write-Host "  ${BOLD}Checking out $LATEST_TAG...${NC}"
+        Push-Location $SLOTH_DIR
+        $coOk = $true
+        try { git checkout $LATEST_TAG 2>&1 | Out-Null; git reset --hard $LATEST_TAG 2>&1 | Out-Null } catch { $coOk = $false }
+        Pop-Location
+        if ($coOk) { Write-Ok "updated to $LATEST_TAG" } else { $updateOk = $false }
+    }
+    if (-not $updateOk) {
         Write-Exit `
             "Failed to update repository (network error).`n    Cannot reach GitHub — check your network or proxy settings." `
             "If you have a proxy, set env: GIT_SSL_NO_VERIFY=0 or configure git proxy.`n    Or try again later."
     }
 } else {
-    Write-Host "  ${BOLD}Cloning repository...${NC}"
-    $cloneOk = $false
-    try {
-        git clone --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR 2>&1 | ForEach-Object { Write-Host "    $_" }
-        $cloneOk = $true
-    } catch {
-        $cloneOk = $false
-    }
+    $cloneOk = Invoke-GitWithProgress `
+        -Message "Cloning repository..." `
+        -Command { git clone --depth 1 --branch $using:BRANCH $using:REPO_URL $using:SLOTH_DIR 2>&1 } `
+        -TimeoutSec 60
     if (-not $cloneOk) {
         Write-Exit `
             "Failed to clone repository (network error).`n    Cannot reach GitHub — check your network or proxy settings." `
             "If you have a proxy, configure git proxy first:`n    git config --global http.proxy http://your-proxy:port`n    Or try again later."
     }
-    Write-Host "  ${BOLD}Fetching release tag...${NC}"
     Push-Location $SLOTH_DIR
-    git fetch origin "refs/tags/$LATEST_TAG`:refs/tags/$LATEST_TAG" *>$null
-    Write-Host "  ${BOLD}Checking out $LATEST_TAG...${NC}"
-    git checkout --quiet $LATEST_TAG
+    $fetchOk = Invoke-GitWithProgress `
+        -Message "Fetching release tag..." `
+        -Command { git fetch origin "refs/tags/$using:LATEST_TAG`:refs/tags/$using:LATEST_TAG" 2>&1 } `
+        -TimeoutSec 30
+    if ($fetchOk) {
+        Write-Host "  ${BOLD}Checking out $LATEST_TAG...${NC}"
+        git checkout --quiet $LATEST_TAG
+        Write-Ok "cloned to $SLOTH_DIR at $LATEST_TAG"
+    }
     Pop-Location
-    Write-Ok "cloned to $SLOTH_DIR at $LATEST_TAG"
+    if (-not $fetchOk) {
+        Write-Exit `
+            "Failed to fetch release tag (network error).`n    Cannot reach GitHub — check your network or proxy settings." `
+            "If you have a proxy, configure git proxy first.`n    Or try again later."
+    }
 }
 
 # ─── Step 3: Create venv and install ────────────────────────
