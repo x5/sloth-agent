@@ -17,16 +17,18 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **v0.3.2 已发布** — 42 个内建技能全部导入（Superpowers 12 + gstack 30），全部 `auto+manual` 触发，Chat 自动意图匹配。482 tests pass。
-> [查看 Release](https://github.com/x5/sloth-agent/releases/tag/v0.3.2) · [安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)
+> **最新版本 v0.3.4** — Agent-First 架构，自适应重规划，CircuitBreaker 容错。
+> [查看 Release](https://github.com/x5/sloth-agent/releases) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
 
 ## 产品定位
 
-Sloth Agent 是一个**产品级的 AI 开发助手**，可理解为 OpenClaw + Hermes Agent 的组合体，借鉴 Claude Code 和 Codex 的最佳实践，并针对中国开发者生态进行深度定制。
+Sloth Agent 是一站式全能开发智能 Agent。整合了 OpenClaw、Hermes Agent 的核心能力，借鉴参考了 Claude Code、Codex 这类行业顶尖工具的好用经验，同时适配优化了咱们国内的技术环境与各类工具生态。
 
-输入一份 Plan，全自主完成编码、审查、部署全流程。关键节点由自动门控把关质量。
+主要面向产品经理、项目经理：你擅长构思产品、梳理业务逻辑，有完整的想法和规划，唯独缺少编程功底和项目工程落地能力。
+
+有了它，从想法落地、写代码、代码审核检查，再到云端上线部署，全部流程它自己独立完成。过程中自带多层自动质量把关，关键节点层层校验质量，不用你懂开发，就能把脑子里的产品想法直接做成可运行的完整项目。
 
 ---
 
@@ -53,17 +55,16 @@ sloth run --plan plan.md
 
 ### 技能系统
 
-内置 42 个开发技能（Superpowers 12 + gstack 30），即插即用：
+支持 SKILL.md 格式技能（兼容 Claude Code），即插即用：
 
 ```bash
 sloth skills list          # 查看所有技能
-sloth skills show tdd      # 查看技能详情
-sloth skills search test   # 搜索相关技能
+sloth skills show <name>   # 查看技能详情
+sloth skills search <kw>   # 搜索相关技能
 ```
 
-- SKILL.md 格式，兼容 Claude Code
 - 3 级自动匹配：精确名称 → 触发词 → 关键词
-- 也可以自己写技能放进项目目录，自动加载
+- 可以自己写技能文件放进项目目录，自动加载
 
 ### 成本管控
 
@@ -74,7 +75,7 @@ sloth cost summary     # 查看总览
 sloth cost breakdown   # 按模型/Provider 分解
 ```
 
-- 内置 16 个模型定价表，开箱即用
+- 内置多模型定价表，开箱即用
 - 支持预算限额，快超了会提醒
 
 ### 聊天交互
@@ -105,31 +106,32 @@ sloth chat
 | **Streaming** | ✅ | text/tool_call 交织处理 + CLI 实时渲染 |
 | **Git Checkpoint** | ✅ | 3 级检查点（task/stage/session），门控失败自动回滚 |
 | **Structured Handoff** | ✅ | BuilderOutput / ReviewerOutput / DeployResult 交接协议 |
-| **Skill Management** | ✅ | Validator + Router + Injector + 42 内置 skill |
+| **Skill Management** | ✅ | Validator + Router + Injector，SKILL.md 加载 |
 | **Cost Tracking** | ✅ | JSONL 持久化 + 预算限额 + CLI 查询 |
 | **Provider Fallback** | ✅ | CircuitBreaker 三态机 + 自动降级链 |
 | **Chat Mode** | ✅ | REPL + SessionManager + 自主模式 + 中文优先 |
 | **Config Manager** | ✅ | 三级配置合并 + 交互式向导 + API Key 验证 |
-| **LLM Router** | ✅ | 阶段级模型路由配置 |
+| **LLM Router** | ✅ | Agent 级模型路由配置 |
 | **Memory Store** | ✅ | 纯文件系统 jsonl 存储 |
 | **Hallucination Guard** | ✅ | 路径验证 + 命令白名单 + import 检查 |
-| **Eval Framework** | ✅ | smoke test + 标准任务集，482 tests pass |
+| **Tool Registry** | ✅ | Claude Code 对齐的工具层 + RiskGate |
+| **Agent Registry** | ✅ | Agent-First 架构，从 agents/*.md 加载定义 |
 
-### 远期目标：8+1 Agent 架构（v0.5~v1.0）
+### 远期目标：8+ Agent 架构
 
-| Agent 角色 | 所属 Phase | 推荐模型 |
-|-----------|-----------|---------|
-| **Analyst** | 需求分析 | qwen3.6-plus |
-| **Planner** | 计划制定 | qwen3-max |
-| **Engineer** | 编码实现 | deepseek-v3.2 |
-| **Debugger** | 调试排错 | deepseek-r1-0528 |
-| **Reviewer** | 代码审查 | glm-5.1 / claude-sonnet |
-| **QA** | 质量验证 | glm-5.1 / claude-sonnet |
-| **Release** | 发布上线 | deepseek-v3.2 |
-| **Monitor** | 上线监控 | qwen3.5-plus |
-| **General** | 无（通用） | 可配置 |
+| Agent 角色 | 推荐模型 |
+|-----------|---------|
+| **Analyst** | qwen3.6-plus |
+| **Planner** | qwen3-max |
+| **Engineer** | deepseek-v3.2 |
+| **Debugger** | deepseek-r1-0528 |
+| **Reviewer** | glm-5.1 / claude-sonnet |
+| **QA** | glm-5.1 / claude-sonnet |
+| **Release** | deepseek-v3.2 |
+| **Monitor** | qwen3.5-plus |
+| **General** | 可配置 |
 
-8+1 Agent 扩展后支持并行执行、上下文隔离、角色专业化、多场景编排。
+多 Agent 扩展后支持并行执行、上下文隔离、角色专业化、多场景编排。
 
 ### 工作模式演进
 
@@ -138,23 +140,23 @@ sloth chat
 | v0.1.0 | 自主模式 | 输入 Plan，全自主执行 3-Agent 流水线 |
 | v0.2.0 | + 对话模式 | REPL 交互，聊天界面中文优先 |
 | v0.3.0 | + 技能 + 成本 | Skill 系统 + Cost Tracking + 容错 + 自适应执行 |
-| v0.3.2 | + 42 内建技能 | 42 个预定义技能（auto+manual），Chat 自动意图匹配 |
+| v0.3.x | + Agent-First | Agent 注册表替代 Stage 概念，自适应重规划 |
 | v0.5 | + 多 Agent 并行 | 知识库 + 事件总线 + Speculative Execution |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
-| v1.0 | 完整架构 | 8+1 Agent + 37 技能 + 8 场景编排 |
+| v1.0 | 完整架构 | 8+ Agent + 多场景编排 |
 
 ---
 
 ## 设计原则
 
-| 原则 | 当前（v0.3.2） | 远期（v0.5+） |
-|------|------|--------------|
-| **Agent 架构** | 3-Agent 串行流水线 | 8+1 Agent 并行执行 |
+| 原则 | 当前 | 远期 |
+|------|------|------|
+| **Agent 架构** | Agent-First 串行流水线 | 多 Agent 并行执行 |
 | **工具优先** | Agent 通过工具层操作，可审计 | + Plugin 扩展 |
 | **技能即指令** | SKILL.md prompt 模板，兼容 Claude Code | + 自动进化 |
 | **存储** | 纯文件系统（jsonl） | + SQLite 索引 + ChromaDB 向量 |
 | **质量保障** | 自动门控（lint/type/test/coverage/smoke） | + 事件驱动规则 |
-| **模型路由** | Stage 级（deepseek→编码, qwen→审查） | Agent 级配置 + 降级 |
+| **模型路由** | Agent 级（deepseek→编码, qwen→审查） | Agent 级配置 + 降级 |
 | **安全默认** | 路径白名单 + 命令黑名单 + 幻觉防护 | 5 层安全 + 沙箱 |
 | **文件系统即真相** | JSON/jsonl，可回溯、可审计、可手动编辑 | 同左 |
 
@@ -162,20 +164,17 @@ sloth chat
 
 ## 与参考框架的对比
 
-| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth v0.3.2** |
-|------|----------|--------|-------------|-------|----------------|
+| 特性 | OpenClaw | Hermes | Claude Code | Codex | **Sloth** |
+|------|----------|--------|-------------|-------|-----------|
 | 多 Agent 架构 | ❌ | ✅ 子代理 | ❌ | ❌ | ✅ **3-Agent Pipeline** |
 | 自动门控 | ❌ | ❌ | ❌ | ❌ | ✅ **lint/type/test/smoke** |
 | Reflection | 部分 | ❌ | 部分 | ❌ | ✅ **Stuck Detection** |
 | 技能系统 | ✅ | ✅ | ✅ | ❌ | ✅ SKILL.md (兼容) |
-| 代码理解 | ❌ | ✅ | 部分 | ❌ | ✅ **tree-sitter** |
 | 安全防护 | ✅ | ✅ | Risk levels | Risk | ✅ **幻觉防护 + 白名单** |
-| 模型路由 | ✅ | ✅ | ❌ | ❌ | ✅ **Stage 级路由** |
+| 模型路由 | ✅ | ✅ | ❌ | ❌ | ✅ **Agent 级路由** |
 | 自动回滚 | ❌ | ❌ | ❌ | ❌ | ✅ **3 级 Git Checkpoint** |
 | 成本控制 | ❌ | ❌ | ❌ | ❌ | ✅ **CostTracker + 预算限额** |
 | 中国生态 | ❌ | ❌ | ❌ | ❌ | ✅ **DeepSeek/Qwen/Kimi** |
-
-| **v0.3.2** | 3-Agent Pipeline + 42 Skills | 482 tests pass |
 
 ---
 
@@ -259,14 +258,14 @@ cp ~/.sloth-agent/.env.example ~/.sloth-agent/.env
 # 查看帮助
 uv run sloth --help
 
-# 运行测试（482 tests）
+# 运行测试
 uv run pytest tests/ evals/ -v
 
 # Smoke test
 uv run python -c "from evals.smoke_test import run_smoke_test; r = run_smoke_test(); print(f'PASS' if r.passed else 'FAIL')"
 ```
 
-详细安装步骤见 [v0.3.0 安装指南](docs/guides/20260417-v0.1.0-installation-guide.md)。
+详细安装步骤见 [安装指南](docs/guides/20260417-v0.1-installation-guide.md)。
 
 ### 卸载
 
@@ -353,8 +352,8 @@ uv run sloth logs --level INFO --limit 50
               │        共享基础设施           │
               ├──────┬───────┬──────┬────────┤
               │Tools │Skills │Memory│LLM     │
-              │(CC   │(SKILL │(FS/  │Stage   │
-              │对齐)  │.md)   │jsonl)│Route   │
+              │(CC   │(SKILL │(FS/  │Agent   │
+              │对齐)  │.md)   │jsonl)│Registry│
               ├──────┴───────┴──────┴────────┤
               │ContextWindowManager          │
               │HallucinationGuard            │
@@ -369,9 +368,9 @@ uv run sloth logs --level INFO --limit 50
 
 ### 架构与规格
 
-| 模块 | 文档 | 当前状态 |
-|------|------|-----------|
-| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含 v0.1.0~v1.0 路线图 |
+| 模块 | 文档 | 状态 |
+|------|------|------|
+| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含路线图 |
 | #01 Phase-Role Arch | [spec](docs/specs/20260416-01-phase-role-architecture-spec.md) | ✅ Runner/NextStep 已实现 |
 | #02 Tools Invocation | [spec](docs/specs/20260416-02-tools-invocation-spec.md) | ✅ ToolRegistry/Executor 已实现 |
 | #04 Memory Management | [spec](docs/specs/20260416-04-memory-management-spec.md) | ✅ FS MemoryStore 已实现 |
@@ -389,10 +388,9 @@ uv run sloth logs --level INFO --limit 50
 
 | 文档 | 说明 |
 |------|------|
-| [v0.3.0 安装指南](docs/guides/20260417-v0.1.0-installation-guide.md) | 安装、配置向导、快速开始、常见问题 |
+| [安装指南](docs/guides/20260417-v0.1-installation-guide.md) | 安装、配置向导、快速开始、常见问题 |
 
 ---
 
-*Sloth Agent v0.3.2*
-*最后更新: 2026-04-19*
-*482 tests pass*
+*Sloth Agent v0.3.4*
+*最后更新: 2026-04-22*
