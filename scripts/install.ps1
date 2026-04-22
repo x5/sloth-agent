@@ -18,19 +18,10 @@ $REPO_URL = "https://github.com/x5/sloth-agent.git"
 $BRANCH = "master"
 
 # ─── Unicode detection ──────────────────────────────────────
-function Test-UnicodeSupport {
-    # Only enable box-drawing on known-good terminals.
-    # Windows PowerShell 5.1 reads UTF-8 files as system codepage,
-    # causing box-drawing chars to be misread. Default to ASCII.
-    if ($PSVersionTable.PSVersion.Major -ge 7 -and (
-        ($env:WT_SESSION) -or
-        ($env:TERM_PROGRAM -eq "iTerm.app") -or
-        ($env:TERM -eq "xterm-256color")
-    )) { return $true }
-    return $false
-}
-
-$HAS_UNICODE = Test-UnicodeSupport
+# Windows: always use ASCII. Windows default fonts don't reliably
+# support box-drawing characters, even in Windows Terminal.
+# install.sh handles Unicode on macOS/Linux/WSL.
+$HAS_UNICODE = $false
 
 # ─── Character sets (Unicode / ASCII fallback) ──────────────
 if ($HAS_UNICODE) {
