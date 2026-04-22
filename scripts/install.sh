@@ -59,12 +59,12 @@ step() { echo -e "${GREEN}▸${NC} ${BOLD}$1${NC}"; }
 ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
 warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1"; }
-section() { echo ""; echo -e "${CYAN}── $1 ${NC}"; }
+section() { echo ""; echo -e "${CYAN}-- $1 ${NC}"; }
 
 die() {
     echo ""
     echo -e "${RED}${BOLD}  ✗  Installation failed${NC}"
-    echo -e "${CYAN}─────────────────────────────────────────────${NC}"
+    echo -e "${CYAN}---------------------------------------------${NC}"
     echo ""
     echo -e "  ${BOLD}What happened?${NC}"
     echo "    $1"
@@ -87,10 +87,10 @@ fi
 # ─── Banner ─────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}"
-echo "  ╭─────────────────────────────────────╮"
-printf "  │   Sloth Agent  %-14s │\n" "v${VERSION}"
-echo "  │   Installation                      │"
-echo "  ╰─────────────────────────────────────╯"
+echo "  +-------------------------------------+"
+printf "  |   Sloth Agent  %-14s |\n" "v${VERSION}"
+echo "  |   Installation                      |"
+echo "  +-------------------------------------+"
 echo -e "${NC}"
 
 # ─── Installation Info ──────────────────────────────────────
@@ -288,7 +288,7 @@ fi
 # ─── Done ───────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}  ✓  Sloth Agent v${VERSION} installed successfully${NC}"
-echo -e "${CYAN}─────────────────────────────────────────────${NC}"
+echo -e "${CYAN}---------------------------------------------${NC}"
 echo ""
 echo -e "  ${BOLD}Welcome to Sloth Agent!${NC}"
 echo ""

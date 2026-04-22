@@ -35,12 +35,12 @@ function Write-Step   { param([string]$Message) Write-Host "${GREEN}▸${NC} ${B
 function Write-Ok     { param([string]$Message) Write-Host "  ${GREEN}✓${NC} $Message" }
 function Write-Warn   { param([string]$Message) Write-Host "  ${YELLOW}⚠${NC} $Message" }
 function Write-Fail   { param([string]$Message) Write-Host "  ${RED}✗${NC} $Message" }
-function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}── $Message ${NC}" }
+function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}-- $Message ${NC}" }
 function Write-Exit {
     param([string]$What, [string]$Next)
     Write-Host ""
     Write-Host "${RED}${BOLD}  ✗  Installation failed${NC}"
-    Write-Host "${CYAN}─────────────────────────────────────────────${NC}"
+    Write-Host "${CYAN}---------------------------------------------${NC}"
     Write-Host ""
     Write-Host "  ${BOLD}What happened?${NC}"
     Write-Host "    $What"
@@ -65,10 +65,10 @@ if ($tags) {
 # ─── Banner ─────────────────────────────────────────────────
 Write-Host ""
 Write-Host "${GREEN}${BOLD}"
-Write-Host "  ╭─────────────────────────────────────╮"
-Write-Host "  │   Sloth Agent  $($VERSION.PadRight(14)) │"
-Write-Host "  │   Installation                      │"
-Write-Host "  ╰─────────────────────────────────────╯"
+Write-Host "  +-------------------------------------+"
+Write-Host "  |   Sloth Agent  $($VERSION.PadRight(14)) |"
+Write-Host "  |   Installation                      |"
+Write-Host "  +-------------------------------------+"
 Write-Host "${NC}"
 
 # ─── Installation Info ──────────────────────────────────────
@@ -339,7 +339,7 @@ if (-not (Test-Path $configJson)) {
 # ─── Done ───────────────────────────────────────────────────
 Write-Host ""
 Write-Host "${GREEN}${BOLD}  ✓  Sloth Agent v$VERSION installed successfully${NC}"
-Write-Host "${CYAN}─────────────────────────────────────────────${NC}"
+Write-Host "${CYAN}---------------------------------------------${NC}"
 Write-Host ""
 Write-Host "  ${BOLD}Welcome to Sloth Agent!${NC}"
 Write-Host ""
