@@ -12,6 +12,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Ensure Unicode symbols render correctly in PowerShell console
+chcp.com 65001 > $null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $SLOTH_DIR = "$HOME\.sloth-agent"
 $LOCAL_BIN = "$HOME\.local\bin"
 $REPO_URL = "https://github.com/x5/sloth-agent.git"
