@@ -12,17 +12,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Ensure Unicode symbols render correctly in PowerShell console
-chcp.com 65001 > $null
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
-
 $SLOTH_DIR = "$HOME\.sloth-agent"
 $LOCAL_BIN = "$HOME\.local\bin"
 $REPO_URL = "https://github.com/x5/sloth-agent.git"
 $BRANCH = "master"
 
-# Colors (ANSI escape sequences — supported in PowerShell 5.1+ and PS7)
+# Colors (ANSI escape sequences)
 $e = [char]27
 $GREEN  = "${e}[0;32m"
 $RED    = "${e}[0;31m"
@@ -31,15 +26,21 @@ $CYAN   = "${e}[0;36m"
 $BOLD   = "${e}[1m"
 $NC     = "${e}[0m"
 
-function Write-Step   { param([string]$Message) Write-Host "${GREEN}▸${NC} ${BOLD}$Message${NC}" }
-function Write-Ok     { param([string]$Message) Write-Host "  ${GREEN}✓${NC} $Message" }
-function Write-Warn   { param([string]$Message) Write-Host "  ${YELLOW}⚠${NC} $Message" }
-function Write-Fail   { param([string]$Message) Write-Host "  ${RED}✗${NC} $Message" }
-function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}-- $Message ${NC}" }
+# Icons — pure ASCII for universal compatibility
+$ICON_STEP  = ">>"
+$ICON_OK    = "[OK]"
+$ICON_WARN  = "[!]"
+$ICON_FAIL  = "[X]"
+
+function Write-Step   { param([string]$Message) Write-Host "${GREEN}${ICON_STEP}${NC} ${BOLD}$Message${NC}" }
+function Write-Ok     { param([string]$Message) Write-Host "  ${GREEN}${ICON_OK}${NC} $Message" }
+function Write-Warn   { param([string]$Message) Write-Host "  ${YELLOW}${ICON_WARN}${NC} $Message" }
+function Write-Fail   { param([string]$Message) Write-Host "  ${RED}${ICON_FAIL}${NC} $Message" }
+function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}--- $Message ---${NC}" }
 function Write-Exit {
     param([string]$What, [string]$Next)
     Write-Host ""
-    Write-Host "${RED}${BOLD}  ✗  Installation failed${NC}"
+    Write-Host "${RED}${BOLD}  ${ICON_FAIL}  Installation failed${NC}"
     Write-Host "${CYAN}---------------------------------------------${NC}"
     Write-Host ""
     Write-Host "  ${BOLD}What happened?${NC}"
@@ -58,7 +59,9 @@ function Write-Exit {
 try {
     $tags = & git ls-remote --tags --sort=-v:refname $REPO_URL 'v*' 2>$null
     if ($tags) {
-        $VERSION = ($tags -split "`n" | Select-Object -First 1).Trim() -replace '.*/' -replace '^v'
+        $rawTag = ($tags -split "`n" | Select-Object -First 1).Trim() -replace '.*/' -replace '^v'
+        # Annotated tags may have ^{} suffix — strip it
+        $VERSION = $rawTag -replace '\^{}'
     } else {
         $VERSION = "dev"
     }
@@ -69,10 +72,13 @@ try {
 # ─── Banner ─────────────────────────────────────────────────
 Write-Host ""
 Write-Host "${GREEN}${BOLD}"
-Write-Host "  +-------------------------------------+"
-Write-Host "  |   Sloth Agent  $($VERSION.PadRight(14)) |"
-Write-Host "  |   Installation                      |"
-Write-Host "  +-------------------------------------+"
+$contentWidth = 32
+$verInner = "Sloth Agent  v$VERSION".PadRight($contentWidth)
+$instInner = "Installation".PadRight($contentWidth)
+Write-Host "  +$( "-" * ($contentWidth + 2))+"
+Write-Host "  |  $verInner|"
+Write-Host "  |  $instInner|"
+Write-Host "  +$( "-" * ($contentWidth + 2))+"
 Write-Host "${NC}"
 
 # ─── Installation Info ──────────────────────────────────────
@@ -175,7 +181,9 @@ if (Test-Path "$SLOTH_DIR\.git") {
     Push-Location $SLOTH_DIR
     $updateOk = $true
     try {
+        Write-Host "  ${BOLD}Fetching latest tags...${NC}"
         git fetch origin --tags --force *>$null
+        Write-Host "  ${BOLD}Checking out $LATEST_TAG...${NC}"
         git checkout $LATEST_TAG *>$null
         git reset --hard $LATEST_TAG *>$null
     } catch {
@@ -190,12 +198,12 @@ if (Test-Path "$SLOTH_DIR\.git") {
             "If you have a proxy, set env: GIT_SSL_NO_VERIFY=0 or configure git proxy.`n    Or try again later."
     }
 } else {
-    Write-Step "Cloning repository..."
+    Write-Host "  ${BOLD}Cloning repository...${NC}"
     # Clone master with shallow depth, then fetch + checkout the target tag.
     # Annotated tags don't resolve correctly with --depth 1 --branch.
     $cloneOk = $false
     try {
-        git clone --quiet --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR 2>$null
+        git clone --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR 2>&1 | ForEach-Object { Write-Host "    $_" }
         $cloneOk = $true
     } catch {
         $cloneOk = $false
@@ -205,17 +213,20 @@ if (Test-Path "$SLOTH_DIR\.git") {
             "Failed to clone repository (network error).`n    Cannot reach GitHub — check your network or proxy settings." `
             "If you have a proxy, configure git proxy first:`n    git config --global http.proxy http://your-proxy:port`n    Or try again later."
     }
+    Write-Host "  ${BOLD}Fetching release tag...${NC}"
     Push-Location $SLOTH_DIR
-    git fetch --quiet origin "refs/tags/$LATEST_TAG`:refs/tags/$LATEST_TAG" *>$null
+    git fetch origin "refs/tags/$LATEST_TAG`:refs/tags/$LATEST_TAG" *>$null
+    Write-Host "  ${BOLD}Checking out $LATEST_TAG...${NC}"
     git checkout --quiet $LATEST_TAG
     Pop-Location
     Write-Ok "cloned to $SLOTH_DIR at $LATEST_TAG"
 }
 
 # ─── Step 3: Create venv and install ────────────────────────
-Write-Step "Setting up environment..."
+Write-Host "  ${BOLD}Creating virtual environment...${NC}"
 Push-Location $SLOTH_DIR
 uv venv "$SLOTH_DIR\.venv" --quiet *>$null
+Write-Host "  ${BOLD}Installing dependencies (this may take a moment)...${NC}"
 uv pip install -e . --quiet *>$null
 Pop-Location
 Write-Ok "dependencies installed"
@@ -364,7 +375,7 @@ if (-not (Test-Path $configJson)) {
 
 # ─── Done ───────────────────────────────────────────────────
 Write-Host ""
-Write-Host "${GREEN}${BOLD}  ✓  Sloth Agent v$VERSION installed successfully${NC}"
+Write-Host "${GREEN}${BOLD}  [OK]  Sloth Agent v$VERSION installed successfully${NC}"
 Write-Host "${CYAN}---------------------------------------------${NC}"
 Write-Host ""
 Write-Host "  ${BOLD}Welcome to Sloth Agent!${NC}"
