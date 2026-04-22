@@ -164,19 +164,40 @@ fi
 
 if [ -d "${SLOTH_DIR}/.git" ]; then
     cd "${SLOTH_DIR}"
-    git fetch origin --tags --force >/dev/null 2>&1
-    git checkout "${LATEST_TAG}" >/dev/null 2>&1
-    git reset --hard "${LATEST_TAG}" >/dev/null 2>&1
-    ok "updated to ${LATEST_TAG}"
+    if git fetch origin --tags --force >/dev/null 2>&1 && \
+       git checkout "${LATEST_TAG}" >/dev/null 2>&1 && \
+       git reset --hard "${LATEST_TAG}" >/dev/null 2>&1; then
+        ok "updated to ${LATEST_TAG}"
+    else
+        echo ""
+        echo -e "${RED}${BOLD}  ✗  Update failed${NC}"
+        echo ""
+        echo "  Cannot reach GitHub — check your network or proxy settings."
+        echo "  If you have a proxy, configure git proxy first:"
+        echo "    git config --global http.proxy http://your-proxy:port"
+        echo "  Or try again later."
+        echo ""
+        exit 1
+    fi
 else
     step "Cloning repository..."
     # Clone master with shallow depth, then fetch + checkout the target tag.
     # This two-step approach is needed because annotated tags don't resolve
     # correctly with --depth 1 --branch (git only fetches the tag object
     # but not the commit it points to in a shallow clone).
-    git clone --quiet --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}"
+    if ! git clone --quiet --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}" 2>/dev/null; then
+        echo ""
+        echo -e "${RED}${BOLD}  ✗  Clone failed${NC}"
+        echo ""
+        echo "  Cannot reach GitHub — check your network or proxy settings."
+        echo "  If you have a proxy, configure git proxy first:"
+        echo "    git config --global http.proxy http://your-proxy:port"
+        echo "  Or try again later."
+        echo ""
+        exit 1
+    fi
     cd "${SLOTH_DIR}"
-    git fetch --quiet origin "refs/tags/${LATEST_TAG}:refs/tags/${LATEST_TAG}"
+    git fetch --quiet origin "refs/tags/${LATEST_TAG}:refs/tags/${LATEST_TAG}" >/dev/null 2>&1
     git checkout --quiet "${LATEST_TAG}"
     ok "cloned to ${SLOTH_DIR} at ${LATEST_TAG}"
 fi

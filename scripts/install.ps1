@@ -173,18 +173,40 @@ if ($VERSION -eq "dev") {
 
 if (Test-Path "$SLOTH_DIR\.git") {
     Push-Location $SLOTH_DIR
-    git fetch origin --tags --force *>$null
-    git checkout $LATEST_TAG *>$null
-    git reset --hard $LATEST_TAG *>$null
+    $updateOk = $true
+    try {
+        git fetch origin --tags --force *>$null
+        git checkout $LATEST_TAG *>$null
+        git reset --hard $LATEST_TAG *>$null
+    } catch {
+        $updateOk = $false
+    }
     Pop-Location
-    Write-Ok "updated to $LATEST_TAG"
+    if ($updateOk) {
+        Write-Ok "updated to $LATEST_TAG"
+    } else {
+        Write-Exit `
+            "Failed to update repository (network error).`n    Cannot reach GitHub — check your network or proxy settings." `
+            "If you have a proxy, set env: GIT_SSL_NO_VERIFY=0 or configure git proxy.`n    Or try again later."
+    }
 } else {
     Write-Step "Cloning repository..."
     # Clone master with shallow depth, then fetch + checkout the target tag.
     # Annotated tags don't resolve correctly with --depth 1 --branch.
-    git clone --quiet --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR
+    $cloneOk = $false
+    try {
+        git clone --quiet --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR 2>$null
+        $cloneOk = $true
+    } catch {
+        $cloneOk = $false
+    }
+    if (-not $cloneOk) {
+        Write-Exit `
+            "Failed to clone repository (network error).`n    Cannot reach GitHub — check your network or proxy settings." `
+            "If you have a proxy, configure git proxy first:`n    git config --global http.proxy http://your-proxy:port`n    Or try again later."
+    }
     Push-Location $SLOTH_DIR
-    git fetch --quiet origin "refs/tags/$LATEST_TAG`:refs/tags/$LATEST_TAG"
+    git fetch --quiet origin "refs/tags/$LATEST_TAG`:refs/tags/$LATEST_TAG" *>$null
     git checkout --quiet $LATEST_TAG
     Pop-Location
     Write-Ok "cloned to $SLOTH_DIR at $LATEST_TAG"
