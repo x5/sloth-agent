@@ -22,12 +22,45 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# ─── Unicode detection ──────────────────────────────────────
+is_unicode_supported() {
+    # Windows Terminal, ConEmu, iTerm2, GNOME Terminal, etc.
+    if [ -n "${WT_SESSION:-}" ] || [ -n "${TERM_PROGRAM:-}" ] || [ "${TERM:-}" = "xterm-256color" ]; then
+        return 0
+    fi
+    # macOS Terminal.app supports Unicode
+    if [ "$(uname -s)" = "Darwin" ]; then
+        return 0
+    fi
+    # Check locale for UTF-8
+    if locale 2>/dev/null | grep -qi 'utf-8\|utf8'; then
+        return 0
+    fi
+    return 1
+}
+
+HAS_UNICODE=false
+if is_unicode_supported; then HAS_UNICODE=true; fi
+
+# ─── Character sets ─────────────────────────────────────────
+if $HAS_UNICODE; then
+    BOX_TL="╭"; BOX_TR="╮"; BOX_BL="╰"; BOX_BR="╯"
+    BOX_H="─";  BOX_V="│"
+    ICON_STEP="▸"; ICON_OK="✓"
+    ICON_WARN="⚠"; ICON_FAIL="✗"
+    DIVIDER="─"
+else
+    BOX_TL="+"; BOX_TR="+"; BOX_BL="+"; BOX_BR="+"
+    BOX_H="-";  BOX_V="|"
+    ICON_STEP=">>"; ICON_OK="[OK]"
+    ICON_WARN="[!]"; ICON_FAIL="[X]"
+    DIVIDER="-"
+fi
+
+# ─── Output helpers ─────────────────────────────────────────
 check_no_init() {
     for arg in "$@"; do
-        if [ "$arg" = "--no-init" ]; then
-            echo "true"
-            return
-        fi
+        if [ "$arg" = "--no-init" ]; then echo "true"; return; fi
     done
     echo "false"
 }
@@ -35,42 +68,24 @@ check_no_init() {
 SKIP_INIT=$(check_no_init "$@")
 
 # Detect non-interactive mode (curl | bash)
-# When stdin is not a terminal, prompts that read from stdin will hit EOF
-# and cause set -e to silently abort.
-if [ -t 0 ]; then
-    IS_INTERACTIVE=true
-else
-    IS_INTERACTIVE=false
-fi
+if [ -t 0 ]; then IS_INTERACTIVE=true; else IS_INTERACTIVE=false; fi
 
-check_no_init() {
-    for arg in "$@"; do
-        if [ "$arg" = "--no-init" ]; then
-            echo "true"
-            return
-        fi
-    done
-    echo "false"
-}
-
-SKIP_INIT=$(check_no_init "$@")
-
-step() { echo -e "${GREEN}▸${NC} ${BOLD}$1${NC}"; }
-ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
-warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
-fail() { echo -e "  ${RED}✗${NC} $1"; }
-section() { echo ""; echo -e "${CYAN}-- $1 ${NC}"; }
+step() { echo -e "${GREEN}${ICON_STEP}${NC} ${BOLD}$1${NC}"; }
+ok()   { echo -e "  ${GREEN}${ICON_OK}${NC} $1"; }
+warn() { echo -e "  ${YELLOW}${ICON_WARN}${NC} $1"; }
+fail() { echo -e "  ${RED}${ICON_FAIL}${NC} $1"; }
+section() { echo ""; echo -e "${CYAN}${DIVIDER}${DIVIDER}${DIVIDER} $1 ${DIVIDER}${DIVIDER}${DIVIDER}${NC}"; }
 
 die() {
+    local msg="$1" next="$2"
     echo ""
-    echo -e "${RED}${BOLD}  ✗  Installation failed${NC}"
-    echo -e "${CYAN}---------------------------------------------${NC}"
+    echo -e "${RED}${BOLD}${BOX_TL}${BOX_H}${BOX_H}${BOX_H}  Installation failed  ${BOX_H}${BOX_H}${BOX_H}${BOX_BR}${NC}"
     echo ""
     echo -e "  ${BOLD}What happened?${NC}"
-    echo "    $1"
+    echo "    $msg"
     echo ""
     echo -e "  ${BOLD}What to do next?${NC}"
-    echo "    $2"
+    echo "    $next"
     echo ""
     echo -e "  If the issue persists, report it at:"
     echo "    https://github.com/x5/sloth-agent/issues"
@@ -79,7 +94,7 @@ die() {
 }
 
 # ─── Resolve version ────────────────────────────────────────
-VERSION=$(git ls-remote --tags --sort=-v:refname "${REPO_URL}" 'v*' 2>/dev/null | head -1 | sed 's/.*\///' | sed 's/^v//')
+VERSION=$(git ls-remote --tags --sort=-v:refname "${REPO_URL}" 'v*' 2>/dev/null | head -1 | sed 's/.*\///' | sed 's/^v//' | sed 's/\^{}$//')
 if [ -z "${VERSION}" ]; then
     VERSION="dev"
 fi
@@ -87,10 +102,14 @@ fi
 # ─── Banner ─────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}"
-echo "  +-------------------------------------+"
-printf "  |   Sloth Agent  %-14s |\n" "v${VERSION}"
-echo "  |   Installation                      |"
-echo "  +-------------------------------------+"
+contentWidth=32
+verLine="Sloth Agent  v${VERSION}"
+instLine="Installation"
+border=$(printf '%0.s'"${BOX_H}" $(seq 1 $contentWidth))
+printf "  ${BOX_TL}${border}${BOX_TR}\n"
+printf "  ${BOX_V}  %-30s${BOX_V}\n" "$verLine"
+printf "  ${BOX_V}  %-30s${BOX_V}\n" "$instLine"
+printf "  ${BOX_BL}${border}${BOX_BR}\n"
 echo -e "${NC}"
 
 # ─── Installation Info ──────────────────────────────────────
@@ -164,47 +183,35 @@ fi
 
 if [ -d "${SLOTH_DIR}/.git" ]; then
     cd "${SLOTH_DIR}"
+    echo -e "  ${BOLD}Fetching latest tags...${NC}"
     if git fetch origin --tags --force >/dev/null 2>&1 && \
        git checkout "${LATEST_TAG}" >/dev/null 2>&1 && \
        git reset --hard "${LATEST_TAG}" >/dev/null 2>&1; then
         ok "updated to ${LATEST_TAG}"
     else
-        echo ""
-        echo -e "${RED}${BOLD}  ✗  Update failed${NC}"
-        echo ""
-        echo "  Cannot reach GitHub — check your network or proxy settings."
-        echo "  If you have a proxy, configure git proxy first:"
-        echo "    git config --global http.proxy http://your-proxy:port"
-        echo "  Or try again later."
-        echo ""
-        exit 1
+        die \
+            "Failed to update repository (network error)." \
+            "Cannot reach GitHub — check your network or proxy settings."
     fi
 else
-    step "Cloning repository..."
-    # Clone master with shallow depth, then fetch + checkout the target tag.
-    # This two-step approach is needed because annotated tags don't resolve
-    # correctly with --depth 1 --branch (git only fetches the tag object
-    # but not the commit it points to in a shallow clone).
-    if ! git clone --quiet --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}" 2>/dev/null; then
-        echo ""
-        echo -e "${RED}${BOLD}  ✗  Clone failed${NC}"
-        echo ""
-        echo "  Cannot reach GitHub — check your network or proxy settings."
-        echo "  If you have a proxy, configure git proxy first:"
-        echo "    git config --global http.proxy http://your-proxy:port"
-        echo "  Or try again later."
-        echo ""
-        exit 1
+    echo -e "  ${BOLD}Cloning repository...${NC}"
+    if ! git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${SLOTH_DIR}" 2>&1 | while IFS= read -r line; do echo "    $line"; done; then
+        die \
+            "Failed to clone repository (network error)." \
+            "Cannot reach GitHub — check your network or proxy settings."
     fi
     cd "${SLOTH_DIR}"
+    echo -e "  ${BOLD}Fetching release tag...${NC}"
     git fetch --quiet origin "refs/tags/${LATEST_TAG}:refs/tags/${LATEST_TAG}" >/dev/null 2>&1
+    echo -e "  ${BOLD}Checking out ${LATEST_TAG}...${NC}"
     git checkout --quiet "${LATEST_TAG}"
     ok "cloned to ${SLOTH_DIR} at ${LATEST_TAG}"
 fi
 
 # ─── Step 3: Create venv and install ────────────────────────
-step "Setting up environment..."
+echo -e "  ${BOLD}Creating virtual environment...${NC}"
 uv venv "${SLOTH_DIR}/.venv" --quiet
+echo -e "  ${BOLD}Installing dependencies (this may take a moment)...${NC}"
 cd "${SLOTH_DIR}"
 uv pip install -e . --quiet
 ok "dependencies installed"
@@ -307,27 +314,32 @@ else
 fi
 
 # ─── Done ───────────────────────────────────────────────────
+successTitle="Sloth Agent v${VERSION} installed successfully"
+welcomeMsg="Welcome to Sloth Agent!"
+envExample="${SLOTH_DIR}/.env.example"
+
+cardWidth=38
+border=$(printf '%0.s'"${BOX_H}" $(seq 1 $cardWidth))
+
 echo ""
-echo -e "${GREEN}${BOLD}  ✓  Sloth Agent v${VERSION} installed successfully${NC}"
-echo -e "${CYAN}---------------------------------------------${NC}"
-echo ""
-echo -e "  ${BOLD}Welcome to Sloth Agent!${NC}"
-echo ""
-echo "  You're all set. Run \`sloth\` from any project"
-echo "  directory to get started."
-echo ""
-echo -e "  ${BOLD}Next steps:${NC}"
-echo ""
-echo "    1.  Reload shell:  source ${SHELL_RC:-~/.bashrc}"
-echo ""
-echo "    2.  Set API keys:"
-echo "        cp ${SLOTH_DIR}/.env.example ${SLOTH_DIR}/.env"
-echo "        vi ${SLOTH_DIR}/.env"
-echo ""
-echo "    3.  Initialize your project:"
-echo "        cd ~/my-project"
-echo "        sloth init"
-echo ""
-echo "    4.  Run your first plan:"
-echo "        sloth run --plan plan.md"
+echo -e "${GREEN}${BOLD}${BOX_TL}${border}${BOX_BR}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}  ${GREEN}${ICON_OK}${NC}  ${BOLD}${successTitle}${NC}  "
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}  ${welcomeMsg}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}  ${BOLD}Next steps:${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}    ${CYAN}${BOX_V}${NC} Reload shell:  source ${SHELL_RC:-~/.bashrc}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}    Set API keys:"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}      cp ${envExample} ${SLOTH_DIR}/.env"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}      vi ${SLOTH_DIR}/.env"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}    Initialize your project:"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}      cd ~/my-project"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}      sloth init"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}    Run your first plan:"
+echo -e "${GREEN}${BOLD}${BOX_V}${NC}      sloth run --plan plan.md"
+echo -e "${GREEN}${BOLD}${BOX_BL}${border}${BOX_BR}${NC}"
 echo ""

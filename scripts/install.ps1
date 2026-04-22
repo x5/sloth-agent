@@ -17,7 +17,36 @@ $LOCAL_BIN = "$HOME\.local\bin"
 $REPO_URL = "https://github.com/x5/sloth-agent.git"
 $BRANCH = "master"
 
-# Colors (ANSI escape sequences)
+# ─── Unicode detection ──────────────────────────────────────
+function Test-UnicodeSupport {
+    if ($env:WT_SESSION -or $env:ConEmuPID -or $env:TERM_PROGRAM) { return $true }
+    if ($PSVersionTable.PSVersion.Major -ge 7) { return $true }
+    try {
+        $cp = [Console]::OutputEncoding.CodePage
+        return $cp -eq 65001 -or $cp -eq 1200
+    } catch {
+        return $false
+    }
+}
+
+$HAS_UNICODE = Test-UnicodeSupport
+
+# ─── Character sets (Unicode / ASCII fallback) ──────────────
+if ($HAS_UNICODE) {
+    $BOX_TL = "╭"; $BOX_TR = "╮"; $BOX_BL = "╰"; $BOX_BR = "╯"
+    $BOX_H  = "─"; $BOX_V    = "│"
+    $ICON_STEP = "$([char]0x25B8)"; $ICON_OK   = "$([char]0x2713)"
+    $ICON_WARN = "$([char]0x26A0)"; $ICON_FAIL = "$([char]0x2717)"
+    $DIVIDER   = "─"
+} else {
+    $BOX_TL = "+"; $BOX_TR = "+"; $BOX_BL = "+"; $BOX_BR = "+"
+    $BOX_H  = "-"; $BOX_V  = "|"
+    $ICON_STEP = ">>"; $ICON_OK   = "[OK]"
+    $ICON_WARN = "[!]"; $ICON_FAIL = "[X]"
+    $DIVIDER   = "-"
+}
+
+# Colors
 $e = [char]27
 $GREEN  = "${e}[0;32m"
 $RED    = "${e}[0;31m"
@@ -26,22 +55,20 @@ $CYAN   = "${e}[0;36m"
 $BOLD   = "${e}[1m"
 $NC     = "${e}[0m"
 
-# Icons — pure ASCII for universal compatibility
-$ICON_STEP  = ">>"
-$ICON_OK    = "[OK]"
-$ICON_WARN  = "[!]"
-$ICON_FAIL  = "[X]"
-
+# ─── Output helpers ──────────────────────────────────────────
 function Write-Step   { param([string]$Message) Write-Host "${GREEN}${ICON_STEP}${NC} ${BOLD}$Message${NC}" }
 function Write-Ok     { param([string]$Message) Write-Host "  ${GREEN}${ICON_OK}${NC} $Message" }
 function Write-Warn   { param([string]$Message) Write-Host "  ${YELLOW}${ICON_WARN}${NC} $Message" }
 function Write-Fail   { param([string]$Message) Write-Host "  ${RED}${ICON_FAIL}${NC} $Message" }
-function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}--- $Message ---${NC}" }
+function Write-Section { param([string]$Message) Write-Host ""; Write-Host "${CYAN}${DIVIDER}${DIVIDER}${DIVIDER} $Message ${DIVIDER}${DIVIDER}${DIVIDER}${NC}" }
 function Write-Exit {
     param([string]$What, [string]$Next)
     Write-Host ""
-    Write-Host "${RED}${BOLD}  ${ICON_FAIL}  Installation failed${NC}"
-    Write-Host "${CYAN}---------------------------------------------${NC}"
+    $boxW = [Math]::Max($What.Length, $Next.Length) + 2
+    $border = $BOX_H * $boxW
+    Write-Host "${RED}${BOLD}${BOX_TL}${border}${BOX_TR}${NC}"
+    Write-Host "${RED}${BOLD}${BOX_V}${NC}${RED}  Installation failed  ${NC}${RED}${BOLD}${BOX_V}${NC}"
+    Write-Host "${RED}${BOLD}${BOX_BL}${border}${BOX_BR}${NC}"
     Write-Host ""
     Write-Host "  ${BOLD}What happened?${NC}"
     Write-Host "    $What"
@@ -53,6 +80,13 @@ function Write-Exit {
     Write-Host "    https://github.com/x5/sloth-agent/issues"
     Write-Host ""
     exit 1
+}
+
+# ─── Box helper for banner ─────────────────────────────────
+function New-BoxLine { param([string]$Content, [int]$Width)
+    $padding = $Width - $Content.Length
+    if ($padding -lt 0) { $padding = 0 }
+    return "${BOX_V}  ${Content}${' ' * $padding}${BOX_V}"
 }
 
 # ─── Resolve version ────────────────────────────────────────
@@ -73,12 +107,13 @@ try {
 Write-Host ""
 Write-Host "${GREEN}${BOLD}"
 $contentWidth = 32
-$verInner = "Sloth Agent  v$VERSION".PadRight($contentWidth)
-$instInner = "Installation".PadRight($contentWidth)
-Write-Host "  +$( "-" * ($contentWidth + 2))+"
-Write-Host "  |  $verInner|"
-Write-Host "  |  $instInner|"
-Write-Host "  +$( "-" * ($contentWidth + 2))+"
+$verLine = "Sloth Agent  v$VERSION"
+$instLine = "Installation"
+$border = $BOX_H * $contentWidth
+Write-Host "  ${BOX_TL}${border}${BOX_TR}"
+Write-Host "  $(New-BoxLine -Content $verLine -Width $contentWidth)"
+Write-Host "  $(New-BoxLine -Content $instLine -Width $contentWidth)"
+Write-Host "  ${BOX_BL}${border}${BOX_BR}"
 Write-Host "${NC}"
 
 # ─── Installation Info ──────────────────────────────────────
@@ -199,8 +234,6 @@ if (Test-Path "$SLOTH_DIR\.git") {
     }
 } else {
     Write-Host "  ${BOLD}Cloning repository...${NC}"
-    # Clone master with shallow depth, then fetch + checkout the target tag.
-    # Annotated tags don't resolve correctly with --depth 1 --branch.
     $cloneOk = $false
     try {
         git clone --depth 1 --branch $BRANCH $REPO_URL $SLOTH_DIR 2>&1 | ForEach-Object { Write-Host "    $_" }
@@ -374,27 +407,52 @@ if (-not (Test-Path $configJson)) {
 }
 
 # ─── Done ───────────────────────────────────────────────────
+$successTitle = "Sloth Agent v$VERSION installed successfully"
+$welcomeMsg   = "Welcome to Sloth Agent!"
+$steps = @(
+    "Reload shell:  . `$PROFILE",
+    "",
+    "Set API keys:",
+    "  copy $envExample $envFile",
+    "  notepad $envFile",
+    "",
+    "Initialize your project:",
+    "  cd ~\my-project",
+    "  sloth init",
+    "",
+    "Run your first plan:",
+    "  sloth run --plan plan.md"
+)
+
+$cardLines = @()
+$cardLines += "  ${GREEN}${ICON_OK}${NC}  ${BOLD}$successTitle${NC}"
+$cardLines += ""
+$cardLines += "  $welcomeMsg"
+$cardLines += ""
+$cardLines += "  ${BOLD}Next steps:${NC}"
+foreach ($s in $steps) {
+    if ($s -eq "") {
+        $cardLines += ""
+    } elseif ($s.StartsWith("  ")) {
+        $cardLines += "  ${CYAN}${BOX_V}${NC} $s"
+    } else {
+        $cardLines += "    $s"
+    }
+}
+
+$cardWidth = 0
+foreach ($line in $cardLines) {
+    $plain = $line -replace "$e\[[0-9;]*m", ""
+    if ($plain.Length -gt $cardWidth) { $cardWidth = $plain.Length }
+}
+$cardWidth = [Math]::Max($cardWidth, 40)
+
 Write-Host ""
-Write-Host "${GREEN}${BOLD}  [OK]  Sloth Agent v$VERSION installed successfully${NC}"
-Write-Host "${CYAN}---------------------------------------------${NC}"
-Write-Host ""
-Write-Host "  ${BOLD}Welcome to Sloth Agent!${NC}"
-Write-Host ""
-Write-Host "  You're all set. Run ``sloth`` from any project"
-Write-Host "  directory to get started."
-Write-Host ""
-Write-Host "  ${BOLD}Next steps:${NC}"
-Write-Host ""
-Write-Host "    1.  Reload shell:  . `$PROFILE"
-Write-Host ""
-Write-Host "    2.  Set API keys:"
-Write-Host "        copy $envExample $envFile"
-Write-Host "        notepad $envFile"
-Write-Host ""
-Write-Host "    3.  Initialize your project:"
-Write-Host "        cd ~\my-project"
-Write-Host "        sloth init"
-Write-Host ""
-Write-Host "    4.  Run your first plan:"
-Write-Host "        sloth run --plan plan.md"
+Write-Host "${GREEN}${BOLD}${BOX_TL}${BOX_H * $cardWidth}${BOX_BR}${NC}"
+foreach ($line in $cardLines) {
+    $plain = $line -replace "$e\[[0-9;]*m", ""
+    $pad = $cardWidth - $plain.Length
+    Write-Host "${GREEN}${BOLD}${BOX_V}${NC}${line}${' ' * $pad}${GREEN}${BOLD}${BOX_V}${NC}"
+}
+Write-Host "${GREEN}${BOLD}${BOX_BL}${BOX_H * $cardWidth}${BOX_BR}${NC}"
 Write-Host ""
