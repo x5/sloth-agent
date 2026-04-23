@@ -22,3 +22,8 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Tauri v2 Desktop
+src-tauri/target/
+frontend/node_modules/
+frontend/dist/
