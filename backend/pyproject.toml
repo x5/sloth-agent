@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20",
+    "cairosvg>=2.9.0",
 ]
 
 [build-system]

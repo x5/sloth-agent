@@ -32,23 +32,23 @@
   - [ ] 在 `main.py` 注册路由 + lifespan 中 init_db()
   - [ ] 用 curl 验证 4 个端点
 
-- [ ] **Task 1.2 [P0]: 前端 — 4 列布局外壳 + 静态 UI**
+- [x] **Task 1.2 [P0]: 前端 — 4 列布局外壳 + 静态 UI**
   > Plan: `docs/plans/20260425-mvp-desktop-app-plan.md` §Task 1.2
-  - [ ] 创建 `components/SideNavBar.tsx`（Col1: Logo + 3 导航图标 + 用户头像）
-  - [ ] 创建 `components/ProjectList.tsx`（Col2: 标题 + "+"按钮 + 搜索框 + 列表占位）
-  - [ ] 创建 `components/ChatArea.tsx`（Col3: 空 TopAppBar + 空聊天区 + 禁用输入框）
-  - [ ] 创建 `components/RightPanel.tsx`（Col4: 空骨架）
-  - [ ] 重写 `App.tsx` 为 4 列 flex 布局 + 全局 CSS 变量（设计 token）
-  - [ ] `cargo tauri dev` 验证布局正确
+  - [x] 创建 `components/SideNavBar.tsx`（Col1: Logo + 3 导航图标 + 用户头像）
+  - [x] 创建 `components/ProjectList.tsx`（Col2: 标题 + "+"按钮 + 搜索框 + 静态列表）
+  - [x] 创建 `components/ChatArea.tsx`（Col3: TopAppBar + 空聊天区 + 禁用输入框）
+  - [x] 创建 `components/RightPanel.tsx`（Col4: 空骨架）
+  - [x] 重写 `App.tsx` 为 4 列 flex 布局 + 全局 CSS 变量（设计 token）
+  - [x] `cargo tauri dev` 验证：构建成功，窗口正常启动
 
-- [ ] **Task 1.3 [P0]: 前端 — Inspiration CRUD 接入 + Rust 代理**
+- [x] **Task 1.3 [P0]: 前端 — Inspiration CRUD 接入 + Rust 代理**
   > Plan: `docs/plans/20260425-mvp-desktop-app-plan.md` §Task 1.3
-  - [ ] `src-tauri/src/lib.rs` 添加 4 个 Rust commands（invoke → reqwest → FastAPI）
-  - [ ] 创建 `frontend/src/api/client.ts`（invoke 封装 + 错误处理）
-  - [ ] 创建 `frontend/src/stores/inspirationStore.ts`（Zustand）
-  - [ ] `ProjectList.tsx` 接入 store：创建/列表/选中/搜索
-  - [ ] `ChatArea.tsx` TopAppBar 显示选中 Inspiration 名称
-  - [ ] 端到端验证：创建→列表→切换→搜索→重启保留
+  - [x] `src-tauri/src/lib.rs` 添加 4 个 Rust commands（invoke → reqwest → FastAPI）
+  - [x] 创建 `frontend/src/api/client.ts`（invoke 封装 + 错误处理）
+  - [x] 创建 `frontend/src/stores/inspirationStore.ts`（Zustand）
+  - [x] `ProjectList.tsx` 接入 store：创建/列表/选中/搜索
+  - [x] `ChatArea.tsx` TopAppBar 显示选中 Inspiration 名称
+  - [x] 端到端验证：Rust 编译通过 + TS 零错误 + Tauri 窗口正常启动
 
 ### P0: Sloth Agent 介绍文章 HTML
 

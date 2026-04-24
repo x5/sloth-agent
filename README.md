@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/sloth-agent-banner.png" alt="sloth agent banner - the beast for beasts" width="100%">
+  <img src="docs/assets/sloth-agent-banner_new.png" alt="sloth agent banner - the beast for beasts" width="100%">
 </p>
 
 ---
