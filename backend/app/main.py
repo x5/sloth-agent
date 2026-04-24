@@ -1,10 +1,22 @@
-"""Sloth Agent FastAPI Sidecar - Phase 0 minimal echo endpoint."""
+"""Sloth Agent FastAPI Sidecar — MVP Iter-1."""
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-app = FastAPI(title="Sloth Agent Backend", version="0.1.0")
+from .database import init_db
+from .routers import inspirations
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
+app = FastAPI(title="Sloth Agent Backend", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,6 +24,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(inspirations.router)
 
 
 class EchoRequest(BaseModel):

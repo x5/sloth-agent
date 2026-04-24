@@ -1,9 +1,8 @@
 # Project TODO
 
-> 最后更新: 20260419 — v0.3.1 发布：42 个内建技能全部导入，auto+manual 触发，Chat 自动意图匹配
+> 最后更新: 20260425 — MVP 桌面版 Iter-1 启动
 > 对齐规范: `docs/specs/00000000-00-architecture-overview.md`
-> 当前目标: v0.3.1 发布准备 — 482 tests pass，技能系统闭环
-> 版本映射: 原 v1.0→v0.1.0, 原 v1.1→v0.2.0, 原 v1.2→v0.3.0, v0.3.1→技能批量导入, 原 v2.0→v0.5~v1.0
+> 当前目标: Sloth Agent 桌面版 MVP — Iter-1 项目外壳 + Inspiration CRUD
 > 执行规则: 先确认 spec，再确认 implementation plan；`TODO.md` 默认只维护高优先级任务，且每一项必须与对应 plan 任务一一映射；执行时总是先选当前最高优先级任务
 
 ---
@@ -16,6 +15,40 @@
 - 开始执行前，必须先回看对应 plan 任务的详细说明、测试和验证要求
 
 ## 活跃任务
+
+### P0: MVP 桌面版 Iter-1 — 项目外壳 + Inspiration CRUD
+
+> Spec: `docs/specs/20260425-mvp-desktop-app-spec.md`
+> Plan: `docs/plans/20260425-mvp-desktop-app-plan.md`
+> 规则: 以下 TODO 项与 Plan 中的 Task 1.1-1.3 一一对应
+> 依赖链: `1.1 → 1.2 + 1.3`（1.1 完成后 1.2 和 1.3 可并行）
+
+- [x] **Task 1.1 [P0]: 后端 — SQLite 数据库 + Inspiration CRUD API**
+  > Plan: `docs/plans/20260425-mvp-desktop-app-plan.md` §Task 1.1
+  - [ ] 安装 `sqlalchemy` + `aiosqlite` 依赖
+  - [ ] 创建 `backend/app/database.py`（async engine + session + init_db）
+  - [ ] 创建 `backend/app/models.py`（Inspiration 模型）
+  - [ ] 创建 `backend/app/routers/inspirations.py`（POST/GET/GET/:id/DELETE + ?q= 搜索）
+  - [ ] 在 `main.py` 注册路由 + lifespan 中 init_db()
+  - [ ] 用 curl 验证 4 个端点
+
+- [ ] **Task 1.2 [P0]: 前端 — 4 列布局外壳 + 静态 UI**
+  > Plan: `docs/plans/20260425-mvp-desktop-app-plan.md` §Task 1.2
+  - [ ] 创建 `components/SideNavBar.tsx`（Col1: Logo + 3 导航图标 + 用户头像）
+  - [ ] 创建 `components/ProjectList.tsx`（Col2: 标题 + "+"按钮 + 搜索框 + 列表占位）
+  - [ ] 创建 `components/ChatArea.tsx`（Col3: 空 TopAppBar + 空聊天区 + 禁用输入框）
+  - [ ] 创建 `components/RightPanel.tsx`（Col4: 空骨架）
+  - [ ] 重写 `App.tsx` 为 4 列 flex 布局 + 全局 CSS 变量（设计 token）
+  - [ ] `cargo tauri dev` 验证布局正确
+
+- [ ] **Task 1.3 [P0]: 前端 — Inspiration CRUD 接入 + Rust 代理**
+  > Plan: `docs/plans/20260425-mvp-desktop-app-plan.md` §Task 1.3
+  - [ ] `src-tauri/src/lib.rs` 添加 4 个 Rust commands（invoke → reqwest → FastAPI）
+  - [ ] 创建 `frontend/src/api/client.ts`（invoke 封装 + 错误处理）
+  - [ ] 创建 `frontend/src/stores/inspirationStore.ts`（Zustand）
+  - [ ] `ProjectList.tsx` 接入 store：创建/列表/选中/搜索
+  - [ ] `ChatArea.tsx` TopAppBar 显示选中 Inspiration 名称
+  - [ ] 端到端验证：创建→列表→切换→搜索→重启保留
 
 ### P0: Sloth Agent 介绍文章 HTML
 
