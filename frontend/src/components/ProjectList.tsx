@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useInspirationStore } from "../stores/inspirationStore";
+import { useUIStore } from "../stores/uiStore";
 
 function formatTime(iso: string): string {
   const date = new Date(iso);
@@ -27,6 +28,8 @@ function getInitials(name: string): string {
 export default function ProjectList() {
   const { inspirations, activeId, loading, fetchAll, create, setActive } =
     useInspirationStore();
+  const col2Collapsed = useUIStore((s) => s.col2Collapsed);
+  const toggleCol2 = useUIStore((s) => s.toggleCol2);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export default function ProjectList() {
   };
 
   return (
-    <div className="projectlist">
+    <div className={`projectlist${col2Collapsed ? " projectlist--collapsed" : ""}`}>
       {/* Header */}
       <div className="projectlist__header">
         <div className="projectlist__header-row">
@@ -57,8 +60,8 @@ export default function ProjectList() {
             onClick={handleCreate}
           >
             <svg
-              width="14"
-              height="14"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -76,8 +79,8 @@ export default function ProjectList() {
       <div className="projectlist__search">
         <div className="projectlist__search-box">
           <svg
-            width="13"
-            height="13"
+            width="14"
+            height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="#4e6073"
@@ -142,6 +145,32 @@ export default function ProjectList() {
             </div>
           );
         })}
+      </div>
+
+      {/* Footer — collapse toggle */}
+      <div className="projectlist__footer">
+        <button
+          className="projectlist__collapse-btn"
+          title={col2Collapsed ? "Expand" : "Collapse"}
+          onClick={toggleCol2}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {col2Collapsed ? (
+              <polyline points="15 18 9 12 15 6" />
+            ) : (
+              <polyline points="9 18 15 12 9 6" />
+            )}
+          </svg>
+        </button>
       </div>
     </div>
   );
