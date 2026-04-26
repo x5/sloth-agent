@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} — Sloth Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1c1c; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 24px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  header .meta {
+    display: flex; gap: 24px; margin-top: 8px;
+    font-size: 13px; color: #4e6073;
+  }
+  header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  .progress-bar-wrap {
+    background: rgba(0,0,0,0.05); border-radius: 6px; height: 6px; margin-top: 16px;
+  }
+  .progress-bar-fill {
+    background: #14a0c8; height: 100%; border-radius: 6px;
+    transition: width 0.3s ease; width: 0%;
+  }
+  .progress-text { font-size: 13px; color: #4e6073; margin-top: 8px; }
+
+  .section {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .section__title {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section__subtitle { font-size: 12px; color: #9ea7b0; margin-top: 4px; margin-bottom: 20px; }
+
+  .check-item {
+    border: 1px solid rgba(0,0,0,0.06); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .check-item:hover { border-color: rgba(0,0,0,0.12); }
+  .check-item--pass { background: rgba(52,199,89,0.04); border-color: rgba(52,199,89,0.25); }
+  .check-item--fail { background: rgba(255,59,48,0.04); border-color: rgba(255,59,48,0.25); }
+
+  .check-item__row {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .check-item__num {
+    width: 24px; height: 24px; min-width: 24px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 600; color: #4e6073;
+  }
+  .check-item__body { flex: 1; min-width: 0; }
+  .check-item__label {
+    font-size: 14px; font-weight: 500; color: #1a1c1c; margin-bottom: 2px;
+  }
+  .check-item__detail {
+    font-size: 12px; color: #9ea7b0; margin-bottom: 10px; line-height: 1.5;
+  }
+
+  .check-item__actions {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .btn {
+    padding: 5px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12);
+    background: #fff; font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; color: #4e6073;
+  }
+  .btn:hover { background: #f5f5f5; }
+  .btn--pass {
+    border-color: #34c759; color: #34c759;
+  }
+  .btn--pass:hover { background: rgba(52,199,89,0.06); }
+  .btn--pass.btn--active { background: #34c759; color: #fff; border-color: #34c759; }
+
+  .btn--fail {
+    border-color: #ff3b30; color: #ff3b30;
+  }
+  .btn--fail:hover { background: rgba(255,59,48,0.06); }
+  .btn--fail.btn--active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+
+  /* Add Feedback button */
+  .btn--add {
+    margin-left: auto;
+    width: 28px; height: 28px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; border: 1px dashed rgba(0,0,0,0.15);
+    background: transparent; color: #9ea7b0; cursor: pointer;
+    font-size: 16px; font-weight: 400; line-height: 1;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn--add:hover { border-color: #14a0c8; color: #14a0c8; }
+
+  /* Feedback type popover */
+  .fb-popover {
+    display: none;
+    position: absolute;
+    z-index: 10;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    padding: 6px;
+    min-width: 140px;
+  }
+  .fb-popover--open { display: block; }
+
+  .fb-popover__item {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 8px 10px;
+    border: none; border-radius: 5px;
+    background: transparent;
+    font-family: inherit; font-size: 12px; color: #1a1c1c;
+    cursor: pointer;
+    text-align: left;
+  }
+  .fb-popover__item:hover { background: rgba(20,160,200,0.06); }
+
+  .fb-popover__dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .fb-popover__dot--bug { background: #ff3b30; }
+  .fb-popover__dot--opt { background: #ff9500; }
+
+  /* Feedback cards */
+  .fb-cards { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+  .fb-card {
+    display: flex; gap: 8px; align-items: stretch;
+    border: 1px solid rgba(0,0,0,0.08); border-radius: 6px;
+    overflow: hidden;
+  }
+  .fb-card__type {
+    width: 5px; flex-shrink: 0;
+  }
+  .fb-card__type--bug { background: #ff3b30; }
+  .fb-card__type--opt { background: #ff9500; }
+
+  .fb-card__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .fb-card__header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px 0;
+  }
+  .fb-card__tag {
+    padding: 1px 7px; border-radius: 3px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .fb-card__tag--bug { background: rgba(255,59,48,0.12); color: #ff3b30; }
+  .fb-card__tag--opt { background: rgba(255,149,0,0.12); color: #ff9500; }
+
+  .fb-card__remove {
+    margin-left: auto;
+    width: 18px; height: 18px; border: none; border-radius: 3px;
+    background: transparent; color: #9ea7b0; cursor: pointer;
+    font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  }
+  .fb-card__remove:hover { background: rgba(0,0,0,0.06); color: #ff3b30; }
+
+  .fb-card__textarea {
+    width: 100%; min-height: 44px; padding: 6px 10px 8px;
+    border: none; border-radius: 0 0 6px 6px;
+    font-family: inherit; font-size: 12px; resize: vertical;
+    background: transparent; color: #1a1c1c;
+    outline: none;
+  }
+  .fb-card__textarea:focus { background: rgba(20,160,200,0.03); }
+
+  .summary {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .summary__title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .summary__stats {
+    display: flex; gap: 24px; margin-bottom: 16px;
+  }
+  .summary__stat {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 24px; border-radius: 8px; background: rgba(0,0,0,0.02);
+  }
+  .summary__stat-val { font-size: 28px; font-weight: 700; }
+  .summary__stat-val--pass { color: #34c759; }
+  .summary__stat-val--fail { color: #ff3b30; }
+  .summary__stat-val--pending { color: #9ea7b0; }
+  .summary__stat-label { font-size: 11px; color: #9ea7b0; text-transform: uppercase; }
+
+  .export-bar {
+    display: flex; gap: 12px; margin-top: 8px;
+  }
+  .btn--export {
+    background: #1a1c1c; color: #fff; border: none;
+    padding: 8px 20px; font-size: 13px;
+  }
+  .btn--export:hover { background: #333; }
+
+  .summary__fb-summary {
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    font-size: 12px; color: #4e6073;
+  }
+  .summary__fb-row { padding: 4px 0; display: flex; gap: 8px; align-items: baseline; }
+  .summary__fb-tag {
+    padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  .summary__fb-tag--bug { background: rgba(255,59,48,0.12); color: #ff3b30; }
+  .summary__fb-tag--opt { background: rgba(255,149,0,0.12); color: #ff9500; }
+
+  .timestamp { font-size: 11px; color: #9ea7b0; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+
+<header>
+  <h1>Sloth Agent — {{TITLE}}</h1>
+  <div class="meta">
+    <span>📅 {{DATES}}</span>
+    <span>🎯 {{GOAL}}</span>
+    <span>📦 {{TASK_COUNT}} Tasks</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / {{TOTAL_COUNT}} verified</div>
+</header>
+
+<div class="summary" id="summary">
+  <div class="summary__title">Results Summary</div>
+  <div class="summary__stats">
+    <div class="summary__stat">
+      <div class="summary__stat-val summary__stat-val--pass" id="countPass">0</div>
+      <div class="summary__stat-label">Passed</div>
+    </div>
+    <div class="summary__stat">
+      <div class="summary__stat-val summary__stat-val--fail" id="countFail">0</div>
+      <div class="summary__stat-label">Failed</div>
+    </div>
+    <div class="summary__stat">
+      <div class="summary__stat-val summary__stat-val--pending" id="countPending">{{TOTAL_COUNT}}</div>
+      <div class="summary__stat-label">Pending</div>
+    </div>
+  </div>
+  <div class="export-bar">
+    <button class="btn btn--export" onclick="exportReport()">📋 Export Report</button>
+    <button class="btn btn--export" onclick="resetAll()">🔄 Reset All</button>
+  </div>
+  <div class="summary__fb-summary" id="feedbackDetail"></div>
+  <div class="timestamp" id="timestamp"></div>
+</div>
+
+{{SECTIONS}}
+
+</div><!-- /container -->
+
+<div class="fb-popover" id="popover">
+  <button class="fb-popover__item" onclick="addFeedback('bug')">
+    <span class="fb-popover__dot fb-popover__dot--bug"></span> Bug
+  </button>
+  <button class="fb-popover__item" onclick="addFeedback('opt')">
+    <span class="fb-popover__dot fb-popover__dot--opt"></span> Optimization
+  </button>
+</div>
+
+<script>
+const TOTAL = {{TOTAL_COUNT}};
+const STORAGE_KEY = 'sloth-{{STORAGE_KEY}}';
+
+var _popoverTarget = null;
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ---------- Verdict ---------- */
+
+function setVerdict(btn, verdict) {
+  var item = btn.closest('.check-item');
+  var id = item.getAttribute('data-id');
+
+  item.querySelectorAll('.btn--pass,.btn--fail').forEach(function(b) {
+    b.classList.remove('btn--active');
+    if (b.textContent.trim() === verdict.toUpperCase()) b.classList.add('btn--active');
+  });
+
+  item.classList.remove('check-item--pass', 'check-item--fail');
+  item.classList.add('check-item--' + verdict);
+
+  var state = loadState();
+  if (!state[id]) state[id] = {};
+  state[id].verdict = verdict;
+  saveState(state);
+  updateSummary();
+}
+
+/* ---------- Feedback entries ---------- */
+
+function openPopover(btn) {
+  _popoverTarget = btn.closest('.check-item');
+  var popover = document.getElementById('popover');
+  var rect = btn.getBoundingClientRect();
+  popover.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  popover.style.left = (rect.left + window.scrollX - 100) + 'px';
+  popover.classList.add('fb-popover--open');
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.fb-popover') && !e.target.closest('.btn--add')) {
+    document.getElementById('popover').classList.remove('fb-popover--open');
+  }
+});
+
+function addFeedback(type) {
+  document.getElementById('popover').classList.remove('fb-popover--open');
+  if (!_popoverTarget) return;
+
+  var item = _popoverTarget;
+  var id = item.getAttribute('data-id');
+  var state = loadState();
+  if (!state[id]) state[id] = {};
+  if (!state[id].feedbacks) state[id].feedbacks = [];
+  state[id].feedbacks.push({type: type, text: ''});
+  saveState(state);
+  renderFeedbacks(item, id, state[id].feedbacks);
+  updateSummary();
+}
+
+function removeFeedback(item, idx) {
+  var id = item.getAttribute('data-id');
+  var state = loadState();
+  if (state[id] && state[id].feedbacks) {
+    state[id].feedbacks.splice(idx, 1);
+    saveState(state);
+    renderFeedbacks(item, id, state[id].feedbacks);
+    updateSummary();
+  }
+}
+
+function onFeedbackInput(item, idx) {
+  var id = item.getAttribute('data-id');
+  var state = loadState();
+  if (state[id] && state[id].feedbacks && state[id].feedbacks[idx]) {
+    var textarea = item.querySelectorAll('.fb-card__textarea')[idx];
+    if (textarea) state[id].feedbacks[idx].text = textarea.value;
+    saveState(state);
+    updateSummary();
+  }
+}
+
+function renderFeedbacks(item, id, feedbacks) {
+  var container = item.querySelector('.fb-cards');
+  if (!feedbacks || feedbacks.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  var html = '';
+  feedbacks.forEach(function(fb, i) {
+    var typeLabel = fb.type === 'bug' ? 'BUG' : 'OPT';
+    html += '<div class="fb-card">' +
+      '<div class="fb-card__type fb-card__type--' + fb.type + '"></div>' +
+      '<div class="fb-card__body">' +
+        '<div class="fb-card__header">' +
+          '<span class="fb-card__tag fb-card__tag--' + fb.type + '">' + typeLabel + '</span>' +
+          '<button class="fb-card__remove" title="Remove" onclick="removeFeedback(this.closest(\'.check-item\'),' + i + ')">&times;</button>' +
+        '</div>' +
+        '<textarea class="fb-card__textarea" placeholder="Describe this ' + fb.type + '…" oninput="onFeedbackInput(this.closest(\'.check-item\'),' + i + ')">' + escapeHtml(fb.text) + '</textarea>' +
+      '</div>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+}
+
+/* ---------- Summary ---------- */
+
+function updateSummary() {
+  var state = loadState();
+  var pass = 0, fail = 0, bugs = 0, opts = 0;
+  var detailHtml = '';
+
+  for (var i = 1; i <= TOTAL; i++) {
+    if (state[i] && state[i].verdict === 'pass') pass++;
+    if (state[i] && state[i].verdict === 'fail') fail++;
+    if (state[i] && state[i].feedbacks) {
+      state[i].feedbacks.forEach(function(fb) {
+        if (fb.text && fb.text.trim()) {
+          var tagClass = fb.type === 'bug' ? 'bug' : 'opt';
+          var tagLabel = fb.type === 'bug' ? 'BUG' : 'OPT';
+          detailHtml += '<div class="summary__fb-row">' +
+            '<span class="summary__fb-tag summary__fb-tag--' + tagClass + '">' + tagLabel + '</span>' +
+            '<span style="color:#9ea7b0">#' + i + '</span>' +
+            '<span>' + escapeHtml(fb.text) + '</span>' +
+            '</div>';
+          if (fb.type === 'bug') bugs++; else opts++;
+        }
+      });
+    }
+  }
+
+  var pending = TOTAL - pass - fail;
+  var pct = Math.round(((pass + fail) / TOTAL) * 100);
+
+  document.getElementById('countPass').textContent = pass;
+  document.getElementById('countFail').textContent = fail;
+  document.getElementById('countPending').textContent = pending;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = (pass + fail) + ' / ' + TOTAL + ' verified';
+
+  var detailHeader = '';
+  if (bugs > 0 || opts > 0) {
+    detailHeader = '<p style="font-size:12px;color:#9ea7b0;margin-bottom:8px">' +
+      bugs + ' bugs, ' + opts + ' optimizations reported</p>';
+  }
+  document.getElementById('feedbackDetail').innerHTML = detailHeader + detailHtml || '<p style="font-size:12px;color:#9ea7b0;">No feedback notes yet</p>';
+  document.getElementById('timestamp').textContent = 'Last updated: ' + new Date().toLocaleString();
+}
+
+/* ---------- Restore ---------- */
+
+function restoreUI() {
+  var state = loadState();
+  Object.keys(state).forEach(function(id) {
+    var item = document.querySelector('.check-item[data-id="' + id + '"]');
+    if (!item) return;
+    var entry = state[id];
+    if (entry.verdict) {
+      item.classList.add('check-item--' + entry.verdict);
+      var btn = item.querySelector(entry.verdict === 'pass' ? '.btn--pass' : '.btn--fail');
+      if (btn) btn.classList.add('btn--active');
+    }
+    if (entry.feedbacks && entry.feedbacks.length) {
+      renderFeedbacks(item, id, entry.feedbacks);
+    }
+  });
+  updateSummary();
+}
+
+/* ---------- Export ---------- */
+
+function exportReport() {
+  var state = loadState();
+  var pass = 0, fail = 0, bugs = 0, opts = 0;
+
+  var sections = document.querySelectorAll('.section');
+  var lines = [];
+  lines.push('Sloth Agent — ' + document.title.replace(' — Sloth Agent', ''));
+  lines.push('Generated: ' + new Date().toISOString());
+  lines.push('');
+
+  sections.forEach(function(sec) {
+    var secTitle = sec.querySelector('.section__title').textContent.trim();
+    lines.push('--- ' + secTitle + ' ---');
+
+    sec.querySelectorAll('.check-item').forEach(function(item) {
+      var id = item.getAttribute('data-id');
+      var label = item.querySelector('.check-item__label').textContent.trim();
+      var entry = state[id] || {};
+      var status = entry.verdict ? entry.verdict.toUpperCase() : 'PENDING';
+      lines.push('  [' + status + '] ' + label);
+
+      if (entry.feedbacks) {
+        entry.feedbacks.forEach(function(fb) {
+          var prefix = fb.type === 'bug' ? '  [BUG]' : '  [OPT]';
+          lines.push(prefix + ' ' + fb.text);
+          if (fb.type === 'bug') bugs++; else opts++;
+        });
+      }
+    });
+    lines.push('');
+  });
+
+  for (var i = 1; i <= TOTAL; i++) {
+    if (state[i] && state[i].verdict === 'pass') pass++;
+    if (state[i] && state[i].verdict === 'fail') fail++;
+  }
+  lines.unshift('SUMMARY: ' + pass + ' passed, ' + fail + ' failed, ' + (TOTAL - pass - fail) + ' pending | ' + bugs + ' bugs, ' + opts + ' optimizations');
+  lines.unshift('');
+
+  var content = lines.join('\n');
+  // Try File System Access API (Chromium / Tauri WebView2)
+  if (typeof showSaveFilePicker !== 'undefined') {
+    (async function() {
+      try {
+        var handle = await showSaveFilePicker({
+          suggestedName: '{{EXPORT_FILENAME}}',
+          types: [{ description: 'Text files', accept: { 'text/plain': ['.txt'] } }]
+        });
+        var writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+      } catch(e) {
+        // User cancelled — do nothing
+      }
+    })();
+  } else {
+    var blob = new Blob([content], {type: 'text/plain'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '{{EXPORT_FILENAME}}';
+    a.click();
+  }
+}
+
+/* ---------- Reset ---------- */
+
+function resetAll() {
+  if (confirm('Reset all verification results? This cannot be undone.')) {
+    localStorage.removeItem(STORAGE_KEY);
+    document.querySelectorAll('.check-item').forEach(function(item) {
+      item.classList.remove('check-item--pass', 'check-item--fail');
+      item.querySelectorAll('.btn--pass,.btn--fail').forEach(function(b) { b.classList.remove('btn--active'); });
+      item.querySelector('.fb-cards').innerHTML = '';
+    });
+    updateSummary();
+  }
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* Init */
+restoreUI();
+</script>
+</body>
+</html>
