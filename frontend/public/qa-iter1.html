@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iter-1 Verification Checklist — Sloth Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1c1c; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 24px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  header .meta {
+    display: flex; gap: 24px; margin-top: 8px;
+    font-size: 13px; color: #4e6073;
+  }
+  header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  .progress-bar-wrap {
+    background: rgba(0,0,0,0.05); border-radius: 6px; height: 6px; margin-top: 16px;
+  }
+  .progress-bar-fill {
+    background: #14a0c8; height: 100%; border-radius: 6px;
+    transition: width 0.3s ease; width: 0%;
+  }
+  .progress-text { font-size: 13px; color: #4e6073; margin-top: 8px; }
+
+  .section {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .section__title {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section__subtitle { font-size: 12px; color: #9ea7b0; margin-top: 4px; margin-bottom: 20px; }
+
+  .check-item {
+    border: 1px solid rgba(0,0,0,0.06); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .check-item:hover { border-color: rgba(0,0,0,0.12); }
+  .check-item--pass { background: rgba(52,199,89,0.04); border-color: rgba(52,199,89,0.25); }
+  .check-item--fail { background: rgba(255,59,48,0.04); border-color: rgba(255,59,48,0.25); }
+
+  .check-item__row {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .check-item__num {
+    width: 24px; height: 24px; min-width: 24px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 600; color: #4e6073;
+  }
+  .check-item__body { flex: 1; min-width: 0; }
+  .check-item__label {
+    font-size: 14px; font-weight: 500; color: #1a1c1c; margin-bottom: 2px;
+  }
+  .check-item__detail {
+    font-size: 12px; color: #9ea7b0; margin-bottom: 10px; line-height: 1.5;
+  }
+
+  .check-item__actions {
+    display: flex; gap: 8px; margin-bottom: 10px;
+  }
+  .btn {
+    padding: 5px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12);
+    background: #fff; font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; color: #4e6073;
+  }
+  .btn:hover { background: #f5f5f5; }
+  .btn--pass {
+    border-color: #34c759; color: #34c759;
+  }
+  .btn--pass:hover { background: rgba(52,199,89,0.06); }
+  .btn--pass.btn--active { background: #34c759; color: #fff; border-color: #34c759; }
+
+  .btn--fail {
+    border-color: #ff3b30; color: #ff3b30;
+  }
+  .btn--fail:hover { background: rgba(255,59,48,0.06); }
+  .btn--fail.btn--active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+
+  .check-item__feedback {
+    width: 100%; min-height: 48px; padding: 8px 12px;
+    border: 1px solid rgba(0,0,0,0.1); border-radius: 6px;
+    font-family: inherit; font-size: 12px; resize: vertical;
+    background: #fafafa; color: #1a1c1c;
+    display: none;
+  }
+  .check-item__feedback:focus { outline: none; border-color: #14a0c8; background: #fff; }
+  .check-item--has-verdict .check-item__feedback { display: block; }
+
+  .summary {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .summary__title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .summary__stats {
+    display: flex; gap: 24px; margin-bottom: 16px;
+  }
+  .summary__stat {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 24px; border-radius: 8px; background: rgba(0,0,0,0.02);
+  }
+  .summary__stat-val { font-size: 28px; font-weight: 700; }
+  .summary__stat-val--pass { color: #34c759; }
+  .summary__stat-val--fail { color: #ff3b30; }
+  .summary__stat-val--pending { color: #9ea7b0; }
+  .summary__stat-label { font-size: 11px; color: #9ea7b0; text-transform: uppercase; }
+
+  .export-bar {
+    display: flex; gap: 12px; margin-top: 8px;
+  }
+  .btn--export {
+    background: #1a1c1c; color: #fff; border: none;
+    padding: 8px 20px; font-size: 13px;
+  }
+  .btn--export:hover { background: #333; }
+
+  .feedback-detail {
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .feedback-detail__item {
+    font-size: 12px; padding: 6px 0; display: flex; gap: 8px;
+  }
+  .feedback-detail__tag {
+    padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase;
+  }
+  .feedback-detail__tag--pass { background: rgba(52,199,89,0.15); color: #34c759; }
+  .feedback-detail__tag--fail { background: rgba(255,59,48,0.15); color: #ff3b30; }
+
+  .timestamp { font-size: 11px; color: #9ea7b0; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+
+<header>
+  <h1>Sloth Agent — Iter-1 Verification Checklist</h1>
+  <div class="meta">
+    <span>📅 2026-04-25 – 2026-04-27</span>
+    <span>🎯 Project Shell + Inspiration CRUD</span>
+    <span>📦 3 Tasks</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / 15 verified</div>
+</header>
+
+<div class="summary" id="summary">
+  <div class="summary__title">Results Summary</div>
+  <div class="summary__stats">
+    <div class="summary__stat">
+      <div class="summary__stat-val summary__stat-val--pass" id="countPass">0</div>
+      <div class="summary__stat-label">Passed</div>
+    </div>
+    <div class="summary__stat">
+      <div class="summary__stat-val summary__stat-val--fail" id="countFail">0</div>
+      <div class="summary__stat-label">Failed</div>
+    </div>
+    <div class="summary__stat">
+      <div class="summary__stat-val summary__stat-val--pending" id="countPending">15</div>
+      <div class="summary__stat-label">Pending</div>
+    </div>
+  </div>
+  <div class="export-bar">
+    <button class="btn btn--export" onclick="exportReport()">📋 Export Report</button>
+    <button class="btn btn--export" onclick="resetAll()">🔄 Reset All</button>
+  </div>
+  <div class="feedback-detail" id="feedbackDetail"></div>
+  <div class="timestamp" id="timestamp"></div>
+</div>
+
+<!-- ===== Task 1.1 ===== -->
+<div class="section">
+  <div class="section__title">
+    <span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(20,160,200,0.12);font-size:13px;font-weight:700;color:#14a0c8;">1</span>
+    Task 1.1 — Backend: SQLite + Inspiration API
+  </div>
+  <div class="section__subtitle">Database schema, CRUD endpoints, data persistence</div>
+
+  <div class="check-item" data-id="1">
+    <div class="check-item__row">
+      <div class="check-item__num">1</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /api/inspirations — 创建 Inspiration</div>
+        <div class="check-item__detail">点击"+" → 输入名称 → 回车 → 列表中立即出现新项，且自动选中</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="2">
+    <div class="check-item__row">
+      <div class="check-item__num">2</div>
+      <div class="check-item__body">
+        <div class="check-item__label">GET /api/inspirations — 列表加载</div>
+        <div class="check-item__detail">页面加载时自动请求列表，已有数据正常渲染</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="3">
+    <div class="check-item__row">
+      <div class="check-item__num">3</div>
+      <div class="check-item__body">
+        <div class="check-item__label">GET /api/inspirations?q= — 搜索过滤</div>
+        <div class="check-item__detail">在搜索框中输入关键字 → 列表只显示匹配项；清空搜索框 → 恢复全部列表</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="4">
+    <div class="check-item__row">
+      <div class="check-item__num">4</div>
+      <div class="check-item__body">
+        <div class="check-item__label">DELETE — 删除 Inspiration（右键菜单等）</div>
+        <div class="check-item__detail">删除一个 Inspiration → 列表不再显示 → activeId 切换</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="5">
+    <div class="check-item__row">
+      <div class="check-item__num">5</div>
+      <div class="check-item__body">
+        <div class="check-item__label">数据持久化 — 重启后数据保留</div>
+        <div class="check-item__detail">关闭应用 → 重新打开 → 之前创建的 Inspiration 仍然存在</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Task 1.2 ===== -->
+<div class="section">
+  <div class="section__title">
+    <span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(20,160,200,0.12);font-size:13px;font-weight:700;color:#14a0c8;">2</span>
+    Task 1.2 — Frontend: 4-Column Layout Shell
+  </div>
+  <div class="section__subtitle">Layout structure, navigation, panel toggling</div>
+
+  <div class="check-item" data-id="6">
+    <div class="check-item__row">
+      <div class="check-item__num">6</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col1 SideNavBar — 64px 导航栏</div>
+        <div class="check-item__detail">Logo + Inspiration(active) + Agents + Settings 按钮 + 底部用户头像，垂直排列，宽度固定 64px</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="7">
+    <div class="check-item__row">
+      <div class="check-item__num">7</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col2 ProjectList — 280px 项目列表</div>
+        <div class="check-item__detail">"Inspiration" 标题 + "+" 按钮 + 搜索框 + 列表区域 + 底部折叠按钮</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="8">
+    <div class="check-item__row">
+      <div class="check-item__num">8</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col3 ChatArea — 弹性宽度聊天区</div>
+        <div class="check-item__detail">TopAppBar (项目名 + MVP tag + 状态灯 + 操作按钮) + 空状态提示 + 禁用输入框</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="9">
+    <div class="check-item__row">
+      <div class="check-item__num">9</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col4 RightPanel — 320px 右侧面板 (可开关)</div>
+        <div class="check-item__detail">Team/Status 按钮切换 → 右侧面板打开/关闭 → "Team Members" 和 "Activity" 占位内容</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="10">
+    <div class="check-item__row">
+      <div class="check-item__num">10</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col2 折叠/展开</div>
+        <div class="check-item__detail">点击左下角折叠按钮 → Col2 收起到 48px → 再次点击恢复 280px</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="11">
+    <div class="check-item__row">
+      <div class="check-item__num">11</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Logo 状态动画</div>
+        <div class="check-item__detail">Logo 呼吸动画 (idle) 正常工作；hover 交互正常</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Task 1.3 ===== -->
+<div class="section">
+  <div class="section__title">
+    <span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(20,160,200,0.12);font-size:13px;font-weight:700;color:#14a0c8;">3</span>
+    Task 1.3 — Frontend: Inspiration CRUD Integration
+  </div>
+  <div class="section__subtitle">Frontend ↔ Rust ↔ FastAPI full-stack data flow</div>
+
+  <div class="check-item" data-id="12">
+    <div class="check-item__row">
+      <div class="check-item__num">12</div>
+      <div class="check-item__body">
+        <div class="check-item__label">项目选中态切换</div>
+        <div class="check-item__detail">点击不同 Inspiration → activeId 切换 → 绿色左边框 + 绿色背景 + 名称加粗 + 头像变色</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="13">
+    <div class="check-item__row">
+      <div class="check-item__num">13</div>
+      <div class="check-item__body">
+        <div class="check-item__label">ChatArea 联动 — 选中项目后标题更新</div>
+        <div class="check-item__detail">选中 Inspiration → TopAppBar 显示项目名称 + "MVP" tag + "1 ACTIVE" 状态</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="14">
+    <div class="check-item__row">
+      <div class="check-item__num">14</div>
+      <div class="check-item__body">
+        <div class="check-item__label">空状态 UI</div>
+        <div class="check-item__detail">无数据时显示 "No inspirations yet" + "Create your first inspiration" 引导按钮</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="check-item" data-id="15">
+    <div class="check-item__row">
+      <div class="check-item__num">15</div>
+      <div class="check-item__body">
+        <div class="check-item__label">时间戳显示</div>
+        <div class="check-item__detail">列表项显示相对时间 ("Just now" / "5m ago" / "2h ago" / "Yesterday" / 日期)</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="setVerdict(this, 'pass')">PASS</button>
+          <button class="btn btn--fail" onclick="setVerdict(this, 'fail')">FAIL</button>
+        </div>
+        <textarea class="check-item__feedback" placeholder="Describe what you observed…"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+const TOTAL = 15;
+const STORAGE_KEY = 'sloth-iter1-verification';
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function setVerdict(btn, verdict) {
+  var item = btn.closest('.check-item');
+  var id = item.getAttribute('data-id');
+
+  // Update button active states
+  item.querySelectorAll('.btn--pass,.btn--fail').forEach(function(b) {
+    b.classList.remove('btn--active');
+    if (b.textContent.trim() === verdict.toUpperCase()) b.classList.add('btn--active');
+  });
+
+  // Update item styling
+  item.classList.remove('check-item--pass', 'check-item--fail');
+  item.classList.add('check-item--' + verdict, 'check-item--has-verdict');
+
+  // Persist
+  var state = loadState();
+  state[id] = { verdict: verdict, feedback: state[id] ? state[id].feedback || '' : '' };
+  saveState(state);
+
+  // Update feedback textarea visibility (handled by CSS)
+  updateSummary();
+}
+
+// Auto-save feedback on input
+document.addEventListener('input', function(e) {
+  if (e.target.classList.contains('check-item__feedback')) {
+    var item = e.target.closest('.check-item');
+    var id = item.getAttribute('data-id');
+    var state = loadState();
+    if (!state[id]) state[id] = { verdict: null, feedback: '' };
+    state[id].feedback = e.target.value;
+    saveState(state);
+  }
+});
+
+function updateSummary() {
+  var state = loadState();
+  var pass = 0, fail = 0;
+  var detailHtml = '';
+
+  for (var i = 1; i <= TOTAL; i++) {
+    if (state[i] && state[i].verdict === 'pass') pass++;
+    if (state[i] && state[i].verdict === 'fail') fail++;
+    if (state[i] && state[i].feedback) {
+      var tag = state[i].verdict === 'pass' ? 'pass' : 'fail';
+      detailHtml += '<div class="feedback-detail__item">' +
+        '<span class="feedback-detail__tag feedback-detail__tag--' + tag + '">' + tag.toUpperCase() + '</span>' +
+        '<span>#' + i + ': ' + escapeHtml(state[i].feedback) + '</span>' +
+        '</div>';
+    }
+  }
+
+  var pending = TOTAL - pass - fail;
+  var pct = Math.round(((pass + fail) / TOTAL) * 100);
+
+  document.getElementById('countPass').textContent = pass;
+  document.getElementById('countFail').textContent = fail;
+  document.getElementById('countPending').textContent = pending;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = (pass + fail) + ' / ' + TOTAL + ' verified';
+  document.getElementById('feedbackDetail').innerHTML = detailHtml || '<p style="font-size:12px;color:#9ea7b0;">No feedback notes yet</p>';
+  document.getElementById('timestamp').textContent = 'Last updated: ' + new Date().toLocaleString();
+}
+
+function restoreUI() {
+  var state = loadState();
+  Object.keys(state).forEach(function(id) {
+    var item = document.querySelector('.check-item[data-id="' + id + '"]');
+    if (!item) return;
+    var entry = state[id];
+    var verdict = entry.verdict;
+    if (verdict) {
+      item.classList.add('check-item--' + verdict, 'check-item--has-verdict');
+      var btn = item.querySelector(verdict === 'pass' ? '.btn--pass' : '.btn--fail');
+      if (btn) btn.classList.add('btn--active');
+    }
+    var fb = item.querySelector('.check-item__feedback');
+    if (fb && entry.feedback) fb.value = entry.feedback;
+  });
+  updateSummary();
+}
+
+function exportReport() {
+  var state = loadState();
+  var pass = 0, fail = 0;
+  for (var i = 1; i <= TOTAL; i++) {
+    if (state[i] && state[i].verdict === 'pass') pass++;
+    if (state[i] && state[i].verdict === 'fail') fail++;
+  }
+
+  var lines = [];
+  lines.push('Sloth Agent — Iter-1 Verification Report');
+  lines.push('Generated: ' + new Date().toISOString());
+  lines.push('');
+  lines.push('SUMMARY: ' + pass + ' passed, ' + fail + ' failed, ' + (TOTAL - pass - fail) + ' pending');
+  lines.push('');
+
+  var sections = [
+    { title: 'Task 1.1 — Backend: SQLite + Inspiration API', ids: [1,2,3,4,5] },
+    { title: 'Task 1.2 — Frontend: 4-Column Layout Shell', ids: [6,7,8,9,10,11] },
+    { title: 'Task 1.3 — Frontend: Inspiration CRUD Integration', ids: [12,13,14,15] }
+  ];
+
+  var labels = {
+    1:'POST create', 2:'GET list', 3:'GET search', 4:'DELETE', 5:'Persistence',
+    6:'Col1 SideNavBar', 7:'Col2 ProjectList', 8:'Col3 ChatArea', 9:'Col4 RightPanel',
+    10:'Col2 collapse', 11:'Logo animation', 12:'Select toggle', 13:'ChatArea link',
+    14:'Empty state', 15:'Timestamp'
+  };
+
+  sections.forEach(function(sec) {
+    lines.push('--- ' + sec.title + ' ---');
+    sec.ids.forEach(function(id) {
+      var entry = state[id] || {};
+      var status = entry.verdict ? entry.verdict.toUpperCase() : 'PENDING';
+      var fb = entry.feedback || '-';
+      lines.push('  [' + status + '] #' + id + ' ' + (labels[id] || '') + ': ' + fb);
+    });
+    lines.push('');
+  });
+
+  var blob = new Blob([lines.join('\n')], {type: 'text/plain'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'iter-1-verification-report.txt';
+  a.click();
+}
+
+function resetAll() {
+  if (confirm('Reset all verification results? This cannot be undone.')) {
+    localStorage.removeItem(STORAGE_KEY);
+    document.querySelectorAll('.check-item').forEach(function(item) {
+      item.classList.remove('check-item--pass', 'check-item--fail', 'check-item--has-verdict');
+      item.querySelectorAll('.btn--pass,.btn--fail').forEach(function(b) { b.classList.remove('btn--active'); });
+      var fb = item.querySelector('.check-item__feedback');
+      if (fb) fb.value = '';
+    });
+    updateSummary();
+  }
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Init
+restoreUI();
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
 from ..models import Inspiration
+from ..services.agent import AgentService
 
 router = APIRouter(prefix="/api/inspirations", tags=["inspirations"])
 
@@ -43,6 +44,7 @@ async def create_inspiration(req: CreateInspirationRequest, db: AsyncSession = D
     db.add(inspiration)
     await db.commit()
     await db.refresh(inspiration)
+    await AgentService.join_auto_agents(inspiration.id)
     return inspiration
 
 

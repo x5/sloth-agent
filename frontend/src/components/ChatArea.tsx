@@ -1,5 +1,8 @@
+import { useEffect, useRef, useState } from "react";
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
+import * as api from "../api/client";
+import type { Message } from "../api/client";
 
 export default function ChatArea() {
   const inspirations = useInspirationStore((s) => s.inspirations);
@@ -8,6 +11,69 @@ export default function ChatArea() {
 
   const col4Content = useUIStore((s) => s.col4Content);
   const openCol4 = useUIStore((s) => s.openCol4);
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeId) {
+      api.getMessages(activeId).then(setMessages).catch(() => setMessages([]));
+    } else {
+      setMessages([]);
+    }
+    setInput("");
+  }, [activeId]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    const content = input.trim();
+    if (!content || !activeId || sending) return;
+
+    setInput("");
+    setSending(true);
+
+    // Optimistic human message
+    const tempHuman: Message = {
+      id: "temp-" + Date.now(),
+      inspiration_id: activeId,
+      agent_id: null,
+      role: "human",
+      content,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempHuman]);
+
+    try {
+      const reply = await api.sendChatMessage(activeId, content);
+      setMessages((prev) => [...prev, reply]);
+    } catch (e) {
+      const errMsg: Message = {
+        id: "err-" + Date.now(),
+        inspiration_id: activeId,
+        agent_id: null,
+        role: "agent",
+        content: "Error: " + String(e),
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   return (
     <div className="chatarea">
@@ -20,7 +86,7 @@ export default function ChatArea() {
               <span className="chatarea__tag">MVP</span>
               <span className="chatarea__status">
                 <span className="chatarea__status-dot" />
-                1 ACTIVE
+                {messages.length > 0 ? `${messages.length} MSGS` : "1 ACTIVE"}
               </span>
             </>
           ) : (
@@ -51,32 +117,65 @@ export default function ChatArea() {
         </div>
       </div>
 
-      {/* Chat Canvas */}
-      <div className="chatarea__canvas">
-        <div className="chatarea__empty">
-          <div className="chatarea__empty-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-            </svg>
+      {/* Messages */}
+      <div className="chatarea__canvas" ref={scrollRef}>
+        {messages.length === 0 ? (
+          <div className="chatarea__empty">
+            <div className="chatarea__empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+            </div>
+            <p className="chatarea__empty-text">
+              {activeInspiration
+                ? `Start chatting in "${activeInspiration.name}"`
+                : "Select an inspiration to start chatting"}
+            </p>
           </div>
-          <p className="chatarea__empty-text">
-            {activeInspiration
-              ? `Start chatting in "${activeInspiration.name}"`
-              : "Select an inspiration to start chatting"}
-          </p>
-        </div>
+        ) : (
+          <div className="chatarea__messages">
+            {messages.map((m) => (
+              <div
+                key={m.id}
+                className={`chat-message${m.role === "human" ? " chat-message--human" : " chat-message--agent"}`}
+              >
+                <div className="chat-message__bubble">
+                  <div className="chat-message__role">
+                    {m.role === "human" ? "You" : "Agent"}
+                  </div>
+                  <div className="chat-message__content">{m.content}</div>
+                </div>
+              </div>
+            ))}
+            {sending && (
+              <div className="chat-message chat-message--agent">
+                <div className="chat-message__bubble">
+                  <div className="chat-message__content chat-message__content--loading">
+                    Thinking...
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Input Area */}
       <div className="chatarea__input">
         <div className="chatarea__input-box">
-          <div className="chatarea__input-field" contentEditable={false}>
-            <span className="chatarea__input-placeholder">
-              {activeInspiration
-                ? "Chat coming in the next update..."
-                : "Select an inspiration to start..."}
-            </span>
-          </div>
+          <textarea
+            className="chatarea__input-field chatarea__input-field--active"
+            placeholder={
+              activeInspiration
+                ? "Type your message..."
+                : "Select an inspiration to start..."
+            }
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={!activeInspiration || sending}
+            rows={1}
+          />
           <div className="chatarea__input-actions">
             <div className="chatarea__input-tools">
               <button className="chatarea__tool-btn" title="Attach File" disabled>
@@ -91,7 +190,11 @@ export default function ChatArea() {
                 </svg>
               </button>
             </div>
-            <button className="chatarea__send-btn" disabled>
+            <button
+              className="chatarea__send-btn"
+              disabled={!activeInspiration || !input.trim() || sending}
+              onClick={handleSend}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
