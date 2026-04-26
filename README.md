@@ -17,7 +17,7 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **最新版本 v0.3.6** — 安装脚本兼容性修复，产品描述统一。
+> **最新版本 v0.5.0** — 桌面应用 MVP Iter-1 完成：4 列布局 + Inspiration CRUD + 验证管线。
 > [查看 Release](https://github.com/x5/sloth-agent/releases) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
@@ -141,7 +141,9 @@ sloth chat
 | v0.2.0 | + 对话模式 | REPL 交互，聊天界面中文优先 |
 | v0.3.0 | + 技能 + 成本 | Skill 系统 + Cost Tracking + 容错 + 自适应执行 |
 | v0.3.x | + Agent-First | Agent 注册表替代 Stage 概念，自适应重规划 |
-| v0.5 | + 多 Agent 并行 | 知识库 + 事件总线 + Speculative Execution |
+| v0.4.0 | + 桌面应用本体 | Tauri v2 + React + FastAPI 桌面版（当前开发中） |
+| v0.5.0 | + 桌面 MVP Iter-1 | 4 列布局 + SQLite + Inspiration CRUD + QA 验证管线 |
+| v0.5.x | + 聊天 + Agent 管理 | 消息流 + LLM 集成 + Agent 面板（开发中） |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+ Agent + 多场景编排 |
 
@@ -392,5 +394,35 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-*Sloth Agent v0.3.6*
-*最后更新: 2026-04-22*
+### 桌面应用 (v0.5.0+)
+
+Sloth Agent 现已支持桌面应用形态，提供原生 GUI 交互体验：
+
+```
+Tauri WebView (React) ──invoke──> Rust Layer (reqwest)
+                                          │
+                                          ▼
+                              FastAPI Sidecar (127.0.0.1:8080)
+                                          │
+                                          ▼
+                                     SQLite
+```
+
+| 迭代 | 版本 | 范围 |
+|------|------|------|
+| Phase 0 | v0.4.0 | Tauri v2 + React + FastAPI 基础框架 |
+| Iter-1 | v0.5.0 | 4 列布局 + Inspiration CRUD + QA 验证 |
+| Iter-2 | v0.5.x | 聊天 + 默认 Agent + LLM 集成 |
+| Iter-3 | v0.6.x | Agent 管理面板 + 模型配置 |
+
+**技术栈：** Tauri v2 · React 18 · TypeScript · FastAPI · SQLAlchemy · SQLite · Zustand
+
+**相关文档：**
+- [桌面应用技术架构](docs/design/desktop-app-architecture.md)
+- [MVP 实现计划](docs/plans/20260425-mvp-desktop-app-plan.md)
+- [Iter-1 验收清单](docs/qa/iter-1-verification.html)
+
+---
+
+*Sloth Agent v0.5.0*
+*最后更新: 2026-04-26*
