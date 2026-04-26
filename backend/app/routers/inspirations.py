@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,14 @@ class InspirationResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def ensure_utc(self):
+        for field_name in ("created_at", "updated_at"):
+            dt = getattr(self, field_name)
+            if dt is not None and dt.tzinfo is None:
+                setattr(self, field_name, dt.replace(tzinfo=timezone.utc))
+        return self
 
 
 async def get_db():

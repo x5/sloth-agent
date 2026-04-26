@@ -26,7 +26,7 @@ function getInitials(name: string): string {
 }
 
 export default function ProjectList() {
-  const { inspirations, activeId, loading, fetchAll, create, setActive } =
+  const { inspirations, activeId, loading, fetchAll, create, remove, setActive } =
     useInspirationStore();
   const col2Collapsed = useUIStore((s) => s.col2Collapsed);
   const toggleCol2 = useUIStore((s) => s.toggleCol2);
@@ -72,6 +72,13 @@ export default function ProjectList() {
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
+          <div className="projectlist__collapsed-icon" title="Inspiration">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea7b0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V18h8v-3.3c1.8-1.3 3-3.4 3-5.7a7 7 0 0 0-7-7z" />
+              <line x1="9" y1="18" x2="15" y2="18" />
+              <line x1="10" y1="21" x2="14" y2="21" />
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -137,8 +144,25 @@ export default function ProjectList() {
                     {formatTime(p.updated_at)}
                   </span>
                 </div>
-                <div className="projectlist__item-preview">
-                  Click to open
+                <div className="projectlist__item-subrow">
+                  <div className="projectlist__item-preview">
+                    Click to open
+                  </div>
+                  <button
+                    className="projectlist__item-delete"
+                    title="Delete inspiration"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Delete "${p.name}"?`)) {
+                        remove(p.id);
+                      }
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
                 </div>
               </div>
               {isActive && <div className="projectlist__item-accent" />}

@@ -111,6 +111,43 @@
 
 ---
 
+## Iter-1 Polish: UI 优化 (来自 QA 验证反馈)
+
+> 来源: `docs/qa/iter-1-verification-report.txt` (2026-04-26)
+> 优先级: 与 Iter-2 并行进行
+
+### Task 1.4: 创建 Inspiration 交互优化
+
+**文件：** `frontend/src/components/ProjectList.tsx`
+
+1. 将 `prompt()` 弹窗替换为内联输入框（点击"+"后列表顶部出现输入框）
+2. 支持 Enter 提交、Escape 取消
+3. 输入验证：空名称不允许提交
+
+### Task 1.5: 列表项 UI 优化
+
+**文件：** `frontend/src/components/ProjectList.tsx` + `App.css`
+
+1. **副标题** — 将 "Click to open" 替换为可编辑的 description 字段（未来关联），当前先显示创建时间
+2. **头像文字缩小** — initials 字号从 16px → 12px，方块增加 4px padding，不再撑满
+3. **默认头像颜色** — 灰色背景改为使用 HSL 从 name 生成的颜色（consistent hash），例如蓝色系、绿色系等
+4. **列表项间距** — 适当增加 item 之间的 gap
+
+### Task 1.6: 搜索自动补全
+
+**文件：** `frontend/src/components/ProjectList.tsx`
+
+1. 搜索框输入时，下拉显示匹配的已有名称清单
+2. 点击建议项直接选中对应的 Inspiration
+3. 无匹配时显示 "No results"
+
+### Task 1.7: 窗口最小宽度
+
+- `tauri.conf.json` 已设置 `minWidth: 640, minHeight: 480`（需要重新编译 exe 生效）
+- CSS 已加固 ChatArea header 防挤压
+
+---
+
 ## Iter-2: 聊天 + 默认 Agent
 
 ### Task 2.1: 后端 — Agent 模型 + LLM 服务

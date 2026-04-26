@@ -411,6 +411,43 @@ body {
   white-space: nowrap;
 }
 
+.projectlist__item-subrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.projectlist__item-subrow .projectlist__item-preview {
+  flex: 1 0 0;
+  min-width: 0;
+}
+
+.projectlist__item-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.projectlist__item:hover .projectlist__item-delete {
+  opacity: 0.6;
+}
+
+.projectlist__item-delete:hover {
+  opacity: 1 !important;
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
 .projectlist__item-accent {
   position: absolute;
   left: 0;
@@ -477,6 +514,8 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chatarea__project-name {
@@ -485,6 +524,9 @@ body {
   color: var(--text-primary);
   letter-spacing: -0.2px;
   line-height: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chatarea__project-name--dimmed {
@@ -528,6 +570,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .chatarea__icon-btn {
@@ -721,8 +764,13 @@ body {
   display: flex;
   align-items: center;
   padding: 8px 12px;
+  margin-top: auto;
   border-top: 1px solid var(--border-default);
   box-shadow: 0 -1px 0 0 var(--border-groove-highlight);
+}
+
+.projectlist__collapsed-icon {
+  display: none;
 }
 
 /* Col2 collapsed state */
@@ -736,9 +784,18 @@ body {
 .projectlist--collapsed .projectlist__list {
   display: none;
 }
+.projectlist--collapsed .projectlist__collapsed-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .projectlist--collapsed .projectlist__header {
   border-bottom: none;
   box-shadow: none;
+}
+.projectlist--collapsed .projectlist__header-row {
+  justify-content: center;
+  padding: 0;
 }
 .projectlist--collapsed .projectlist__footer {
   justify-content: center;

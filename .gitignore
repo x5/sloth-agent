@@ -27,3 +27,4 @@ Thumbs.db
 src-tauri/target/
 frontend/node_modules/
 frontend/dist/
+.gstack/

@@ -1,0 +1,32 @@
+Sloth Agent — Iter-1 Verification Report
+Generated: 2026-04-26T09:39:16.821Z
+
+SUMMARY: 10 passed, 5 failed, 0 pending
+
+--- Task 1.1 — Backend: SQLite + Inspiration API ---
+  [PASS] #1 POST create: 很好！
+
+1. 【优化】但是创建 Inspiration 的交互不是很优化，放到日后的 优化 todo 里
+  [FAIL] #2 GET list: 很好！
+
+1. 【优化】列表项在副标题上现在显示的是“Click to Open”，日后这里面可以放项目的 Description，可以放到日后的 优化 TODO 里
+2. 【优化】列表开头icon，文字太大了，把那个方块撑的很满，应该稍微小一点，为方块留一些 padding
+3. 【Bug】为什么每一项 inspiration 的时间，都显示 8h ago，这是个 bug
+4. 【优化】默认列表开头icon，默认文字和方块背景都是灰色的，有些丑，不好看，应该换成方块有蓝色背景的。或者某种有颜色的状态。
+  [PASS] #3 GET search: 很好，这个搜索，日后可以加上文本提示吗？ 比如我敲入“测”一个字，它会自动给我推荐已有的名称清单。
+  [FAIL] #4 DELETE: 1. 【Bug】没看到删除的按钮和入口
+  [PASS] #5 Persistence: -
+
+--- Task 1.2 — Frontend: 4-Column Layout Shell ---
+  [PASS] #6 Col1 SideNavBar: -
+  [PASS] #7 Col2 ProjectList: -
+  [FAIL] #8 Col3 ChatArea: 1.【bug】目前有个窗口自适应问题，当窗口的宽度缩小之后，Col3 的 header 部分布局会整个乱掉。你需要想个自适应的方案。很多应用都会限制最小的宽度。
+  [PASS] #9 Col4 RightPanel: -
+  [FAIL] #10 Col2 collapse: 1. 【bug】这一部分有个问题，在收起状态下，收起的箭头跑到顶部了，应该还保留在原位置。而顶部，应该保留一个对应的 Icon，如果目前折叠的是 Inspiration list，那顶端就是显示个灰色的灯泡；如果当前是 agent list，折叠后就显示对应的机器人头像。以此类推。
+  [PASS] #11 Logo animation: -
+
+--- Task 1.3 — Frontend: Inspiration CRUD Integration ---
+  [PASS] #12 Select toggle: -
+  [PASS] #13 ChatArea link: -
+  [PASS] #14 Empty state: -
+  [FAIL] #15 Timestamp: 目前时间是显示错误的
