@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
-from ..models import Inspiration
+from ..models import Inspiration, InspirationAgent, Message
 from ..services.agent import AgentService
 
 router = APIRouter(prefix="/api/inspirations", tags=["inspirations"])
@@ -19,6 +19,8 @@ class CreateInspirationRequest(BaseModel):
 class InspirationResponse(BaseModel):
     id: str
     name: str
+    agent_count: int = 0
+    latest_message_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -54,7 +56,36 @@ async def list_inspirations(q: str | None = None, db: AsyncSession = Depends(get
     if q:
         stmt = stmt.where(Inspiration.name.ilike(f"%{q}%"))
     result = await db.execute(stmt)
-    return result.scalars().all()
+    inspirations = list(result.scalars().all())
+
+    # Attach agent_count and latest_message_at
+    out = []
+    for insp in inspirations:
+        # Agent count
+        count_result = await db.execute(
+            select(InspirationAgent).where(InspirationAgent.inspiration_id == insp.id)
+        )
+        agent_count = len(count_result.scalars().all())
+
+        # Latest message time
+        msg_result = await db.execute(
+            select(Message.created_at)
+            .where(Message.inspiration_id == insp.id)
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        latest_msg = msg_result.scalar_one_or_none()
+
+        out.append(InspirationResponse(
+            id=insp.id,
+            name=insp.name,
+            agent_count=agent_count,
+            latest_message_at=latest_msg,
+            created_at=insp.created_at,
+            updated_at=insp.updated_at,
+        ))
+
+    return out
 
 
 @router.get("/{inspiration_id}", response_model=InspirationResponse)

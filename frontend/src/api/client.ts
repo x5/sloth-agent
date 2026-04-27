@@ -107,6 +107,8 @@ async function httpFallback<T>(cmd: string, args?: Record<string, unknown>): Pro
 export interface Inspiration {
   id: string;
   name: string;
+  agent_count: number;
+  latest_message_at: string | null;
   created_at: string;
   updated_at: string;
 }

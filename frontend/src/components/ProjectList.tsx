@@ -141,12 +141,12 @@ export default function ProjectList() {
                     {p.name}
                   </span>
                   <span className="projectlist__item-time">
-                    {formatTime(p.updated_at)}
+                    {formatTime(p.latest_message_at || p.updated_at)}
                   </span>
                 </div>
                 <div className="projectlist__item-subrow">
                   <div className="projectlist__item-preview">
-                    Click to open
+                    {p.agent_count === 1 ? "1 agent" : `${p.agent_count} agents`}
                   </div>
                   <button
                     className="projectlist__item-delete"
