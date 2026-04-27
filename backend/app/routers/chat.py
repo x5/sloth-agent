@@ -116,7 +116,7 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
         select(Message)
         .where(Message.inspiration_id == inspiration_id)
         .order_by(Message.created_at.desc())
-        .limit(20)
+        .limit(1000)
     )
     history = list(result.scalars().all())[::-1]
 
@@ -185,7 +185,7 @@ async def chat_stream(inspiration_id: str, req: ChatRequest, db: AsyncSession = 
         select(Message)
         .where(Message.inspiration_id == inspiration_id)
         .order_by(Message.created_at.desc())
-        .limit(20)
+        .limit(1000)
     )
     history = list(result.scalars().all())[::-1]
 

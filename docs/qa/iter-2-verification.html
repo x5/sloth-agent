@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iter-2 Verification Checklist — Sloth Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1b22; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 24px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  header .meta {
+    display: flex; gap: 24px; margin-top: 8px;
+    font-size: 13px; color: #3e484e;
+  }
+  header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  .progress-bar-wrap {
+    background: rgba(0,0,0,0.05); border-radius: 6px; height: 6px; margin-top: 16px;
+  }
+  .progress-bar-fill {
+    background: #14a0c8; height: 100%; border-radius: 6px;
+    transition: width 0.3s ease; width: 0%;
+  }
+  .progress-text { font-size: 13px; color: #3e484e; margin-top: 8px; }
+
+  .section {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .section__title {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section__subtitle { font-size: 12px; color: #6e797e; margin-top: 4px; margin-bottom: 20px; }
+
+  .check-item {
+    border: 1px solid rgba(0,0,0,0.06); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .check-item:hover { border-color: rgba(0,0,0,0.12); }
+  .check-item--pass { background: rgba(20,160,200,0.04); border-color: rgba(20,160,200,0.25); }
+  .check-item--fail { background: rgba(255,59,48,0.04); border-color: rgba(255,59,48,0.25); }
+
+  .check-item__row {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .check-item__num {
+    width: 24px; height: 24px; min-width: 24px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 600; color: #3e484e;
+  }
+  .check-item__body { flex: 1; min-width: 0; }
+  .check-item__label {
+    font-size: 14px; font-weight: 500; color: #1a1b22; margin-bottom: 2px;
+  }
+  .check-item__detail {
+    font-size: 12px; color: #6e797e; margin-bottom: 10px; line-height: 1.5;
+  }
+
+  .check-item__actions {
+    display: flex; gap: 8px; margin-bottom: 10px;
+  }
+  .btn {
+    padding: 5px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12);
+    background: #fff; font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; color: #3e484e;
+  }
+  .btn:hover { background: #f5f5f5; }
+  .btn--pass {
+    background: rgba(20,160,200,0.08); border-color: rgba(20,160,200,0.3); color: #006782;
+  }
+  .btn--pass:hover { background: rgba(20,160,200,0.14); }
+  .btn--pass.active { background: #14a0c8; color: #fff; border-color: #14a0c8; }
+  .btn--fail {
+    background: rgba(255,59,48,0.06); border-color: rgba(255,59,48,0.25); color: #cc2f26;
+  }
+  .btn--fail:hover { background: rgba(255,59,48,0.1); }
+  .btn--fail.active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+  .btn--bug { color: #d4710a; }
+  .btn--bug:hover { background: rgba(212,113,10,0.06); border-color: rgba(212,113,10,0.25); }
+  .btn--bug.active { background: #d4710a; color: #fff; border-color: #d4710a; }
+  .btn--opt { color: #6e797e; }
+  .btn--opt:hover { background: rgba(110,121,126,0.06); border-color: rgba(110,121,126,0.2); }
+  .btn--opt.active { background: #6e797e; color: #fff; border-color: #6e797e; }
+
+  .check-item__notes {
+    margin-top: 8px;
+  }
+  .check-item__notes textarea {
+    width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px;
+    padding: 8px 12px; font-family: inherit; font-size: 12px; resize: vertical;
+    min-height: 36px; color: #1a1b22;
+  }
+  .check-item__notes textarea:focus { outline: none; border-color: #14a0c8; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+  }
+  .badge--pass { background: rgba(20,160,200,0.1); color: #006782; }
+  .badge--fail { background: rgba(255,59,48,0.1); color: #cc2f26; }
+  .badge--bug { background: rgba(212,113,10,0.1); color: #9a5200; }
+  .badge--opt { background: rgba(110,121,126,0.08); color: #3e484e; }
+
+  .summary {
+    display: flex; gap: 16px; margin-top: 12px;
+  }
+  .summary__item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+  }
+  .summary__dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .summary__dot--pass { background: #14a0c8; }
+  .summary__dot--fail { background: #ff3b30; }
+  .summary__dot--bug { background: #d4710a; }
+  .summary__dot--opt { background: #6e797e; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Iter-2 Verification Checklist</h1>
+  <div class="meta">
+    <span>Sloth Agent v0.5.1</span>
+    <span>Target: 2026-04-29</span>
+    <span>Plan: docs/plans/20260425-mvp-desktop-app-plan.md</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / 0 checked</div>
+  <div class="summary" id="summary"></div>
+</header>
+
+<!-- ============================================================ -->
+<!-- TASK 2.0: Agents + Settings Navigation                       -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 2.0 — Agents 导航 + Settings 导航 (LLM CRUD)</div>
+  <div class="section__subtitle">Col1 导航切换 + Col2/Col3 Master-Detail + LLM Provider 管理</div>
+
+  <!-- #1 -->
+  <div class="check-item" data-id="1">
+    <div class="check-item__row">
+      <div class="check-item__num">1</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col1 导航切换</div>
+        <div class="check-item__detail">
+          点击 Inspiration / Agents / Settings 三个按钮，Col2 和 Col3 分别切换为对应视图。<br>
+          activeNav 状态正确，高亮按钮有视觉反馈。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #2 -->
+  <div class="check-item" data-id="2">
+    <div class="check-item__row">
+      <div class="check-item__num">2</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agents 视图 — Col2 AgentPoolList</div>
+        <div class="check-item__detail">
+          显示 Agent Pool 中所有模板（至少 Lead Agent）。<br>
+          每个条目：头像 + name + role + 当前绑定的默认模型。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #3 -->
+  <div class="check-item" data-id="3">
+    <div class="check-item__row">
+      <div class="check-item__num">3</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agents 视图 — Col3 AgentDetail</div>
+        <div class="check-item__detail">
+          选中 Agent → 显示详情：Name、Role badge、Default Model 下拉、System Prompt textarea、Auto-Join checkbox。<br>
+          Model 下拉从 LLM 池读取选项。Save 按钮持久化。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #4 -->
+  <div class="check-item" data-id="4">
+    <div class="check-item__row">
+      <div class="check-item__num">4</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Settings 视图 — Col2 SettingsNav</div>
+        <div class="check-item__detail">
+          显示设置分类列表：LLM Providers（可用）、General（disabled）、About（disabled）。<br>
+          默认选中 LLM Providers。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #5 -->
+  <div class="check-item" data-id="5">
+    <div class="check-item__row">
+      <div class="check-item__num">5</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Settings 视图 — Col3 LLM Provider 列表</div>
+        <div class="check-item__detail">
+          卡片式展示所有 LLM Provider：状态灯、Provider 名、Model 名、脱敏 API Key、Base URL。<br>
+          默认项显示 🟢 + "Default" 标签，非默认项显示 "Set as Default"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #6 -->
+  <div class="check-item" data-id="6">
+    <div class="check-item__row">
+      <div class="check-item__num">6</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLM Provider — 行内添加</div>
+        <div class="check-item__detail">
+          点击 "Add LLM Provider" → 列表底部展开表单。<br>
+          选择 Provider 自动填充 Base URL + 推荐 Model。<br>
+          Save → 验证 → 新增 → 收起。Cancel/Escape → 收起。<br>
+          第一个添加的 LLM 自动标为 Default。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #7 -->
+  <div class="check-item" data-id="7">
+    <div class="check-item__row">
+      <div class="check-item__num">7</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLM Provider — 行内编辑 + 删除</div>
+        <div class="check-item__detail">
+          点击 Edit → 卡片内 API Key / Base URL 变为可编辑 input，Edit 变为 Save + Cancel。<br>
+          非默认 LLM 可删除。默认 LLM 不可删除（无 Delete 按钮）。<br>
+          Set as Default 一键切换默认标记。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #8 -->
+  <div class="check-item" data-id="8">
+    <div class="check-item__row">
+      <div class="check-item__num">8</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Provider 预设表完整性</div>
+        <div class="check-item__detail">
+          内置预设：DeepSeek / Qwen / OpenAI / Kimi / GLM / MiniMax / Anthropic / Custom。<br>
+          每个预设的 Base URL + 推荐 Model 正确。api_format 默认 "openai"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TASK 2.1: Backend LLM + Agent + Messages                     -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 2.1 — 后端 LLM 配置 + Agent 模型 + LLM 服务</div>
+  <div class="section__subtitle">LLMConfig CRUD + AgentTemplate + InspirationAgent + Message 模型 + LLMService</div>
+
+  <!-- #9 -->
+  <div class="check-item" data-id="9">
+    <div class="check-item__row">
+      <div class="check-item__num">9</div>
+      <div class="check-item__body">
+        <div class="check-item__label">GET /api/settings/llm — LLM 列表</div>
+        <div class="check-item__detail">返回所有 LLM Provider，字段完整：provider, model, api_key(脱敏), base_url, api_format, is_default。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #10 -->
+  <div class="check-item" data-id="10">
+    <div class="check-item__row">
+      <div class="check-item__num">10</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /api/settings/llm — 创建 LLM</div>
+        <div class="check-item__detail">创建成功返回完整对象。第一个 LLM 自动 is_default=true。Provider/model/api_key/base_url 必填。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #11 -->
+  <div class="check-item" data-id="11">
+    <div class="check-item__row">
+      <div class="check-item__num">11</div>
+      <div class="check-item__body">
+        <div class="check-item__label">PATCH /api/settings/llm/{id} — 更新</div>
+        <div class="check-item__detail">部分更新，可单独改 model / api_key / base_url / api_format。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #12 -->
+  <div class="check-item" data-id="12">
+    <div class="check-item__row">
+      <div class="check-item__num">12</div>
+      <div class="check-item__body">
+        <div class="check-item__label">DELETE /api/settings/llm/{id} — 删除</div>
+        <div class="check-item__detail">非默认 LLM 可删除。默认 LLM 返回错误提示。删除后使用该 LLM 的 Agent 回退到默认 LLM。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #13 -->
+  <div class="check-item" data-id="13">
+    <div class="check-item__row">
+      <div class="check-item__num">13</div>
+      <div class="check-item__body">
+        <div class="check-item__label">PUT /api/settings/llm/{id}/default — 切换默认 LLM</div>
+        <div class="check-item__detail">设置后原默认 LLM 的 is_default 变为 false。新默认正确返回。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #14 -->
+  <div class="check-item" data-id="14">
+    <div class="check-item__row">
+      <div class="check-item__num">14</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agent Pool — seed_lead_agent()</div>
+        <div class="check-item__detail">应用启动 → 检查 Lead Agent 是否存在（按 role="lead"）。不存在 → 自动创建。重复启动不会重复创建。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #15 -->
+  <div class="check-item" data-id="15">
+    <div class="check-item__row">
+      <div class="check-item__num">15</div>
+      <div class="check-item__body">
+        <div class="check-item__label">创建 Inspiration → Lead Agent 自动加入 Team</div>
+        <div class="check-item__detail">POST /api/inspirations 成功后 → auto_join=true 的 AgentTemplate 自动创建 InspirationAgent 记录。<br>InspirationAgent 继承模板的 name/role/model。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #16 -->
+  <div class="check-item" data-id="16">
+    <div class="check-item__row">
+      <div class="check-item__num">16</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLMService — OpenAI 兼容格式调用</div>
+        <div class="check-item__detail">chat(model, messages) 非流式调用正常。POST {base_url}/chat/completions。<br>api_key 正确传递。响应内容正确返回。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #17 -->
+  <div class="check-item" data-id="17">
+    <div class="check-item__row">
+      <div class="check-item__num">17</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLMService — chat_stream() 流式</div>
+        <div class="check-item__detail">async generator 逐 token yield。SSE 格式正确。请求 stream: true。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #18 -->
+  <div class="check-item" data-id="18">
+    <div class="check-item__row">
+      <div class="check-item__num">18</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agent 模型解析 — 回退链</div>
+        <div class="check-item__detail">
+          Agent.model（InspirationAgent 独立模型）→ AgentTemplate.default_model → LLMConfig.is_default。<br>
+          每一步回退正确。空字符串视为"使用默认"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TASK 2.2: Chat API + SSE Streaming                           -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 2.2 — 聊天 API + SSE 流式</div>
+  <div class="section__subtitle">POST /chat + /chat/stream + GET /messages</div>
+
+  <!-- #19 -->
+  <div class="check-item" data-id="19">
+    <div class="check-item__row">
+      <div class="check-item__num">19</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /api/inspirations/{id}/chat — 非流式聊天</div>
+        <div class="check-item__detail">
+          发送消息 → Lead Agent 回复。Human Message 和 Agent Message 都存入数据库。<br>
+          System prompt 从 AgentTemplate 加载。历史消息（最近 1000 条）作为上下文。<br>
+          Agent 状态：发送中 → working，完成 → idle，错误 → error。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #20 -->
+  <div class="check-item" data-id="20">
+    <div class="check-item__row">
+      <div class="check-item__num">20</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /api/inspirations/{id}/chat/stream — SSE 流式</div>
+        <div class="check-item__detail">
+          text/event-stream 正确。每 token 推送 "data: {token}\n\n"。<br>
+          流结束推送 "data: [DONE]\n\n"。完整回复在流结束后存入数据库。<br>
+          Agent 状态正确切换。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #21 -->
+  <div class="check-item" data-id="21">
+    <div class="check-item__row">
+      <div class="check-item__num">21</div>
+      <div class="check-item__body">
+        <div class="check-item__label">GET /api/inspirations/{id}/messages — 消息历史</div>
+        <div class="check-item__detail">
+          返回历史消息列表。limit 默认 50。cursor 分页（before 参数）。<br>
+          消息按时间升序。每条消息附带 agent_name / agent_number / agent_model。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #22 -->
+  <div class="check-item" data-id="22">
+    <div class="check-item__row">
+      <div class="check-item__num">22</div>
+      <div class="check-item__body">
+        <div class="check-item__label">上下文构建 — 1000 条 + role 映射</div>
+        <div class="check-item__detail">
+          human → user, agent → assistant, system → system。<br>
+          System prompt 在消息数组第一位。<br>
+          消息取最近 1000 条，时间倒序查再反转。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #23 -->
+  <div class="check-item" data-id="23">
+    <div class="check-item__row">
+      <div class="check-item__num">23</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLM 调用失败 → 错误处理</div>
+        <div class="check-item__detail">
+          网络错误 → Agent status 变 "error" → 返回 HTTP 502。<br>
+          SSE 模式 → "data: {error}\n\n" → "data: [DONE]\n\n"。<br>
+          Agent 不丢失响应能力（下次消息正常）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #24 -->
+  <div class="check-item" data-id="24">
+    <div class="check-item__row">
+      <div class="check-item__num">24</div>
+      <div class="check-item__body">
+        <div class="check-item__label">无 Lead Agent → 400 错误</div>
+        <div class="check-item__detail">Inspiration 没有 Lead Agent 时，POST /chat 返回 400 "No Lead Agent found for this Inspiration"。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TASK 2.3: Frontend Chat UI + Streaming                       -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 2.3 — 前端 Chat UI + 流式展示</div>
+  <div class="section__subtitle">ChatArea + ChatMessage + ChatInput + 消息流渲染</div>
+
+  <!-- #25 -->
+  <div class="check-item" data-id="25">
+    <div class="check-item__row">
+      <div class="check-item__num">25</div>
+      <div class="check-item__body">
+        <div class="check-item__label">ChatArea TopBar</div>
+        <div class="check-item__detail">
+          显示 Inspiration 名称。Agent 状态指示器（idle/working/error 对应不同颜色和 dot）。<br>
+          Agent 计数正确："1 Agent active" / "N Agents active"。<br>
+          已移除 MVP tag 和 Message 计数。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #26 -->
+  <div class="check-item" data-id="26">
+    <div class="check-item__row">
+      <div class="check-item__num">26</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agent 消息气泡 — 完整信息</div>
+        <div class="check-item__detail">
+          头像：机器人 SVG icon + Agent 编号 badge。<br>
+          Header 行：Agent name（如 "General Manager"）+ LLM Model 标签（如 "deepseek-v4-pro"）+ 时间。<br>
+          编号按 joined_at 顺序从 1 递增。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #27 -->
+  <div class="check-item" data-id="27">
+    <div class="check-item__row">
+      <div class="check-item__num">27</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Human 消息气泡</div>
+        <div class="check-item__detail">
+          右对齐。Header 行："You" + 时间。气泡：白色背景 + accent 色边框。<br>
+          Agent 气泡：左对齐，灰色背景。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #28 -->
+  <div class="check-item" data-id="28">
+    <div class="check-item__row">
+      <div class="check-item__num">28</div>
+      <div class="check-item__body">
+        <div class="check-item__label">消息时间格式化</div>
+        <div class="check-item__detail">
+          今天的消息：显示时间（如 "14:30"）。<br>
+          非今天的消息：显示日期 + 时间（如 "Apr 27 14:30"）。<br>
+          时间在 message header 最右侧。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #29 -->
+  <div class="check-item" data-id="29">
+    <div class="check-item__row">
+      <div class="check-item__num">29</div>
+      <div class="check-item__body">
+        <div class="check-item__label">消息宽度约束</div>
+        <div class="check-item__detail">
+          Agent 气泡 min-width: 220px（可完整显示 agent title + model + 时间）。<br>
+          Human 气泡 min-width: 120px（可完整显示 "You" + 时间）。<br>
+          最大宽度: min(80%, 720px)。气泡在最大/最小宽度之间自适应。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #30 -->
+  <div class="check-item" data-id="30">
+    <div class="check-item__row">
+      <div class="check-item__num">30</div>
+      <div class="check-item__body">
+        <div class="check-item__label">消息对齐 — 与输入框对齐</div>
+        <div class="check-item__detail">
+          Agent 气泡最左侧（头像最左）与 ChatInput 最左侧对齐。<br>
+          Human 气泡最右侧与 ChatInput 最右侧对齐。<br>
+          不因窗口缩放错位。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #31 -->
+  <div class="check-item" data-id="31">
+    <div class="check-item__row">
+      <div class="check-item__num">31</div>
+      <div class="check-item__body">
+        <div class="check-item__label">ChatInput 布局</div>
+        <div class="check-item__detail">
+          min-width: 320px，无 max-width，随窗口宽度自适应。<br>
+          3 行 textarea（rows=3）。输入框有细边框 + 微立体阴影。<br>
+          背景色与消息区域一致。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #32 -->
+  <div class="check-item" data-id="32">
+    <div class="check-item__row">
+      <div class="check-item__num">32</div>
+      <div class="check-item__body">
+        <div class="check-item__label">发送按钮 — 胶囊形</div>
+        <div class="check-item__detail">
+          胶囊形（border-radius: 999px）。height: 28px。<br>
+          Accent 色背景。箭头图标。disabled 时 opacity 降低。<br>
+          Enter 发送，Shift+Enter 换行。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #33 -->
+  <div class="check-item" data-id="33">
+    <div class="check-item__row">
+      <div class="check-item__num">33</div>
+      <div class="check-item__body">
+        <div class="check-item__label">空消息 → 发送按钮 disabled</div>
+        <div class="check-item__detail">空内容或纯空白时，发送按钮 disabled。输入框有文字后，按钮变为可点击。</div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #34 -->
+  <div class="check-item" data-id="34">
+    <div class="check-item__row">
+      <div class="check-item__num">34</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Sending 状态 — 思考指示器</div>
+        <div class="check-item__detail">
+          发送中 → "Thinking..." 占位气泡。<br>
+          发送中 → input disabled，发送按钮 disabled。<br>
+          回复返回 → 占位气泡消失，真实消息渲染。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #35 -->
+  <div class="check-item" data-id="35">
+    <div class="check-item__row">
+      <div class="check-item__num">35</div>
+      <div class="check-item__body">
+        <div class="check-item__label">错误消息 — 内联展示</div>
+        <div class="check-item__detail">
+          LLM 调用失败 → 显示红色错误气泡（"Error: ..."）。<br>
+          错误不阻塞界面，可继续发送下一条消息。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #36 -->
+  <div class="check-item" data-id="36">
+    <div class="check-item__row">
+      <div class="check-item__num">36</div>
+      <div class="check-item__body">
+        <div class="check-item__label">自动滚动 + 新消息提示</div>
+        <div class="check-item__detail">
+          新消息到达 → 自动 scrollTo bottom（smooth）。<br>
+          用户手动上滚 >100px → 暂停自动滚动 → 显示 "↓ New messages" 浮动按钮。<br>
+          点击浮动按钮 → 滚回底部。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- v0.5.1 Design System + UX Polish                            -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">v0.5.1 — Warm Minimalism 设计系统 + UX 打磨</div>
+  <div class="section__subtitle">CSS tokens + 视觉效果 + 交互细节</div>
+
+  <!-- #37 -->
+  <div class="check-item" data-id="37">
+    <div class="check-item__row">
+      <div class="check-item__num">37</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Warm Minimalism 设计 token</div>
+        <div class="check-item__detail">
+          --color-accent: #14a0c8, --text-primary: #1a1b22, --text-secondary: #3e484e, --text-muted: #6e797e。<br>
+          --bg-page: #fbf8ff, --bg-input: #f1f1f2, --bg-hover: #ebebec。<br>
+          无紫色残留（#f4f2fd 已替换）。整体色调温暖中性。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #38 -->
+  <div class="check-item" data-id="38">
+    <div class="check-item__row">
+      <div class="check-item__num">38</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Inspiration 列表 — Hover 效果</div>
+        <div class="check-item__detail">
+          Hover → 左侧 AI Blue accent bar (::before) + 半透明蓝色背景。<br>
+          0.15s transition。不是整块灰色背景。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #39 -->
+  <div class="check-item" data-id="39">
+    <div class="check-item__row">
+      <div class="check-item__num">39</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Input 背景色 — 中性灰</div>
+        <div class="check-item__detail">
+          输入框背景：#f1f1f2（非紫色 #f4f2fd）。Hover 背景：#ebebec。<br>
+          与整体 Warm Minimalism 色调一致。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #40 -->
+  <div class="check-item" data-id="40">
+    <div class="check-item__row">
+      <div class="check-item__num">40</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Inspiration 列表项 badge — 蓝色调</div>
+        <div class="check-item__detail">
+          时间 badge 和编号 badge：color: --text-accent-dark, background: --color-accent-bg-light。<br>
+          有蓝色边框。不是灰色。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #41 -->
+  <div class="check-item" data-id="41">
+    <div class="check-item__row">
+      <div class="check-item__num">41</div>
+      <div class="check-item__body">
+        <div class="check-item__label">空状态页面</div>
+        <div class="check-item__detail">
+          未选 Inspiration → 居中空状态图标 + "Select an inspiration to start chatting"。<br>
+          选中但无消息 → "Start chatting in {name}"。有明确引导。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #42 -->
+  <div class="check-item" data-id="42">
+    <div class="check-item__row">
+      <div class="check-item__num">42</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Col4 切换 — Team / Status 面板</div>
+        <div class="check-item__detail">
+          点击 Team 按钮 → Col4 显示 Team 面板。<br>
+          点击 Status 按钮 → Col4 显示 Status 面板。<br>
+          active 按钮有视觉高亮。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #43 -->
+  <div class="check-item" data-id="43">
+    <div class="check-item__row">
+      <div class="check-item__num">43</div>
+      <div class="check-item__body">
+        <div class="check-item__label">窗口最小宽度</div>
+        <div class="check-item__detail">
+          tauri.conf.json: minWidth=640。CSS ChatArea header 不因缩窄而乱版。<br>
+          ChatInput min-width: 320px 生效。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Rust Layer                                                  -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Rust 桥接层</div>
+  <div class="section__subtitle">src-tauri/src/lib.rs — Tauri commands</div>
+
+  <!-- #44 -->
+  <div class="check-item" data-id="44">
+    <div class="check-item__row">
+      <div class="check-item__num">44</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLM Config commands</div>
+        <div class="check-item__detail">
+          list_llm_configs, create_llm_config, update_llm_config, delete_llm_config, set_default_llm。<br>
+          所有 command 正确代理到 FastAPI。Serde 字段完整。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #45 -->
+  <div class="check-item" data-id="45">
+    <div class="check-item__row">
+      <div class="check-item__num">45</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agent Template commands</div>
+        <div class="check-item__detail">
+          list_agent_templates, update_agent_template。<br>
+          正确代理到 FastAPI。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #46 -->
+  <div class="check-item" data-id="46">
+    <div class="check-item__row">
+      <div class="check-item__num">46</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Chat commands</div>
+        <div class="check-item__detail">
+          send_chat_message, get_messages。<br>
+          Message struct 包含 agent_name, agent_number, agent_model（Option + serde(default)）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Integration                                                 -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">端到端集成测试</div>
+  <div class="section__subtitle">完整链路验证</div>
+
+  <!-- #47 -->
+  <div class="check-item" data-id="47">
+    <div class="check-item__row">
+      <div class="check-item__num">47</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 添加 LLM → 创建 Inspiration → 发送消息 → 收到回复</div>
+        <div class="check-item__detail">
+          完整链路：Settings 添加 LLM Provider → 创建 Inspiration → 输入消息 → Enter 发送。<br>
+          Agent 回复正确显示（头像 + name + model + 时间 + 编号）。消息持久化。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #48 -->
+  <div class="check-item" data-id="48">
+    <div class="check-item__row">
+      <div class="check-item__num">48</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 切换 Inspiration → 消息独立</div>
+        <div class="check-item__detail">
+          切换到不同 Inspiration → 消息列表切换为对应历史。<br>
+          两个 Inspiration 的消息互不污染。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #49 -->
+  <div class="check-item" data-id="49">
+    <div class="check-item__row">
+      <div class="check-item__num">49</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 重启应用 → 数据持久化</div>
+        <div class="check-item__detail">
+          关闭应用 → 重新启动 → 所有数据保留：Inspiration、LLM 配置、消息历史、Agent 模板。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #50 -->
+  <div class="check-item" data-id="50">
+    <div class="check-item__row">
+      <div class="check-item__num">50</div>
+      <div class="check-item__body">
+        <div class="check-item__label">编译验证</div>
+        <div class="check-item__detail">
+          cd frontend && npm run build → 无 TypeScript 错误。<br>
+          cargo build → Rust 编译无错误。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- .container -->
+
+<script>
+const items = document.querySelectorAll('.check-item');
+const STATE_KEY = 'iter2-verification-state';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveState(state) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function toggle(btn, type) {
+  const item = btn.closest('.check-item');
+  const allBtns = item.querySelectorAll('.btn--pass, .btn--bug, .btn--opt, .btn--fail');
+  allBtns.forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const id = item.dataset.id;
+  const state = getState();
+  state[id] = type;
+  saveState(state);
+
+  item.classList.remove('check-item--pass', 'check-item--fail');
+  if (type === 'pass') item.classList.add('check-item--pass');
+  if (type === 'bug') item.classList.add('check-item--fail');
+  if (type === 'opt') item.classList.add('check-item--pass');
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const state = getState();
+  let pass = 0, bug = 0, opt = 0, total = items.length;
+  let checked = 0;
+
+  items.forEach(item => {
+    const id = item.dataset.id;
+    const s = state[id];
+    if (s) checked++;
+    if (s === 'pass') pass++;
+    if (s === 'bug') bug++;
+    if (s === 'opt') opt++;
+  });
+
+  const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = checked + ' / ' + total + ' checked  (' + pct + '%)';
+
+  let summaryHtml = '';
+  if (pass > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--pass"></span> ' + pass + ' Pass</span>';
+  if (bug > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--bug"></span> ' + bug + ' Bug</span>';
+  if (opt > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--opt"></span> ' + opt + ' 优化</span>';
+  document.getElementById('summary').innerHTML = summaryHtml;
+}
+
+// Restore state on load
+const savedState = getState();
+Object.entries(savedState).forEach(([id, type]) => {
+  const item = document.querySelector(`.check-item[data-id="${id}"]`);
+  if (!item) return;
+  const btn = item.querySelector(type === 'bug' ? '.btn--bug' : type === 'opt' ? '.btn--opt' : '.btn--pass');
+  if (btn) {
+    btn.classList.add('active');
+    item.classList.remove('check-item--pass', 'check-item--fail');
+    if (type === 'pass' || type === 'opt') item.classList.add('check-item--pass');
+    if (type === 'bug') item.classList.add('check-item--fail');
+  }
+});
+updateSummary();
+</script>
+
+</body>
+</html>
