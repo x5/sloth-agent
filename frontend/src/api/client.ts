@@ -141,6 +141,9 @@ export interface Message {
   role: string;
   content: string;
   created_at: string;
+  agent_name: string | null;
+  agent_number: number | null;
+  agent_model: string | null;
 }
 
 // ---- Inspiration CRUD ----

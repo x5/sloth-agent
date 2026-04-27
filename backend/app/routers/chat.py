@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
-from ..models import AgentTemplate, LLMConfig, Message
+from ..models import AgentTemplate, InspirationAgent, LLMConfig, Message
 from ..services.agent import AgentService
 from ..services.llm import LLMService, _get_default_llm_config
 
@@ -28,6 +28,9 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     created_at: str
+    agent_name: str | None = None
+    agent_number: int | None = None
+    agent_model: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -58,6 +61,34 @@ async def _get_default_agent_or_raise(inspiration_id: str, db: AsyncSession):
     if not agent:
         raise HTTPException(status_code=400, detail="No Lead Agent found for this Inspiration")
     return agent
+
+
+async def _build_agent_map(inspiration_id: str, db: AsyncSession) -> dict[str, tuple[str, int, str]]:
+    """Return {agent_id: (name, number, model)} for all agents in an inspiration."""
+    result = await db.execute(
+        select(InspirationAgent)
+        .where(InspirationAgent.inspiration_id == inspiration_id)
+        .order_by(InspirationAgent.joined_at)
+    )
+    agents = list(result.scalars().all())
+
+    # Resolve default model name for agents without an explicit model
+    default_model = None
+    for a in agents:
+        if a.model:
+            default_model = a.model
+            break
+    if not default_model:
+        llm_result = await db.execute(
+            select(LLMConfig.model).where(LLMConfig.is_default == True)
+        )
+        default_model = llm_result.scalar_one_or_none()
+
+    agent_map = {}
+    for i, a in enumerate(agents):
+        model = a.model or default_model or ""
+        agent_map[a.id] = (a.name, i + 1, model)
+    return agent_map
 
 
 @router.post("/{inspiration_id}/chat", response_model=MessageResponse)
@@ -115,7 +146,20 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
     await db.commit()
     await db.refresh(agent_msg)
 
-    return agent_msg
+    # Enrich with agent info
+    agent_map = await _build_agent_map(inspiration_id, db)
+    name, num, model = agent_map.get(agent.id, (None, None, None))
+    return MessageResponse(
+        id=agent_msg.id,
+        inspiration_id=agent_msg.inspiration_id,
+        agent_id=agent_msg.agent_id,
+        role=agent_msg.role,
+        content=agent_msg.content,
+        created_at=agent_msg.created_at,
+        agent_name=name,
+        agent_number=num,
+        agent_model=model,
+    )
 
 
 @router.post("/{inspiration_id}/chat/stream")
@@ -198,4 +242,20 @@ async def get_messages(
     stmt = stmt.order_by(Message.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     messages = list(result.scalars().all())[::-1]
-    return messages
+
+    agent_map = await _build_agent_map(inspiration_id, db)
+    out = []
+    for m in messages:
+        name, num, model = agent_map.get(m.agent_id, (None, None, None))
+        out.append(MessageResponse(
+            id=m.id,
+            inspiration_id=m.inspiration_id,
+            agent_id=m.agent_id,
+            role=m.role,
+            content=m.content,
+            created_at=m.created_at,
+            agent_name=name,
+            agent_number=num,
+            agent_model=model,
+        ))
+    return out

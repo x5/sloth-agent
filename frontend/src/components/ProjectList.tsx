@@ -165,7 +165,6 @@ export default function ProjectList() {
                   </button>
                 </div>
               </div>
-              {isActive && <div className="projectlist__item-accent" />}
             </div>
           );
         })}

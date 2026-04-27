@@ -71,6 +71,12 @@ struct Message {
     role: String,
     content: String,
     created_at: String,
+    #[serde(default)]
+    agent_name: Option<String>,
+    #[serde(default)]
+    agent_number: Option<i32>,
+    #[serde(default)]
+    agent_model: Option<String>,
 }
 
 // ---- Greet / Echo (Phase 0) ----
