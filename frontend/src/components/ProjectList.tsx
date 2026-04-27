@@ -146,7 +146,7 @@ export default function ProjectList() {
                 </div>
                 <div className="projectlist__item-subrow">
                   <div className="projectlist__item-preview">
-                    {p.agent_count === 1 ? "1 agent" : `${p.agent_count} agents`}
+                    <span className="projectlist__item-badge">{p.agent_count === 1 ? "1 agent" : `${p.agent_count} agents`}</span>
                   </div>
                   <button
                     className="projectlist__item-delete"

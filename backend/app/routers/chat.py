@@ -1,7 +1,7 @@
 """Chat API + SSE streaming for Inspirations."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -35,6 +35,8 @@ class MessageResponse(BaseModel):
     @classmethod
     def serialize_created_at(cls, v: object) -> str:
         if isinstance(v, datetime):
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
             return v.isoformat()
         return v
 

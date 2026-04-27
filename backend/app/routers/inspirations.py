@@ -28,7 +28,7 @@ class InspirationResponse(BaseModel):
 
     @model_validator(mode="after")
     def ensure_utc(self):
-        for field_name in ("created_at", "updated_at"):
+        for field_name in ("created_at", "updated_at", "latest_message_at"):
             dt = getattr(self, field_name)
             if dt is not None and dt.tzinfo is None:
                 setattr(self, field_name, dt.replace(tzinfo=timezone.utc))

@@ -411,6 +411,18 @@ body {
   white-space: nowrap;
 }
 
+.projectlist__item-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
 .projectlist__item-subrow {
   display: flex;
   align-items: center;
