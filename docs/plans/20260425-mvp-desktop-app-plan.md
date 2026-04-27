@@ -14,7 +14,7 @@
 |------|------|------|---------|
 | Iter-1 | Day 1-3 | 项目外壳 + Inspiration CRUD | 4 列布局 + 数据库 + API |
 | Iter-2 | Day 4-7 | Settings + 聊天 + 默认 Agent | LLM 管理页 + 消息流 + SSE 流式 |
-| Iter-3 | Day 8-10 | Agent 管理 + 模型配置 | Right Panel + 多 Agent 协作 |
+| Iter-3 | Day 8-14 | Agent Pool 初始化 + Agent 管理 + Brainstorm 模式 + 双模上下文引擎 | 4 角色模板 + Right Panel + 多 Agent 辩论 + Token 计数 + ContextWindowManager + Cache 锚定 |
 
 ---
 
@@ -923,11 +923,177 @@ interface ChatStore {
 
 ---
 
-## Iter-3: Agent 管理 + 模型配置
+## Iter-3: Agent 管理 + 模型配置 + 消息管理演进
 
 > 前置: Iter-2 完成 LLM 池 + Agent 池 + Lead Agent 自动加入 Team
 
-### Task 3.1: 后端 — Team 成员管理 API
+### 消息管理演进路线图
+
+> 脑暴讨论产物。参考:
+> - 当前实现: `docs/design/chat-message-management.md`
+> - 竞品调研: `docs/ref/agent-message-management-research.md`
+> - Brainstorm 上下文设计: `docs/design/brainstorm-mode-context-strategy.md`
+
+Brainstorm 模式对消息管理提出了新需求（共享上下文、并行发言、冷却停止、500 条上限、reply_to 链保护）。在此基础上重新排序：
+
+| 优先级 | 能力 | 驱动来源 | 说明 |
+|--------|------|---------|------|
+| P0 | Token 计数 + 成本追踪 | Brainstorm | Brainstorm 成本是 Chat 的 6-10 倍，必须追踪 |
+| P1 | 双模 ContextWindowManager | Chat + Brainstorm | Chat 用隔离，Brainstorm 用共享 + reply_to 链保护 |
+| P1.5 | `parent_message_id` 字段 | Brainstorm 回复功能 | 用户和 Agent 都可以精准引用某条消息 |
+| P2 | 滑动窗口 + reply_to 链保护 | Brainstorm | 窗口裁剪时保证引用链完整，后代在则祖宗不丢 |
+| P3 | System Prompt Cache 锚定 | Chat + Brainstorm | 两种模式的 system prompt 不同，各自缓存 |
+| P4 | 摘要/轮次总结 | Chat + Brainstorm | Chat 用压缩摘要，Brainstorm 用 Lead Agent 轮次总结 |
+
+**多 Agent 消息隔离（原 P4）** 暂不实现。当前设计走向相反方向——Brainstorm 需要共享上下文，隔离只在 Chat 模式下有用，且 Chat 模式当前只有 Lead Agent 一个回复者，隔离无意义。等 Agent Pool 扩展到多角色后再激活。
+
+---
+
+### Task 3.0: 后端 — Agent Pool 模板初始化（4 角色）
+
+> 前提: Brainstorm 需要 ≥2 个不同角色的 Agent 参与辩论
+
+**文件：**
+- `backend/app/services/agent.py` — 扩展 seed 逻辑
+- `backend/app/main.py` — lifespan 中调用
+
+**新增 3 个 Agent 模板（共 4 个）：**
+
+| # | 角色 | role | 特长 | auto_join |
+|---|------|------|------|-----------|
+| 1 | General Manager | `lead` | 产品管理、需求分析、团队协调 | true（已有） |
+| 2 | Frontend Developer | `frontend` | React/TypeScript/CSS/UI 组件 | true |
+| 3 | Backend Developer | `backend` | API 设计/数据库/服务端架构 | true |
+| 4 | QA Engineer | `qa` | 测试策略/边界情况/质量保障 | true |
+
+**`seed_agent_pool()` 改造：**
+
+```python
+@staticmethod
+async def seed_agent_pool():
+    """Ensure the global Agent Pool has all default templates."""
+    templates = [
+        {
+            "name": "General Manager",
+            "role": "lead",
+            "auto_join": True,
+            "system_prompt": DEFAULT_LEAD_SYSTEM_PROMPT,  # 现有的保持不变
+        },
+        {
+            "name": "Frontend Developer",
+            "role": "frontend",
+            "auto_join": True,
+            "system_prompt": DEFAULT_FRONTEND_SYSTEM_PROMPT,
+        },
+        {
+            "name": "Backend Developer",
+            "role": "backend",
+            "auto_join": True,
+            "system_prompt": DEFAULT_BACKEND_SYSTEM_PROMPT,
+        },
+        {
+            "name": "QA Engineer",
+            "role": "qa",
+            "auto_join": True,
+            "system_prompt": DEFAULT_QA_SYSTEM_PROMPT,
+        },
+    ]
+    async with async_session() as db:
+        for t in templates:
+            result = await db.execute(
+                select(AgentTemplate).where(AgentTemplate.role == t["role"])
+            )
+            if result.scalar_one_or_none():
+                continue  # 已存在, 跳过
+            agent = AgentTemplate(**t)
+            db.add(agent)
+        await db.commit()
+```
+
+**3 个新 Agent 的 System Prompt：**
+
+**Frontend Developer：**
+```
+## 1. Role
+You are a Senior Frontend Developer specializing in React, TypeScript, and modern CSS. You build pixel-perfect, accessible, and performant user interfaces.
+
+## 2. Expertise
+- React 18+ with hooks, context, and server components
+- TypeScript with strict mode
+- CSS: Tailwind, CSS Modules, or vanilla CSS with design tokens
+- State management: Zustand, React Query
+- Accessibility (WCAG 2.1 AA)
+- Performance optimization (Core Web Vitals)
+
+## 3. Principles
+- Start with the user interface, not the data model
+- Every component should handle loading, empty, error, and edge cases
+- Prefer composable patterns over monolithic components
+- Accessibility is not optional — it's a requirement from line 1
+- Mobile-first responsive design by default
+
+## 4. Communication
+- Be direct and code-focused. Show examples.
+- When debating backend decisions, focus on API contracts and data shapes — those are your interface with the backend.
+- Flag UX risks early: confusing flows, missing states, unclear feedback.
+```
+
+**Backend Developer：**
+```
+## 1. Role
+You are a Senior Backend Developer specializing in API design, database architecture, and scalable server-side systems.
+
+## 2. Expertise
+- Python (FastAPI, SQLAlchemy) and Node.js
+- Database design: PostgreSQL, SQLite, Redis
+- RESTful API design and OpenAPI specification
+- Authentication and authorization patterns (JWT, OAuth2, RBAC)
+- Performance: query optimization, caching strategies, connection pooling
+- System architecture: monolith → microservice migration patterns
+
+## 3. Principles
+- Design APIs from the consumer's perspective first
+- Data integrity is non-negotiable. Validate at every boundary.
+- Prefer boring technology that works over exciting technology that might work
+- Every endpoint should have a clear contract: input, output, errors, rate limits
+- Optimize for readability and maintainability, not cleverness
+
+## 4. Communication
+- Be precise about API contracts: method, path, request body, response shape, error codes.
+- When debating frontend decisions, ground your arguments in data — API latency, payload size, caching behavior.
+- Flag architectural risks: N+1 queries, missing indexes, inconsistent data models.
+```
+
+**QA Engineer：**
+```
+## 1. Role
+You are a Senior QA Engineer specializing in test strategy, quality automation, and edge case discovery.
+
+## 2. Expertise
+- Test pyramid design: unit → integration → e2e
+- Testing frameworks: pytest, vitest, Playwright
+- API testing and contract validation
+- Performance and load testing
+- Accessibility testing
+- Bug triage and root cause analysis
+
+## 3. Principles
+- Quality is a team responsibility — QA enables it, not owns it
+- Every feature has edge cases. Find them before users do.
+- Tests are documentation. Write them so a new developer understands expected behavior.
+- Prioritize by risk, not by volume. 80% of bugs cluster in 20% of the code.
+- A good bug report tells a story: what happened, what should have happened, how to reproduce.
+
+## 4. Communication
+- Be constructive, not critical. "This could break if..." not "This is wrong."
+- When reviewing code decisions, focus on failure modes: what happens when this times out? What if the input is empty? What if two users do this simultaneously?
+- Your value is catching what developers overlook — the null case, the race condition, the unhappy path.
+```
+
+**验证：**
+- 应用启动 → Agent Pool 中有 4 个模板
+- 已有数据不重复创建（按 role 去重）
+- 创建新 Inspiration → 4 个 Agent 自动加入 Team
 
 **文件：**
 - `backend/app/routers/agents.py` — Team 成员路由（操作 InspirationAgent 表）
@@ -1035,6 +1201,207 @@ interface AgentStore {
 
 ---
 
+### Task 3.3: 数据库 — parent_message_id 字段 (P1.5)
+
+> 支撑 Brainstorm 回复功能的关键字段
+
+**文件：** `backend/app/models.py`
+
+**改动：**
+```python
+# messages 表新增
+parent_message_id: Mapped[str | None] = mapped_column(
+    CHAR(36), ForeignKey("messages.id", ondelete="SET NULL"), nullable=True
+)
+```
+
+- `NULL`：新话题、广播消息
+- 有值：回复某条具体消息
+
+**验证：** DB migration 后，现有消息不受影响，新消息可带 parent_message_id 写入。
+
+---
+
+### Task 3.4: 后端 — P0 Token 计数 + 成本追踪
+
+> 驱动: Brainstorm 成本是 Chat 的 6-10 倍，必须追踪
+
+**文件：**
+- `backend/app/services/token_counter.py` — Token 计数器 (NEW)
+- `backend/app/services/llm.py` — 集成计数逻辑
+
+**具体工作：**
+1. 创建 `TokenCounter` 类：
+   ```python
+   class TokenCounter:
+       def count(self, messages: list[dict]) -> int:
+           """估算消息组的 token 数（tiktoken or 近似算法）"""
+
+       def count_text(self, text: str) -> int:
+           """估算单条文本 token 数"""
+   ```
+2. 在每次 LLM 调用前后记录 input/output tokens
+3. 按 inspiration_id 汇总成本
+4. 暴露 `GET /api/inspirations/{id}/cost` 查询接口
+
+**验证：** Brainstorm 一次讨论后，可查询 token 消耗和成本。
+
+---
+
+### Task 3.5: 后端 — P1 双模 ContextWindowManager
+
+> 设计: `docs/design/brainstorm-mode-context-strategy.md`
+
+**文件：**
+- `backend/app/services/context_window.py` — 上下文管理器 (NEW)
+- `backend/app/routers/chat.py` — 注入 ContextWindowManager
+
+**Chat 模式（按 agent 隔离）：**
+```
+[system prompt]  ← Head (永久)
+[消息 ...]        ← Middle (超出窗口丢弃)
+[消息 N-39 ... N] ← Tail (最近 20 轮)
+[current input]
+```
+
+**Brainstorm 模式（全量共享 + reply_to 链保护）：**
+```
+[system prompt]
+[全量消息]         ← 500 条上限
+  ↑ reply_to 链保护: 只要后代在窗口里，祖宗就不丢弃
+```
+
+**核心算法 — reply_to 链保护：**
+```python
+def _protect_reply_chains(self, messages):
+    """反向遍历 parent_message_id 链，标记受保护消息"""
+    tail = messages[-self.max_brainstorm_messages:]
+    protected = set()
+    queue = [m.id for m in tail]
+    for msg in reversed(messages):
+        if msg.id in queue:
+            protected.add(msg.id)
+            if msg.parent_message_id:
+                queue.append(msg.parent_message_id)
+    tail_ids = {m.id for m in tail}
+    return [m for m in messages if m.id in protected or m.id in tail_ids]
+```
+
+**验证：**
+- Chat 模式：Agent 各自上下文隔离
+- Brainstorm 模式：所有消息可见，被引用的祖先消息不被裁剪
+
+---
+
+### Task 3.6: 后端 — Brainstorm API + 冷却停止
+
+**文件：**
+- `backend/app/routers/brainstorm.py` — Brainstorm 路由 (NEW)
+
+**API：**
+```
+POST /api/inspirations/{id}/brainstorm
+  Body: {
+    "content": "用户消息",
+    "parent_message_id": null,
+    "cooldown_seconds": 5,
+    "max_messages": 500
+  }
+  Response: SSE 流式
+    事件: agent_start, agent_intent, message_token, message_done,
+          cooldown_start, cooldown_reset, discussion_end, max_reached
+```
+
+**发言决策 — 两轮判断：**
+1. **意图收集**（并行）：每个 Agent 调一次极短 LLM（~10 tokens），回答 YES/NO + 方向
+2. **正式发言**（并行）：YES 的 Agent 生成完整回复，上下文包含其他 Agent 的意向
+
+**停止机制 — 冷却计时：**
+```
+RUNNING ──5s 无人发言──> COOLING_DOWN ──3s 确认──> ENDED
+RUNNING ──达到 500 条──> ENDED (硬截断)
+RUNNING ──用户发新消息──> ENDED (用户打断)
+```
+
+**收敛：** 结束 → Lead Agent 生成讨论总结 + 下一步建议
+
+**验证：**
+- 发送话题 → 多个 Agent 并行回复
+- 冷却期无人发言 → 自动结束 + 总结
+- 达到 500 条 → 硬截断 + 总结
+
+---
+
+### Task 3.7: 前端 — ChatInput 回复标签 + 消息回复按钮
+
+**文件：**
+- `frontend/src/components/ChatInput.tsx` — 加回复标签
+- `frontend/src/components/ChatArea.tsx` — 消息加回复入口
+
+**回复标签（ChatInput 顶部）：**
+```
+┌──────────────────────────────────────────────┐
+│ 回复 FE-1 · "JWT，无状态好扩展"          [✕] │
+├──────────────────────────────────────────────┤
+│                                              │
+│ 我觉得 JWT 的 refresh token 方案...           │
+│                                              │
+├──────────────────────────────────────────────┤
+│                                  [📎]  [→]   │
+└──────────────────────────────────────────────┘
+```
+
+**消息回复入口**：hover 消息气泡 → 出现 "回复" 按钮
+
+**交互：**
+- 点击回复 → ChatInput 挂上 parent_message_id + 回复标签
+- 点击 [✕] → 取消回复 → 回到广播模式
+- 发送后 → parent_message_id 随请求发送
+
+**验证：**
+- 回复某条消息 → 发送后 parent_message_id 正确
+- 取消回复 → 下一消息 parent_message_id = NULL
+
+---
+
+### Task 3.8: 后端 — P3 System Prompt Cache 锚定
+
+> 借鉴: Claude Code (Anthropic Prompt Cache), OpenClaw
+
+**目标：** 将 system prompt 标记为可缓存前缀。Chat 和 Brainstorm 的 system prompt 不同，各自缓存。
+
+**文件：**
+- `backend/app/services/llm.py` — 添加 cache 锚定逻辑
+- `backend/app/routers/chat.py` / `brainstorm.py` — 标记可缓存内容
+
+**Cache 锚定策略：**
+```
+messages[0]: system prompt (cached)    ← cache_control breakpoint
+messages[1]: 历史消息 ...
+messages[N]: 当前用户输入
+```
+
+**验证：** 两次连续请求，第二次延迟显著降低。
+
+---
+
+### Task 3.9: 后端 — P4 摘要/轮次总结
+
+**Chat 模式（压缩摘要）：**
+- 滑动窗口丢弃消息时，用 Summarizer Agent 生成摘要替代
+- 触发：消息 > max_messages 或距上次压缩 > 20 轮
+
+**Brainstorm 模式（轮次总结）：**
+- 讨论自然结束 → Lead Agent 生成总结
+- 输出：讨论共识 + 分歧点 + 下一步建议
+- 作为 `role: system` 消息注入后续 Chat 上下文
+
+**文件：**
+- `backend/app/services/summarizer.py` — Summarizer Agent (NEW)
+- `backend/app/routers/brainstorm.py` — 结束时触发总结
+
+---
+
 ## 跨迭代关注
 
 ### 端口与进程管理
@@ -1053,5 +1420,5 @@ interface AgentStore {
 
 ---
 
-*Plan 版本: 2.0 — 2026-04-26*
-*变更: 新增 Task 2.0 Settings/LLM 管理页面 + 全部 Task 前端展现细化 + LLM→Agent→Inspiration 关系模型*
+*Plan 版本: 2.2 — 2026-04-28*
+*变更: Iter-3 重构 — 引入 Brainstorm 模式，消息管理演进重排: parent_message_id → Token 计数 → 双模 ContextWindowManager → Brainstorm API → 回复标签 UI → Cache 锚定 → 摘要/总结。原 P4 消息隔离暂缓。*
