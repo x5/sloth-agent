@@ -395,7 +395,7 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-### 桌面应用 (v0.5.0+)
+### 桌面应用 (v0.5.1+)
 
 Sloth Agent 现已支持桌面应用形态，提供原生 GUI 交互体验：
 
@@ -409,15 +409,66 @@ Tauri WebView (React) ──invoke──> Rust Layer (reqwest)
                                      SQLite
 ```
 
+**技术栈：** Tauri v2 · React 18 · TypeScript · FastAPI · SQLAlchemy · SQLite · Zustand
+
+#### 快速试用桌面应用
+
+桌面应用由两部分组成：**Python 后端**（FastAPI sidecar）+ **Tauri 桌面程序**（exe）。当前需要分别启动。
+
+**前置条件：** Python 3.12+ · uv (Python 包管理器)
+
+```bash
+# 1. 克隆仓库
+git clone git@github.com:x5/sloth-agent.git
+cd sloth-agent
+
+# 2. 安装 Python 依赖
+cd backend
+uv sync
+cd ..
+
+# 3. 配置 LLM API Key（至少配置 DeepSeek）
+cp backend/.env.example backend/.env
+# 编辑 backend/.env，填入你的 API Key：
+#   SLOTH_DEEPSEEK_API_KEY=sk-your-key-here
+
+# 4. 启动后端
+cd backend
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8080 &
+cd ..
+
+# 5. 下载并启动桌面应用
+# 从 GitHub Releases 下载最新 sloth-agent.exe
+# https://github.com/x5/sloth-agent/releases
+# 双击运行即可
+```
+
+> **说明：** 后端负责存储、LLM 调用和业务逻辑；桌面程序是一个原生窗口壳，通过 HTTP 与后端通信。两者都跑在本机 `127.0.0.1:8080`。
+
+> **开发调试：** 前端也可以用浏览器直接打开。在 `frontend/` 下执行 `npm install && npm run dev`，浏览器访问 `http://localhost:1420` 即可。
+
+#### 从源码编译桌面应用
+
+如果你想自己编译桌面 exe：
+
+```bash
+# 前置：安装 Rust (https://rustup.rs) 和 Node.js 18+
+cd frontend
+npm install
+npm run build
+cd ..
+./frontend/node_modules/.bin/tauri build
+# 产物在 src-tauri/target/release/sloth-agent.exe
+```
+
+#### 版本路线
+
 | 迭代 | 版本 | 范围 |
 |------|------|------|
 | Phase 0 | v0.4.0 | Tauri v2 + React + FastAPI 基础框架 |
 | Iter-1 | v0.5.0 | 4 列布局 + Inspiration CRUD + QA 验证 |
 | Iter-2 | v0.5.1 | 聊天 + Agent 消息 + 设计系统 + UX 打磨 |
 | Iter-3 | v0.5.x | Agent Pool 管理面板 + 多 Agent 协作 |
-| Iter-3 | v0.6.x | Agent 管理面板 + 模型配置 |
-
-**技术栈：** Tauri v2 · React 18 · TypeScript · FastAPI · SQLAlchemy · SQLite · Zustand
 
 **相关文档：**
 - [桌面应用技术架构](docs/design/desktop-app-architecture.md)
