@@ -17,7 +17,7 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **最新版本 v0.5.0** — 桌面应用 MVP Iter-1 完成：4 列布局 + Inspiration CRUD + 验证管线。
+> **最新版本 v0.5.1** — 桌面应用 MVP Iter-2：Warm Minimalism 设计系统 + Agent 消息重构 + 聊天 UX 打磨。
 > [查看 Release](https://github.com/x5/sloth-agent/releases) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
@@ -143,7 +143,8 @@ sloth chat
 | v0.3.x | + Agent-First | Agent 注册表替代 Stage 概念，自适应重规划 |
 | v0.4.0 | + 桌面应用本体 | Tauri v2 + React + FastAPI 桌面版（当前开发中） |
 | v0.5.0 | + 桌面 MVP Iter-1 | 4 列布局 + SQLite + Inspiration CRUD + QA 验证管线 |
-| v0.5.x | + 聊天 + Agent 管理 | 消息流 + LLM 集成 + Agent 面板（开发中） |
+| v0.5.1 | + 桌面 MVP Iter-2 | Warm Minimalism 设计系统 + Agent 消息 + 聊天 UX 打磨 |
+| v0.5.x | + Agent 管理完善 | Agent Pool 扩展 + 多 Agent 协作（开发中） |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+ Agent + 多场景编排 |
 
@@ -412,7 +413,8 @@ Tauri WebView (React) ──invoke──> Rust Layer (reqwest)
 |------|------|------|
 | Phase 0 | v0.4.0 | Tauri v2 + React + FastAPI 基础框架 |
 | Iter-1 | v0.5.0 | 4 列布局 + Inspiration CRUD + QA 验证 |
-| Iter-2 | v0.5.x | 聊天 + 默认 Agent + LLM 集成 |
+| Iter-2 | v0.5.1 | 聊天 + Agent 消息 + 设计系统 + UX 打磨 |
+| Iter-3 | v0.5.x | Agent Pool 管理面板 + 多 Agent 协作 |
 | Iter-3 | v0.6.x | Agent 管理面板 + 模型配置 |
 
 **技术栈：** Tauri v2 · React 18 · TypeScript · FastAPI · SQLAlchemy · SQLite · Zustand
@@ -424,5 +426,5 @@ Tauri WebView (React) ──invoke──> Rust Layer (reqwest)
 
 ---
 
-*Sloth Agent v0.5.0*
-*最后更新: 2026-04-26*
+*Sloth Agent v0.5.1*
+*最后更新: 2026-04-27*
