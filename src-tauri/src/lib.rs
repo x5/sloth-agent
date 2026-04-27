@@ -32,6 +32,10 @@ fn urlencoding(s: &str) -> String {
 struct Inspiration {
     id: String,
     name: String,
+    #[serde(default)]
+    agent_count: i32,
+    #[serde(default)]
+    latest_message_at: Option<String>,
     created_at: String,
     updated_at: String,
 }
