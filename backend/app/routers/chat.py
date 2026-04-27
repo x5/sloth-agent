@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
-from ..models import LLMConfig, Message
+from ..models import AgentTemplate, LLMConfig, Message
 from ..services.agent import AgentService
 from ..services.llm import LLMService, _get_default_llm_config
 
@@ -44,6 +44,13 @@ async def get_db():
         yield session
 
 
+ROLE_MAP = {"human": "user", "agent": "assistant", "system": "system"}
+
+
+def _map_role(role: str) -> str:
+    return ROLE_MAP.get(role, role)
+
+
 async def _get_default_agent_or_raise(inspiration_id: str, db: AsyncSession):
     agent = await AgentService.get_default_agent(inspiration_id)
     if not agent:
@@ -68,6 +75,9 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
     )
     db.add(human_msg)
 
+    # Load template for system prompt
+    tpl = await db.get(AgentTemplate, agent.template_id) if agent.template_id else None
+
     # Load history
     result = await db.execute(
         select(Message)
@@ -77,8 +87,11 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
     )
     history = list(result.scalars().all())[::-1]
 
-    llm_messages = [{"role": m.role, "content": m.content} for m in history]
-    llm_messages.append({"role": "human", "content": req.content})
+    llm_messages = []
+    if tpl and tpl.system_prompt:
+        llm_messages.append({"role": "system", "content": tpl.system_prompt})
+    llm_messages += [{"role": _map_role(m.role), "content": m.content} for m in history]
+    llm_messages.append({"role": "user", "content": req.content})
 
     try:
         llm = LLMService()
@@ -118,6 +131,9 @@ async def chat_stream(inspiration_id: str, req: ChatRequest, db: AsyncSession = 
     agent.status = "working"
     await db.commit()
 
+    # Load template for system prompt
+    tpl = await db.get(AgentTemplate, agent.template_id) if agent.template_id else None
+
     # Load history
     result = await db.execute(
         select(Message)
@@ -127,8 +143,11 @@ async def chat_stream(inspiration_id: str, req: ChatRequest, db: AsyncSession = 
     )
     history = list(result.scalars().all())[::-1]
 
-    llm_messages = [{"role": m.role, "content": m.content} for m in history]
-    llm_messages.append({"role": "human", "content": req.content})
+    llm_messages = []
+    if tpl and tpl.system_prompt:
+        llm_messages.append({"role": "system", "content": tpl.system_prompt})
+    llm_messages += [{"role": _map_role(m.role), "content": m.content} for m in history]
+    llm_messages.append({"role": "user", "content": req.content})
 
     async def event_stream():
         full_reply = ""
