@@ -282,30 +282,48 @@ const THINKING_MESSAGES = [
   "Untangling logic...",
   "Firing synapses...",
   "Consulting the sloth...",
+  "Loading wit...",
+  "Assembling context...",
+  "Sharpening the quill...",
+  "Distilling wisdom...",
+  "Aligning stars...",
+  "Calibrating sarcasm...",
+  "Mining insights...",
+  "Weaving narrative...",
+  "Charging creativity...",
+  "Decoding intentions...",
+  "Bending spacetime...",
+  "Reconciling paradoxes...",
+  "Buffering brilliance...",
+  "Invoking the daemon...",
+  "Priming the oracle...",
+  "Translating thought...",
+  "Baking the answer...",
+  "De-fragmenting memory...",
+  "Negotiating with tokens...",
+  "Reticulating splines...",
 ];
 
+const THINKING_COLORS = [
+  "#14a0c8", "#6366f1", "#8b5cf6", "#ec4899",
+  "#f59e0b", "#22c55e", "#3b82f6", "#ef4444",
+  "#06b6d4", "#a855f7", "#d946ef", "#84cc16",
+];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function ThinkingBubble() {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((i) => (i + 1) % THINKING_MESSAGES.length);
-    }, 2400);
-    return () => clearInterval(timer);
-  }, []);
-
-  const colors = [
-    "#14a0c8", "#6366f1", "#8b5cf6", "#ec4899",
-    "#f59e0b", "#22c55e", "#3b82f6", "#ef4444",
-  ];
-  const color = colors[index % colors.length];
+  const [message] = useState(() => pick(THINKING_MESSAGES));
+  const [color] = useState(() => pick(THINKING_COLORS));
 
   return (
     <div className="chat-message chat-message--agent">
       <div className="chat-message__bubble">
         <div className="chat-message__content chat-message__content--thinking">
           <span className="thinking-text" style={{ color }}>
-            {THINKING_MESSAGES[index]}
+            {message}
           </span>
           <span className="thinking-dots">
             <span className="thinking-dot" style={{ color }}>.</span>
