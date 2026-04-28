@@ -103,7 +103,7 @@ export default function AgentDetail() {
         <div className="detail__body">
           <div className="detail-field">
             <span className="detail-field__label">Role</span>
-            <span className="detail-field__value">{template.role}</span>
+            <span className="detail-field__role-badge">{template.role}</span>
           </div>
           <div className="detail-field">
             <span className="detail-field__label">LLM Provider</span>

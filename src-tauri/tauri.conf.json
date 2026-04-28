@@ -15,7 +15,7 @@
         "title": "Sloth Agent",
         "width": 1200,
         "height": 800,
-        "minWidth": 640,
+        "minWidth": 1224,
         "minHeight": 480,
         "resizable": true
       }

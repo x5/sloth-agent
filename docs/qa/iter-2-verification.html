@@ -144,6 +144,11 @@
   </div>
   <div class="progress-text" id="progressText">0 / 0 checked</div>
   <div class="summary" id="summary"></div>
+  <div style="margin-top: 16px; display: flex; gap: 8px;">
+    <button class="btn" onclick="exportJSON()" style="padding: 8px 20px; font-size: 13px; font-weight: 600;">Export JSON</button>
+    <button class="btn" onclick="importJSON()" style="padding: 8px 20px; font-size: 13px;">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" onchange="handleImport(event)" style="display:none;">
+  </div>
 </header>
 
 <!-- ============================================================ -->
@@ -1258,6 +1263,74 @@ Object.entries(savedState).forEach(([id, type]) => {
   }
 });
 updateSummary();
+
+function exportJSON() {
+  const state = getState();
+  const notes = {};
+  document.querySelectorAll('.check-item textarea').forEach(ta => {
+    const id = ta.closest('.check-item').dataset.id;
+    if (ta.value.trim()) notes[id] = ta.value;
+  });
+  const exportData = { version: 'iter-2', exportedAt: new Date().toISOString(), verdicts: state, notes: notes };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'iter-2-verification-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  document.getElementById('importFile').click();
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.verdicts) { alert('Invalid file: no verdicts found'); return; }
+      if (!confirm('Import ' + Object.keys(data.verdicts).length + ' verdicts + ' + (data.notes ? Object.keys(data.notes).length : 0) + ' notes? This will overwrite current state.')) return;
+      saveState(data.verdicts);
+      if (data.notes) {
+        const notesState = {};
+        Object.entries(data.notes).forEach(([id, text]) => { notesState[id] = text; });
+        localStorage.setItem('iter2-verification-notes', JSON.stringify(notesState));
+        document.querySelectorAll('.check-item textarea').forEach(ta => {
+          const id = ta.closest('.check-item').dataset.id;
+          if (data.notes[id]) ta.value = data.notes[id];
+        });
+      }
+      location.reload();
+    } catch(err) { alert('Failed to parse file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// Persist notes in localStorage on input
+document.querySelectorAll('.check-item textarea').forEach(ta => {
+  ta.addEventListener('input', function() {
+    const notesState = JSON.parse(localStorage.getItem('iter2-verification-notes') || '{}');
+    const id = this.closest('.check-item').dataset.id;
+    if (this.value.trim()) notesState[id] = this.value;
+    else delete notesState[id];
+    localStorage.setItem('iter2-verification-notes', JSON.stringify(notesState));
+  });
+});
+
+// Restore notes on load
+(function() {
+  const notesState = JSON.parse(localStorage.getItem('iter2-verification-notes') || '{}');
+  Object.entries(notesState).forEach(([id, text]) => {
+    const ta = document.querySelector('.check-item[data-id="' + id + '"] textarea');
+    if (ta) ta.value = text;
+  });
+})();
+
 </script>
 
 </body>

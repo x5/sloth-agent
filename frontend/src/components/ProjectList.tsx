@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
+import ConfirmModal from "./ConfirmModal";
 
 function formatTime(iso: string): string {
   const date = new Date(iso);
@@ -31,10 +32,18 @@ export default function ProjectList() {
   const col2Collapsed = useUIStore((s) => s.col2Collapsed);
   const toggleCol2 = useUIStore((s) => s.toggleCol2);
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchAll();
   }, []);
+
+  // Auto-select first inspiration when list loads
+  useEffect(() => {
+    if (!activeId && inspirations.length > 0) {
+      setActive(inspirations[0].id);
+    }
+  }, [inspirations, activeId, setActive]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -146,16 +155,14 @@ export default function ProjectList() {
                 </div>
                 <div className="projectlist__item-subrow">
                   <div className="projectlist__item-preview">
-                    <span className="projectlist__item-badge">{p.agent_count === 1 ? "1 agent" : `${p.agent_count} agents`}</span>
+                    <span className="projectlist__item-badge">{p.agent_count === 1 ? "1 AGENT" : `${p.agent_count} AGENTS`}</span>
                   </div>
                   <button
                     className="projectlist__item-delete"
                     title="Delete inspiration"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`Delete "${p.name}"?`)) {
-                        remove(p.id);
-                      }
+                      setDeleteTarget({ id: p.id, name: p.name });
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -195,6 +202,21 @@ export default function ProjectList() {
           </svg>
         </button>
       </div>
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title={`Delete "${deleteTarget?.name}"?`}
+        message="This inspiration and all its messages will be permanently removed."
+        detail="Agents assigned to this inspiration will be unlinked but not deleted."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deleteTarget) {
+            remove(deleteTarget.id);
+            setDeleteTarget(null);
+          }
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

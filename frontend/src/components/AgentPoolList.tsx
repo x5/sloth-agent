@@ -9,6 +9,13 @@ export default function AgentPoolList() {
     fetchAll().catch((e) => setError(String(e)));
   }, []);
 
+  // Auto-select first agent when list loads
+  useEffect(() => {
+    if (!activeId && templates.length > 0) {
+      setActive(templates[0].id);
+    }
+  }, [templates, activeId, setActive]);
+
   return (
     <div className="projectlist">
       <div className="projectlist__header">

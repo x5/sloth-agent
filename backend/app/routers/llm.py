@@ -1,7 +1,10 @@
 """LLM Provider config CRUD — Sloth global Settings."""
 
+import json
+import time
 from datetime import datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, update
@@ -16,9 +19,24 @@ router = APIRouter(prefix="/api/settings/llm", tags=["settings-llm"])
 class CreateLLMRequest(BaseModel):
     provider: str = Field(min_length=1, max_length=50)
     model: str = Field(min_length=1, max_length=100)
-    api_key: str = Field(min_length=1, max_length=200)
-    base_url: str = Field(min_length=1, max_length=500)
+    api_key: str = Field(min_length=12, max_length=200)
+    base_url: str = Field(min_length=8, max_length=500)
     api_format: str = Field(default="openai", max_length=20)
+
+    @field_validator("api_key")
+    @classmethod
+    def validate_api_key(cls, v: str) -> str:
+        if len(v.strip()) < 12:
+            raise ValueError("API key must be at least 12 characters")
+        return v.strip()
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, v: str) -> str:
+        v = v.strip()
+        if not (v.startswith("http://") or v.startswith("https://")):
+            raise ValueError("base_url must start with http:// or https://")
+        return v
 
 
 class UpdateLLMRequest(BaseModel):
@@ -129,3 +147,59 @@ async def set_default_llm(config_id: str, db: AsyncSession = Depends(get_db)):
     await db.refresh(config)
     config.api_key = _mask_key(config.api_key)
     return config
+
+
+@router.post("/{config_id}/test")
+async def test_connection(config_id: str, db: AsyncSession = Depends(get_db)):
+    config = await db.get(LLMConfig, config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="LLM config not found")
+
+    headers = {
+        "Authorization": f"Bearer {config.api_key}",
+        "Content-Type": "application/json",
+    }
+
+    if config.api_format == "anthropic":
+        body = {
+            "model": config.model,
+            "max_tokens": 4,
+            "messages": [{"role": "user", "content": "pong"}],
+        }
+        url = f"{config.base_url.rstrip('/')}/messages"
+        headers["anthropic-version"] = "2023-06-01"
+    else:
+        body = {
+            "model": config.model,
+            "max_tokens": 4,
+            "messages": [{"role": "user", "content": "pong"}],
+            "stream": False,
+        }
+        url = f"{config.base_url.rstrip('/')}/chat/completions"
+
+    start = time.monotonic()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=body, headers=headers)
+        elapsed_ms = round((time.monotonic() - start) * 1000)
+
+        if resp.status_code >= 500:
+            return {
+                "ok": False,
+                "latency_ms": elapsed_ms,
+                "status_code": resp.status_code,
+                "error": f"Server error (HTTP {resp.status_code})",
+            }
+
+        data = resp.json()
+        if resp.is_success:
+            return {"ok": True, "latency_ms": elapsed_ms, "model": config.model}
+        else:
+            error_msg = data.get("error", {}).get("message", "") or json.dumps(data.get("error", "")) or resp.text[:200]
+            return {"ok": False, "latency_ms": elapsed_ms, "status_code": resp.status_code, "error": str(error_msg)}
+    except httpx.TimeoutException:
+        elapsed_ms = round((time.monotonic() - start) * 1000)
+        return {"ok": False, "latency_ms": elapsed_ms, "error": "Request timed out (15s)"}
+    except Exception as e:
+        elapsed_ms = round((time.monotonic() - start) * 1000)
+        return {"ok": False, "latency_ms": elapsed_ms, "error": str(e)}

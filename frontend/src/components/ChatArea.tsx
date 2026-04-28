@@ -9,12 +9,12 @@ function formatMessageTime(iso: string): string {
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
   if (isToday) {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   }
   return (
     date.toLocaleDateString([], { month: "short", day: "numeric" }) +
     " " +
-    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
   );
 }
 
@@ -29,7 +29,14 @@ export default function ChatArea() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 150);
+  };
 
   useEffect(() => {
     if (activeId) {
@@ -41,8 +48,12 @@ export default function ChatArea() {
   }, [activeId]);
 
   useEffect(() => {
+    // Auto-scroll only if user is near the bottom
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      if (scrollHeight - scrollTop - clientHeight < 150) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -104,7 +115,7 @@ export default function ChatArea() {
             <>
               <h2 className="chatarea__project-name">{activeInspiration.name}</h2>
               <span className="chatarea__status">
-                <span className="chatarea__status-dot" />
+                <span className={`chatarea__status-dot${activeInspiration.agent_count > 0 ? " chatarea__status-dot--idle" : ""}`} />
                 {activeInspiration.agent_count === 1 ? "1 Agent active" : `${activeInspiration.agent_count} Agents active`}
               </span>
             </>
@@ -137,7 +148,7 @@ export default function ChatArea() {
       </div>
 
       {/* Messages */}
-      <div className="chatarea__canvas" ref={scrollRef}>
+      <div className="chatarea__canvas" ref={scrollRef} onScroll={handleScroll}>
         {messages.length === 0 ? (
           <div className="chatarea__empty">
             <div className="chatarea__empty-icon">
@@ -194,16 +205,20 @@ export default function ChatArea() {
                 </div>
               );
             })}
-            {sending && (
-              <div className="chat-message chat-message--agent">
-                <div className="chat-message__bubble">
-                  <div className="chat-message__content chat-message__content--loading">
-                    Thinking...
-                  </div>
-                </div>
-              </div>
-            )}
+            {sending && <ThinkingBubble />}
           </div>
+        )}
+        {showScrollBtn && (
+          <button className="chatarea__scroll-btn" onClick={() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+            }
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            New messages
+          </button>
         )}
       </div>
 
@@ -248,6 +263,55 @@ export default function ChatArea() {
               </svg>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const THINKING_MESSAGES = [
+  "Summoning intelligence...",
+  "Consulting the oracle...",
+  "Connecting neurons...",
+  "Brewing fresh thoughts...",
+  "Crunching tokens...",
+  "Channeling the muse...",
+  "Warming up GPUs...",
+  "Polishing reasoning...",
+  "Reading between the lines...",
+  "Untangling logic...",
+  "Firing synapses...",
+  "Consulting the sloth...",
+];
+
+function ThinkingBubble() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((i) => (i + 1) % THINKING_MESSAGES.length);
+    }, 2400);
+    return () => clearInterval(timer);
+  }, []);
+
+  const colors = [
+    "#14a0c8", "#6366f1", "#8b5cf6", "#ec4899",
+    "#f59e0b", "#22c55e", "#3b82f6", "#ef4444",
+  ];
+  const color = colors[index % colors.length];
+
+  return (
+    <div className="chat-message chat-message--agent">
+      <div className="chat-message__bubble">
+        <div className="chat-message__content chat-message__content--thinking">
+          <span className="thinking-text" style={{ color }}>
+            {THINKING_MESSAGES[index]}
+          </span>
+          <span className="thinking-dots">
+            <span className="thinking-dot" style={{ color }}>.</span>
+            <span className="thinking-dot" style={{ color }}>.</span>
+            <span className="thinking-dot" style={{ color }}>.</span>
+          </span>
         </div>
       </div>
     </div>

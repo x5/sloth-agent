@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
@@ -57,30 +57,35 @@ async def list_inspirations(q: str | None = None, db: AsyncSession = Depends(get
         stmt = stmt.where(Inspiration.name.ilike(f"%{q}%"))
     result = await db.execute(stmt)
     inspirations = list(result.scalars().all())
+    insp_ids = [i.id for i in inspirations]
 
-    # Attach agent_count and latest_message_at
+    # Batch query agent counts
+    if insp_ids:
+        count_result = await db.execute(
+            select(InspirationAgent.inspiration_id, func.count())
+            .where(InspirationAgent.inspiration_id.in_(insp_ids))
+            .group_by(InspirationAgent.inspiration_id)
+        )
+        agent_counts = dict(count_result.all())
+
+        # Batch query latest message times per inspiration
+        msg_result = await db.execute(
+            select(Message.inspiration_id, func.max(Message.created_at))
+            .where(Message.inspiration_id.in_(insp_ids))
+            .group_by(Message.inspiration_id)
+        )
+        latest_msgs = dict(msg_result.all())
+    else:
+        agent_counts = {}
+        latest_msgs = {}
+
     out = []
     for insp in inspirations:
-        # Agent count
-        count_result = await db.execute(
-            select(InspirationAgent).where(InspirationAgent.inspiration_id == insp.id)
-        )
-        agent_count = len(count_result.scalars().all())
-
-        # Latest message time
-        msg_result = await db.execute(
-            select(Message.created_at)
-            .where(Message.inspiration_id == insp.id)
-            .order_by(Message.created_at.desc())
-            .limit(1)
-        )
-        latest_msg = msg_result.scalar_one_or_none()
-
         out.append(InspirationResponse(
             id=insp.id,
             name=insp.name,
-            agent_count=agent_count,
-            latest_message_at=latest_msg,
+            agent_count=agent_counts.get(insp.id, 0),
+            latest_message_at=latest_msgs.get(insp.id),
             created_at=insp.created_at,
             updated_at=insp.updated_at,
         ))
@@ -93,7 +98,29 @@ async def get_inspiration(inspiration_id: str, db: AsyncSession = Depends(get_db
     inspiration = await db.get(Inspiration, inspiration_id)
     if not inspiration:
         raise HTTPException(status_code=404, detail="Inspiration not found")
-    return inspiration
+
+    # Compute agent_count
+    count_result = await db.execute(
+        select(func.count()).select_from(InspirationAgent)
+        .where(InspirationAgent.inspiration_id == inspiration_id)
+    )
+    agent_count = count_result.scalar() or 0
+
+    # Latest message time
+    msg_result = await db.execute(
+        select(func.max(Message.created_at))
+        .where(Message.inspiration_id == inspiration_id)
+    )
+    latest_msg = msg_result.scalar()
+
+    return InspirationResponse(
+        id=inspiration.id,
+        name=inspiration.name,
+        agent_count=agent_count,
+        latest_message_at=latest_msg,
+        created_at=inspiration.created_at,
+        updated_at=inspiration.updated_at,
+    )
 
 
 @router.delete("/{inspiration_id}", status_code=204)

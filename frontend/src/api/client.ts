@@ -64,6 +64,9 @@ async function httpFallback<T>(cmd: string, args?: Record<string, unknown>): Pro
     case "set_default_llm":
       res = await fetch(`${BACKEND}/api/settings/llm/${args?.id}/default`, { method: "PUT" });
       break;
+    case "test_llm":
+      res = await fetch(`${BACKEND}/api/settings/llm/${args?.id}/test`, { method: "POST" });
+      break;
 
     // ---- Agent Template CRUD ----
     case "list_agent_templates":
@@ -199,6 +202,18 @@ export async function deleteLLMConfig(id: string): Promise<void> {
 
 export async function setDefaultLLM(id: string): Promise<LLMConfig> {
   return call<LLMConfig>("set_default_llm", { id });
+}
+
+export interface LLMTestResult {
+  ok: boolean;
+  latency_ms: number;
+  status_code?: number;
+  error?: string;
+  model?: string;
+}
+
+export async function testLLMConnection(id: string): Promise<LLMTestResult> {
+  return call<LLMTestResult>("test_llm", { id });
 }
 
 // ---- Agent Template CRUD ----

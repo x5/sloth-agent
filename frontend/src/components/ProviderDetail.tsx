@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLLMStore } from "../stores/llmStore";
+import * as api from "../api/client";
+import ConfirmModal from "./ConfirmModal";
 
 export default function ProviderDetail() {
   const { configs, activeId, update, remove, setDefault } = useLLMStore();
@@ -14,6 +16,9 @@ export default function ProviderDetail() {
   const [editApiFormat, setEditApiFormat] = useState("openai");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<api.LLMTestResult | null>(null);
 
   useEffect(() => {
     if (activeConfig) {
@@ -66,17 +71,18 @@ export default function ProviderDetail() {
     setError(null);
   };
 
-  const handleDelete = async () => {
-    if (activeConfig.is_default) {
-      alert("Cannot delete the default LLM provider.");
-      return;
-    }
-    if (!confirm(`Delete "${activeConfig.provider}"?`)) return;
+  const handleDelete = () => {
+    if (activeConfig.is_default) return;
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
     try {
       await remove(activeConfig.id);
     } catch (e) {
       setError(String(e));
     }
+    setDeleteModalOpen(false);
   };
 
   const handleSetDefault = async () => {
@@ -85,6 +91,18 @@ export default function ProviderDetail() {
     } catch (e) {
       setError(String(e));
     }
+  };
+
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await api.testLLMConnection(activeConfig.id);
+      setTestResult(result);
+    } catch (e) {
+      setTestResult({ ok: false, latency_ms: 0, error: String(e) });
+    }
+    setTesting(false);
   };
 
   return (
@@ -107,12 +125,14 @@ export default function ProviderDetail() {
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          <button className="detail__icon-btn detail__icon-btn--danger" onClick={handleDelete} title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          {!activeConfig.is_default && (
+            <button className="detail__icon-btn detail__icon-btn--danger" onClick={handleDelete} title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -146,6 +166,35 @@ export default function ProviderDetail() {
             <span className="detail-field__value">
               {activeConfig.api_format === "openai" ? "OpenAI Compatible" : "Anthropic"}
             </span>
+          </div>
+
+          {/* Connectivity Test */}
+          <div className="detail-field">
+            <span className="detail-field__label">Connection</span>
+            <div className="detail-field__connect-row">
+              <button
+                className="detail__connect-btn"
+                onClick={handleTestConnection}
+                disabled={testing}
+              >
+                {testing ? (
+                  <span className="detail__connect-btn-spinner" />
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polyline points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                )}
+                {testing ? "Testing..." : "Test Connection"}
+              </button>
+              {testResult && (
+                <span className={`detail__connect-status${testResult.ok ? " detail__connect-status--ok" : " detail__connect-status--fail"}`}>
+                  {testResult.ok
+                    ? `Connected — ${testResult.latency_ms}ms`
+                    : `Failed — ${testResult.error || `HTTP ${testResult.status_code}`}`}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -184,6 +233,16 @@ export default function ProviderDetail() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={deleteModalOpen}
+        title={`Delete "${activeConfig.provider}"?`}
+        message="This LLM provider will be permanently removed."
+        detail={activeConfig.is_default ? undefined : "Agents currently using this provider will fall back to the default LLM."}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteModalOpen(false)}
+      />
     </div>
   );
 }
