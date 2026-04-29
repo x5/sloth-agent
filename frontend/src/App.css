@@ -1025,6 +1025,15 @@ body {
   background: var(--color-accent-bg-light);
 }
 
+.chatarea__icon-btn:disabled {
+  color: var(--text-disabled, #c0c0c0);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.chatarea__icon-btn:disabled:hover {
+  background: transparent;
+}
+
 /* Col4 close button */
 .rightpanel__close-btn {
   display: flex;

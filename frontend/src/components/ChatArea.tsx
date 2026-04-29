@@ -147,12 +147,12 @@ export default function ChatArea() {
               <path d="M22 20v-2a3 3 0 0 0-2-2.8" />
             </svg>
           </button>
-          <button className={`chatarea__icon-btn${col4Content === "status" ? " chatarea__icon-btn--active" : ""}`} title="Status" onClick={() => openCol4("status")}>
+          <button className={`chatarea__icon-btn${col4Content === "status" ? " chatarea__icon-btn--active" : ""}`} title="Status" onClick={() => openCol4("status")} disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </button>
-          <button className="chatarea__icon-btn" title="More Options">
+          <button className="chatarea__icon-btn" title="More Options" disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
             </svg>
