@@ -8,7 +8,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #f5f5f5; color: #1a1c1c; line-height: 1.5;
+    background: #f5f5f5; color: #1a1b22; line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
   .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
@@ -20,7 +20,7 @@
   header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
   header .meta {
     display: flex; gap: 24px; margin-top: 8px;
-    font-size: 13px; color: #4e6073;
+    font-size: 13px; color: #3e484e;
   }
   header .meta span { display: flex; align-items: center; gap: 6px; }
 
@@ -31,7 +31,7 @@
     background: #14a0c8; height: 100%; border-radius: 6px;
     transition: width 0.3s ease; width: 0%;
   }
-  .progress-text { font-size: 13px; color: #4e6073; margin-top: 8px; }
+  .progress-text { font-size: 13px; color: #3e484e; margin-top: 8px; }
 
   .section {
     background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
@@ -41,7 +41,7 @@
     font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
     display: flex; align-items: center; gap: 10px;
   }
-  .section__subtitle { font-size: 12px; color: #9ea7b0; margin-top: 4px; margin-bottom: 20px; }
+  .section__subtitle { font-size: 12px; color: #6e797e; margin-top: 4px; margin-bottom: 20px; }
 
   .check-item {
     border: 1px solid rgba(0,0,0,0.06); border-radius: 8px;
@@ -49,7 +49,7 @@
     transition: border-color 0.2s, background 0.2s;
   }
   .check-item:hover { border-color: rgba(0,0,0,0.12); }
-  .check-item--pass { background: rgba(52,199,89,0.04); border-color: rgba(52,199,89,0.25); }
+  .check-item--pass { background: rgba(20,160,200,0.04); border-color: rgba(20,160,200,0.25); }
   .check-item--fail { background: rgba(255,59,48,0.04); border-color: rgba(255,59,48,0.25); }
 
   .check-item__row {
@@ -58,743 +58,959 @@
   .check-item__num {
     width: 24px; height: 24px; min-width: 24px; border-radius: 50%;
     background: rgba(0,0,0,0.05); display: flex; align-items: center;
-    justify-content: center; font-size: 11px; font-weight: 600; color: #4e6073;
+    justify-content: center; font-size: 11px; font-weight: 600; color: #3e484e;
   }
   .check-item__body { flex: 1; min-width: 0; }
   .check-item__label {
-    font-size: 14px; font-weight: 500; color: #1a1c1c; margin-bottom: 2px;
+    font-size: 14px; font-weight: 500; color: #1a1b22; margin-bottom: 2px;
   }
   .check-item__detail {
-    font-size: 12px; color: #9ea7b0; margin-bottom: 10px; line-height: 1.5;
+    font-size: 12px; color: #6e797e; margin-bottom: 10px; line-height: 1.5;
   }
 
   .check-item__actions {
-    display: flex; gap: 8px; align-items: center;
+    display: flex; gap: 8px; margin-bottom: 10px;
   }
   .btn {
     padding: 5px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12);
     background: #fff; font-family: inherit; font-size: 12px; font-weight: 500;
-    cursor: pointer; transition: all 0.15s; color: #4e6073;
+    cursor: pointer; transition: all 0.15s; color: #3e484e;
   }
   .btn:hover { background: #f5f5f5; }
   .btn--pass {
-    border-color: #34c759; color: #34c759;
+    background: rgba(20,160,200,0.08); border-color: rgba(20,160,200,0.3); color: #006782;
   }
-  .btn--pass:hover { background: rgba(52,199,89,0.06); }
-  .btn--pass.btn--active { background: #34c759; color: #fff; border-color: #34c759; }
-
+  .btn--pass:hover { background: rgba(20,160,200,0.14); }
+  .btn--pass.active { background: #14a0c8; color: #fff; border-color: #14a0c8; }
   .btn--fail {
-    border-color: #ff3b30; color: #ff3b30;
+    background: rgba(255,59,48,0.06); border-color: rgba(255,59,48,0.25); color: #cc2f26;
   }
-  .btn--fail:hover { background: rgba(255,59,48,0.06); }
-  .btn--fail.btn--active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+  .btn--fail:hover { background: rgba(255,59,48,0.1); }
+  .btn--fail.active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+  .btn--bug { color: #d4710a; }
+  .btn--bug:hover { background: rgba(212,113,10,0.06); border-color: rgba(212,113,10,0.25); }
+  .btn--bug.active { background: #d4710a; color: #fff; border-color: #d4710a; }
+  .btn--opt { color: #6e797e; }
+  .btn--opt:hover { background: rgba(110,121,126,0.06); border-color: rgba(110,121,126,0.2); }
+  .btn--opt.active { background: #6e797e; color: #fff; border-color: #6e797e; }
 
-  .btn--add {
-    margin-left: auto;
-    width: 28px; height: 28px; padding: 0;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 6px; border: 1px dashed rgba(0,0,0,0.15);
-    background: transparent; color: #9ea7b0; cursor: pointer;
-    font-size: 16px; font-weight: 400; line-height: 1;
-    transition: border-color 0.15s, color 0.15s;
+  .check-item__notes {
+    margin-top: 8px;
   }
-  .btn--add:hover { border-color: #14a0c8; color: #14a0c8; }
+  .check-item__notes textarea {
+    width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px;
+    padding: 8px 12px; font-family: inherit; font-size: 12px; resize: vertical;
+    min-height: 36px; color: #1a1b22;
+  }
+  .check-item__notes textarea:focus { outline: none; border-color: #14a0c8; }
 
-  .fb-popover {
-    display: none;
-    position: absolute;
-    z-index: 10;
-    background: #fff;
-    border: 1px solid rgba(0,0,0,0.12);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    padding: 6px;
-    min-width: 140px;
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
   }
-  .fb-popover--open { display: block; }
-
-  .fb-popover__item {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%; padding: 8px 10px;
-    border: none; border-radius: 5px;
-    background: transparent;
-    font-family: inherit; font-size: 12px; color: #1a1c1c;
-    cursor: pointer;
-    text-align: left;
-  }
-  .fb-popover__item:hover { background: rgba(20,160,200,0.06); }
-
-  .fb-popover__dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  }
-  .fb-popover__dot--bug { background: #ff3b30; }
-  .fb-popover__dot--opt { background: #ff9500; }
-
-  .fb-cards { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-
-  .fb-card {
-    display: flex; gap: 8px; align-items: stretch;
-    border: 1px solid rgba(0,0,0,0.08); border-radius: 6px;
-    overflow: hidden;
-  }
-  .fb-card__type {
-    width: 5px; flex-shrink: 0;
-  }
-  .fb-card__type--bug { background: #ff3b30; }
-  .fb-card__type--opt { background: #ff9500; }
-
-  .fb-card__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .fb-card__header {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px 0;
-  }
-  .fb-card__tag {
-    padding: 1px 7px; border-radius: 3px; font-size: 10px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.3px;
-  }
-  .fb-card__tag--bug { background: rgba(255,59,48,0.12); color: #ff3b30; }
-  .fb-card__tag--opt { background: rgba(255,149,0,0.12); color: #ff9500; }
-
-  .fb-card__remove {
-    margin-left: auto;
-    width: 18px; height: 18px; border: none; border-radius: 3px;
-    background: transparent; color: #9ea7b0; cursor: pointer;
-    font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center;
-  }
-  .fb-card__remove:hover { background: rgba(0,0,0,0.06); color: #ff3b30; }
-
-  .fb-card__textarea {
-    width: 100%; min-height: 44px; padding: 6px 10px 8px;
-    border: none; border-radius: 0 0 6px 6px;
-    font-family: inherit; font-size: 12px; resize: vertical;
-    background: transparent; color: #1a1c1c;
-    outline: none;
-  }
-  .fb-card__textarea:focus { background: rgba(20,160,200,0.03); }
+  .badge--pass { background: rgba(20,160,200,0.1); color: #006782; }
+  .badge--fail { background: rgba(255,59,48,0.1); color: #cc2f26; }
+  .badge--bug { background: rgba(212,113,10,0.1); color: #9a5200; }
+  .badge--opt { background: rgba(110,121,126,0.08); color: #3e484e; }
 
   .summary {
-    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
-    padding: 24px 32px; margin-bottom: 16px;
+    display: flex; gap: 16px; margin-top: 12px;
   }
-  .summary__title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-  .summary__stats {
-    display: flex; gap: 24px; margin-bottom: 16px;
+  .summary__item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
   }
-  .summary__stat {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 12px 24px; border-radius: 8px; background: rgba(0,0,0,0.02);
+  .summary__dot {
+    width: 10px; height: 10px; border-radius: 50%;
   }
-  .summary__stat-val { font-size: 28px; font-weight: 700; }
-  .summary__stat-val--pass { color: #34c759; }
-  .summary__stat-val--fail { color: #ff3b30; }
-  .summary__stat-val--pending { color: #9ea7b0; }
-  .summary__stat-label { font-size: 11px; color: #9ea7b0; text-transform: uppercase; }
-
-  .export-bar {
-    display: flex; gap: 12px; margin-top: 8px;
-  }
-  .btn--export {
-    background: #1a1c1c; color: #fff; border: none;
-    padding: 8px 20px; font-size: 13px;
-  }
-  .btn--export:hover { background: #333; }
-
-  .summary__fb-summary {
-    margin-top: 16px; padding-top: 16px;
-    border-top: 1px solid rgba(0,0,0,0.06);
-    font-size: 12px; color: #4e6073;
-  }
-  .summary__fb-row { padding: 4px 0; display: flex; gap: 8px; align-items: baseline; }
-  .summary__fb-tag {
-    padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;
-    text-transform: uppercase; flex-shrink: 0;
-  }
-  .summary__fb-tag--bug { background: rgba(255,59,48,0.12); color: #ff3b30; }
-  .summary__fb-tag--opt { background: rgba(255,149,0,0.12); color: #ff9500; }
-
-  .timestamp { font-size: 11px; color: #9ea7b0; margin-top: 12px; }
+  .summary__dot--pass { background: #14a0c8; }
+  .summary__dot--fail { background: #ff3b30; }
+  .summary__dot--bug { background: #d4710a; }
+  .summary__dot--opt { background: #6e797e; }
 </style>
 </head>
 <body>
-<div class="container" id="app">
+<div class="container">
 
 <header>
-  <h1>Sloth Agent — Iter-3 Verification Checklist</h1>
+  <h1>Iter-3 Verification Checklist</h1>
   <div class="meta">
-    <span>📅 2026-04-29</span>
-    <span>🎯 4 Built-in Expert Agents (Bazi, Zi Wei, I Ching, Astrologer)</span>
-    <span>📦 4 Tasks</span>
+    <span>Sloth Agent v0.5.2</span>
+    <span>Target: 2026-04-30</span>
+    <span>Plan: docs/plans/20260425-mvp-desktop-app-plan.md</span>
   </div>
   <div class="progress-bar-wrap">
     <div class="progress-bar-fill" id="progressBar"></div>
   </div>
-  <div class="progress-text" id="progressText">0 / 17 verified</div>
+  <div class="progress-text" id="progressText">0 / 0 checked</div>
+  <div class="summary" id="summary"></div>
+  <div style="margin-top: 16px; display: flex; gap: 8px;">
+    <button class="btn" onclick="exportJSON()" style="padding: 8px 20px; font-size: 13px; font-weight: 600;">Export JSON</button>
+    <button class="btn" onclick="importJSON()" style="padding: 8px 20px; font-size: 13px;">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" onchange="handleImport(event)" style="display:none;">
+  </div>
 </header>
 
-<div class="summary" id="summary">
-  <div class="summary__title">Results Summary</div>
-  <div class="summary__stats">
-    <div class="summary__stat">
-      <div class="summary__stat-val summary__stat-val--pass" id="countPass">0</div>
-      <div class="summary__stat-label">Passed</div>
-    </div>
-    <div class="summary__stat">
-      <div class="summary__stat-val summary__stat-val--fail" id="countFail">0</div>
-      <div class="summary__stat-label">Failed</div>
-    </div>
-    <div class="summary__stat">
-      <div class="summary__stat-val summary__stat-val--pending" id="countPending">17</div>
-      <div class="summary__stat-label">Pending</div>
-    </div>
-  </div>
-  <div class="export-bar">
-    <button class="btn btn--export" onclick="exportReport()">📋 Export Report</button>
-    <button class="btn btn--export" onclick="resetAll()">🔄 Reset All</button>
-  </div>
-  <div class="summary__fb-summary" id="feedbackDetail"></div>
-  <div class="timestamp" id="timestamp"></div>
-</div>
-
-<!-- Task 1: Backend Seed -->
+<!-- ============================================================ -->
+<!-- TASK 3.0: Agent Pool Expansion                                -->
+<!-- ============================================================ -->
 <div class="section">
-  <div class="section__title">🔧 Task 1: Backend — Seed 4 Expert Agents</div>
-  <div class="section__subtitle">backend/app/services/agent.py — system prompts + seed_expert_agents()</div>
+  <div class="section__title">Task 3.0 — Built-in Agent Pool 扩展 (5 Agents)</div>
+  <div class="section__subtitle">backend/app/services/agent.py + AgentPoolList UI + AgentDetail</div>
 
+  <!-- #1 -->
   <div class="check-item" data-id="1">
     <div class="check-item__row">
       <div class="check-item__num">1</div>
       <div class="check-item__body">
-        <div class="check-item__label">Cold start: 5 agents appear in Agent Pool</div>
-        <div class="check-item__detail">Delete sloth.db, restart backend, GET /api/settings/agents returns 5 templates (Lead + Bazi + Zi Wei + I Ching + Astrologer)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Cold start — 5 Agent templates seeded</div>
+        <div class="check-item__detail">
+          删除 sloth.db → 启动应用 → Agent Pool 显示 5 个 Agent：<br>
+          General Manager (lead) + Bazi Expert / Zi Wei Expert / I Ching Expert / Astrologer (fortune)。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #2 -->
   <div class="check-item" data-id="2">
     <div class="check-item__row">
       <div class="check-item__num">2</div>
       <div class="check-item__body">
-        <div class="check-item__label">Idempotency: restart does not create duplicates</div>
-        <div class="check-item__detail">Restart backend without deleting DB — still exactly 5 agents, no duplicates</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Restart idempotency — 不重复创建</div>
+        <div class="check-item__detail">
+          重启应用（不删 DB）→ 仍然是 5 个 Agent，不会出现重复。<br>
+          seed 检查改为按 name 去重（修复 role="fortune" 共享导致的只 seed 第 1 个的 bug）。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #3 -->
   <div class="check-item" data-id="3">
     <div class="check-item__row">
       <div class="check-item__num">3</div>
       <div class="check-item__body">
-        <div class="check-item__label">Bazi Expert: role="bazi", auto_join=false, system prompt complete</div>
-        <div class="check-item__detail">System prompt includes Description, Principles (5 bullets), Mission, Critical Rules (4 items)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Agent Pool List — 名称首字母彩色头像</div>
+        <div class="check-item__detail">
+          每个 Agent 头像显示 name 首字母（G/B/Z/I/A），非 role 首字母（L/F）。<br>
+          头像有角色颜色背景 + 彩色边框：Lead=#8B5CF6 (紫)，Fortune=#06B6D4 (青)。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #4 -->
   <div class="check-item" data-id="4">
     <div class="check-item__row">
       <div class="check-item__num">4</div>
       <div class="check-item__body">
-        <div class="check-item__label">Zi Wei Expert: role="ziwei", auto_join=false, system prompt complete</div>
-        <div class="check-item__detail">System prompt includes Description, Principles (5 bullets), Mission, Critical Rules (4 items)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Agent Pool List — 副行显示 role + auto-join</div>
+        <div class="check-item__detail">
+          每个 Agent 副行显示 role 名称（"lead" / "fortune"）。<br>
+          Lead Agent 额外显示 "· auto-join"。Expert agents 不显示。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #5 -->
   <div class="check-item" data-id="5">
     <div class="check-item__row">
       <div class="check-item__num">5</div>
       <div class="check-item__body">
-        <div class="check-item__label">I Ching Expert: role="iching", auto_join=false, system prompt complete</div>
-        <div class="check-item__detail">System prompt includes Description, Principles (5 bullets), Mission, Critical Rules (4 items)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Agent Detail — System Prompt 完整渲染</div>
+        <div class="check-item__detail">
+          选中每个 Agent → Col3 显示完整 Detail。<br>
+          System Prompt 通过 SystemPromptView 渲染（含 ## 标题、列表等格式）。<br>
+          5 个 Agent 的 System Prompt 各不相同。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #6 -->
   <div class="check-item" data-id="6">
     <div class="check-item__row">
       <div class="check-item__num">6</div>
       <div class="check-item__body">
-        <div class="check-item__label">Astrologer: role="astrologer", auto_join=false, system prompt complete</div>
-        <div class="check-item__detail">System prompt includes Description, Principles (5 bullets), Mission, Critical Rules (4 items)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Agent Detail — Built-in 保护</div>
+        <div class="check-item__detail">
+          Name 字段：所有 5 个 built-in Agent 均锁定不可编辑（isBuiltin = true）。<br>
+          Auto-join checkbox：仅 Lead Agent 锁定，Fortune 专家可编辑。<br>
+          BUILTIN_ROLES = ["lead", "fortune"]。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #7 -->
   <div class="check-item" data-id="7">
     <div class="check-item__row">
       <div class="check-item__num">7</div>
       <div class="check-item__body">
-        <div class="check-item__label">All 4 experts have default_model="" (inherit system default)</div>
-        <div class="check-item__detail">No model pre-selected; falls back to default LLM config like Lead agent</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Agent Detail — LLM Provider 显示逻辑</div>
+        <div class="check-item__detail">
+          <b>Lead Agent:</b> 显示全局默认 LLM（"Provider · Model"）或 "Go to Settings → LLM Provider to set a default LLM"。<br>
+          <b>Expert Agent (fortune):</b> 显示 "Set when adding this agent to an Inspiration"。<br>
+          编辑模式下仅 Lead Agent 可选择 LLM Provider。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Task 2: API Validation -->
-<div class="section">
-  <div class="section__title">🔗 Task 2: API — system_prompt max_length increase</div>
-  <div class="section__subtitle">backend/app/routers/agent_templates.py — Pydantic Field max_length</div>
-
+  <!-- #8 -->
   <div class="check-item" data-id="8">
     <div class="check-item__row">
       <div class="check-item__num">8</div>
       <div class="check-item__body">
-        <div class="check-item__label">PATCH system_prompt > 5000 chars accepted</div>
-        <div class="check-item__detail">max_length raised from 5000 to 15000. PATCH with a 6000-char system_prompt returns 200</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">System Prompt max_length → 15000</div>
+        <div class="check-item__detail">
+          PATCH /api/settings/agents 接受 system_prompt 最大 15000 字符。<br>
+          4 个 fortune expert 的 system prompt 长度均 > 5000，不触发 422 校验错误。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Task 3: Frontend Avatars -->
+<!-- ============================================================ -->
+<!-- TASK 3.1: Team Management Backend                             -->
+<!-- ============================================================ -->
 <div class="section">
-  <div class="section__title">🎨 Task 3: Frontend — Role-based Avatars in AgentPoolList</div>
-  <div class="section__subtitle">frontend/src/components/AgentPoolList.tsx — avatar letter mapping</div>
+  <div class="section__title">Task 3.1 — Team Management API (agents.py)</div>
+  <div class="section__subtitle">backend/app/routers/agents.py — 4 endpoints: list / add / update / remove</div>
 
+  <!-- #9 -->
   <div class="check-item" data-id="9">
     <div class="check-item__row">
       <div class="check-item__num">9</div>
       <div class="check-item__body">
-        <div class="check-item__label">Lead agent avatar shows "L"</div>
-        <div class="check-item__detail">General Manager entry in sidebar displays "L" in the avatar circle</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">GET /api/inspirations/{id}/agents — Agent 列表</div>
+        <div class="check-item__detail">
+          返回 Inspiration 下所有 Agent（按 joined_at 升序）。<br>
+          每个 Agent 含：id, name, role, model, status, template_id, joined_at。<br>
+          role 从 AgentTemplate 解析，非硬编码。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #10 -->
   <div class="check-item" data-id="10">
     <div class="check-item__row">
       <div class="check-item__num">10</div>
       <div class="check-item__body">
-        <div class="check-item__label">Bazi Expert avatar shows "B"</div>
-        <div class="check-item__detail">Role-based letter mapping: bazi → "B"</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">POST /api/inspirations/{id}/agents — 添加 Agent</div>
+        <div class="check-item__detail">
+          从 AgentTemplate 拉入 Team：name/model 继承模板。<br>
+          状态初始 "idle"。返回 201。<br>
+          同一 template 重复添加 → 409 Conflict。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #11 -->
   <div class="check-item" data-id="11">
     <div class="check-item__row">
       <div class="check-item__num">11</div>
       <div class="check-item__body">
-        <div class="check-item__label">Zi Wei Expert avatar shows "Z"</div>
-        <div class="check-item__detail">Role-based letter mapping: ziwei → "Z"</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">PATCH /api/agents/{id} — 更新 Agent 模型</div>
+        <div class="check-item__detail">
+          修改 Agent 的 model 字段。部分更新（仅 model）。<br>
+          Agent 不存在 → 404。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #12 -->
   <div class="check-item" data-id="12">
     <div class="check-item__row">
       <div class="check-item__num">12</div>
       <div class="check-item__body">
-        <div class="check-item__label">I Ching Expert avatar shows "I"</div>
-        <div class="check-item__detail">Role-based letter mapping: iching → "I"</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">DELETE /api/inspirations/{id}/agents/{agentId} — 移除 Agent</div>
+        <div class="check-item__detail">
+          非 Lead Agent 可移除 → 204。<br>
+          Lead Agent 移除 → 403 "Cannot remove Lead Agent from team"。<br>
+          Agent 不属于该 Inspiration → 404。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #13 -->
   <div class="check-item" data-id="13">
     <div class="check-item__row">
       <div class="check-item__num">13</div>
       <div class="check-item__body">
-        <div class="check-item__label">Astrologer avatar shows "A"</div>
-        <div class="check-item__detail">Role-based letter mapping: astrologer → "A"</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">创建 Inspiration → Lead Agent 自动加入</div>
+        <div class="check-item__detail">
+          POST /api/inspirations → join_auto_agents() → Lead Agent (role=lead, auto_join=true) 自动添加。<br>
+          返回的 InspirationResponse 中 agent_count = 1（修复之前返回 0 的 bug）。<br>
+          Expert agent (auto_join=false) 不会自动加入。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Task 4: Frontend Detail Protection -->
-<div class="section">
-  <div class="section__title">🔒 Task 4: Frontend — Built-in Agent Protection in AgentDetail</div>
-  <div class="section__subtitle">frontend/src/components/AgentDetail.tsx — isBuiltin check for name lock</div>
-
+  <!-- #14 -->
   <div class="check-item" data-id="14">
     <div class="check-item__row">
       <div class="check-item__num">14</div>
       <div class="check-item__body">
-        <div class="check-item__label">Lead agent name field disabled in edit mode</div>
-        <div class="check-item__detail">"General Manager" name input is disabled (isBuiltin=true)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Agent status 模型 — idle / working / error</div>
+        <div class="check-item__detail">
+          InspirationAgent 创建时 status 默认为 "idle"。<br>
+          DB 字段：String(20)，default="idle"。状态值合法且持久化正确。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
+</div>
 
+<!-- ============================================================ -->
+<!-- TASK 3.2: RightPanel UI + Frontend Integration                -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 3.2 — RightPanel (Col4) Team Management UI</div>
+  <div class="section__subtitle">RightPanel.tsx + agentStore.ts + Tauri commands + CSS</div>
+
+  <!-- #15 -->
   <div class="check-item" data-id="15">
     <div class="check-item__row">
       <div class="check-item__num">15</div>
       <div class="check-item__body">
-        <div class="check-item__label">Expert agent name fields disabled in edit mode</div>
-        <div class="check-item__detail">All 4 expert agents (Bazi, Zi Wei, I Ching, Astrologer) have name inputs disabled</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">RightPanel — Team 面板头部</div>
+        <div class="check-item__detail">
+          标题 "Team"。关闭按钮 (✕)。<br>
+          "AGENTS" 小节标题 + badge 显示 team 中 Agent 总数。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #16 -->
   <div class="check-item" data-id="16">
     <div class="check-item__row">
       <div class="check-item__num">16</div>
       <div class="check-item__body">
-        <div class="check-item__label">Expert agent auto-join is editable</div>
-        <div class="check-item__detail">Auto-join checkbox is NOT disabled for expert agents (only lead agent's is locked)</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Team Agent Card — 名称首字母彩色头像</div>
+        <div class="check-item__detail">
+          每个 Agent 显示彩色头像（name 首字母 + 角色颜色背景 + 彩色边框）。<br>
+          颜色：Lead=#8B5CF6 (紫)，Fortune=#06B6D4 (青)。<br>
+          头像与 AgentPoolList 样式一致（32px, border-radius 8px, mono font）。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 
+  <!-- #17 -->
   <div class="check-item" data-id="17">
     <div class="check-item__row">
       <div class="check-item__num">17</div>
       <div class="check-item__body">
-        <div class="check-item__label">Lead agent auto-join remains disabled</div>
-        <div class="check-item__detail">Only the Lead agent has auto-join locked; expert agents can toggle it</div>
-        <div class="check-item__actions">
-          <button class="btn btn--pass" onclick="setVerdict(this,'pass')">PASS</button>
-          <button class="btn btn--fail" onclick="setVerdict(this,'fail')">FAIL</button>
-          <button class="btn btn--add" onclick="openPopover(this)" title="Add feedback">+</button>
+        <div class="check-item__label">Team Agent Card — 信息行 + 状态灯</div>
+        <div class="check-item__detail">
+          显示 Agent name + role。<br>
+          右侧状态灯：working=绿色脉冲(rp-status-dot--active)，idle/其他=灰色。
         </div>
-        <div class="fb-cards"></div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #18 -->
+  <div class="check-item" data-id="18">
+    <div class="check-item__row">
+      <div class="check-item__num">18</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Team Agent Card — Model 下拉 (仅已配置 LLM)</div>
+        <div class="check-item__detail">
+          下拉菜单列出用户在 Settings 中已配置的 LLM（非 Sloth 支持的全体 Provider）。<br>
+          Lead Agent model 为空时 → 自动回退到全局默认 LLM（显示 "Provider · Model"）。<br>
+          Expert Agent model 为空时 → 显示 "No model"。<br>
+          无已配置 LLM 时 → 仅显示 "No model"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #19 -->
+  <div class="check-item" data-id="19">
+    <div class="check-item__row">
+      <div class="check-item__num">19</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Team Agent Card — Remove 按钮</div>
+        <div class="check-item__detail">
+          Lead Agent → 不显示 Remove 按钮。<br>
+          非 Lead Agent → 显示 "Remove" 按钮，点击后从 Team 移除。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #20 -->
+  <div class="check-item" data-id="20">
+    <div class="check-item__row">
+      <div class="check-item__num">20</div>
+      <div class="check-item__body">
+        <div class="check-item__label">+ Add Agent — 自定义下拉菜单</div>
+        <div class="check-item__detail">
+          不可点击时无添加入口。有可用 Agent 时 → 显示 "+ Add" 按钮（虚线边框）。<br>
+          点击弹出下拉菜单，每个选项显示：彩色头像 + name + role。<br>
+          点击选项添加 Agent → 菜单关闭。点击外部 → 菜单关闭。<br>
+          已加入 Team 的 Agent 不出现在下拉中。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #21 -->
+  <div class="check-item" data-id="21">
+    <div class="check-item__row">
+      <div class="check-item__num">21</div>
+      <div class="check-item__body">
+        <div class="check-item__label">RightPanel — 无 Inspiration 时守卫</div>
+        <div class="check-item__detail">
+          无 active Inspiration → 打开 Team 面板 → 显示 "Select an Inspiration to manage its team"。<br>
+          ChatArea Team 按钮在无 Inspiration 时 disabled。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #22 -->
+  <div class="check-item" data-id="22">
+    <div class="check-item__row">
+      <div class="check-item__num">22</div>
+      <div class="check-item__body">
+        <div class="check-item__label">ChatArea — 状态文案显示 working count</div>
+        <div class="check-item__detail">
+          Header 状态灯 + 文字：有 working Agent → "N Agent(s) working"（琥珀色灯）。<br>
+          全部 idle → "N Agent(s) idle"（绿色灯）。<br>
+          不是总数 "ACTIVE"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #23 -->
+  <div class="check-item" data-id="23">
+    <div class="check-item__row">
+      <div class="check-item__num">23</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Inspiration 列表 — agent_count 正确</div>
+        <div class="check-item__detail">
+          创建 Inspiration → 左侧列表显示 "1 AGENT"（单数）。<br>
+          添加更多 Agent → 显示 "N AGENTS"（复数）。<br>
+          不再显示错误的 "0 AGENTS"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #24 -->
+  <div class="check-item" data-id="24">
+    <div class="check-item__row">
+      <div class="check-item__num">24</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agent Store — agentStore.ts</div>
+        <div class="check-item__detail">
+          Zustand store 管理 teamMembers + templatePool。<br>
+          fetchTeam(): 正确解析 API 返回的 TeamAgent[]。<br>
+          updateModel(id, model): 乐观更新 + API 调用。<br>
+          removeFromTeam(inspId, agentId): 调用 DELETE → 从列表移除。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #25 -->
+  <div class="check-item" data-id="25">
+    <div class="check-item__row">
+      <div class="check-item__num">25</div>
+      <div class="check-item__body">
+        <div class="check-item__label">API Client — Team Agent 接口</div>
+        <div class="check-item__detail">
+          listTeamAgents(id), addAgentToTeam(inspId, templateId), updateTeamAgent(id, model), removeAgentFromTeam(inspId, agentId)。<br>
+          TeamAgent interface 字段完整：id, inspiration_id, template_id, name, role, model, status, joined_at。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
       </div>
     </div>
   </div>
 </div>
 
-</div><!-- /container -->
+<!-- ============================================================ -->
+<!-- Rust Bridge Layer                                            -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Rust 桥接层 — Team Agent Commands</div>
+  <div class="section__subtitle">src-tauri/src/lib.rs — 4 个新 Tauri command</div>
 
-<div class="fb-popover" id="popover">
-  <button class="fb-popover__item" onclick="addFeedback('bug')">
-    <span class="fb-popover__dot fb-popover__dot--bug"></span> Bug
-  </button>
-  <button class="fb-popover__item" onclick="addFeedback('opt')">
-    <span class="fb-popover__dot fb-popover__dot--opt"></span> Optimization
-  </button>
+  <!-- #26 -->
+  <div class="check-item" data-id="26">
+    <div class="check-item__row">
+      <div class="check-item__num">26</div>
+      <div class="check-item__body">
+        <div class="check-item__label">list_agents + add_agent_to_team commands</div>
+        <div class="check-item__detail">
+          list_agents(inspiration_id) → GET /api/inspirations/{id}/agents。<br>
+          add_agent_to_team(inspiration_id, template_id) → POST → 返回 AgentResponse。<br>
+          TeamAgent struct 与 API 返回的 JSON 完全对齐。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #27 -->
+  <div class="check-item" data-id="27">
+    <div class="check-item__row">
+      <div class="check-item__num">27</div>
+      <div class="check-item__body">
+        <div class="check-item__label">update_agent + remove_agent_from_team commands</div>
+        <div class="check-item__detail">
+          update_agent(agent_id, model) → PATCH /api/agents/{id}。<br>
+          remove_agent_from_team(inspiration_id, agent_id) → DELETE → 204。<br>
+          invoke_handler 中已注册。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
 </div>
 
+<!-- ============================================================ -->
+<!-- End-to-End Integration                                       -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">端到端集成测试</div>
+  <div class="section__subtitle">完整链路验证</div>
+
+  <!-- #28 -->
+  <div class="check-item" data-id="28">
+    <div class="check-item__row">
+      <div class="check-item__num">28</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Settings 配置 LLM → 创建 Inspiration → Team 面板</div>
+        <div class="check-item__detail">
+          完整链路：Settings 添加 LLM Provider → 创建 Inspiration → Col4 Team 面板自动显示 Lead Agent。<br>
+          Lead Agent 头像显示 "G"、紫色、model 下拉回退到全局默认 LLM。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #29 -->
+  <div class="check-item" data-id="29">
+    <div class="check-item__row">
+      <div class="check-item__num">29</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 添加 Expert Agent → 切换 Model → 移除</div>
+        <div class="check-item__detail">
+          从 "+ Add" 下拉添加 Expert Agent → 显示在 Team 中，头像显示首字母（B/Z/I/A）。<br>
+          Model 默认 "No model" → 下拉选择已配置的 LLM → 更新成功。<br>
+          点击 Remove → Agent 从 Team 移除。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #30 -->
+  <div class="check-item" data-id="30">
+    <div class="check-item__row">
+      <div class="check-item__num">30</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 重复添加 → 409 去重</div>
+        <div class="check-item__detail">
+          已添加的 Agent 不再出现在 "+ Add" 下拉中。<br>
+          直接 API 调用重复添加 → 返回 409 Conflict。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #31 -->
+  <div class="check-item" data-id="31">
+    <div class="check-item__row">
+      <div class="check-item__num">31</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Lead Agent 不可移除</div>
+        <div class="check-item__detail">
+          Lead Agent 卡片无 Remove 按钮。<br>
+          API DELETE → 403 "Cannot remove Lead Agent from team"。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #32 -->
+  <div class="check-item" data-id="32">
+    <div class="check-item__row">
+      <div class="check-item__num">32</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 重启应用 → 数据持久化</div>
+        <div class="check-item__detail">
+          关闭应用 → 重新启动 → 所有数据保留：<br>
+          Inspiration、Agent Pool (5 agents)、LLM 配置、Team 成员、Message 历史。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #33 -->
+  <div class="check-item" data-id="33">
+    <div class="check-item__row">
+      <div class="check-item__num">33</div>
+      <div class="check-item__body">
+        <div class="check-item__label">编译验证</div>
+        <div class="check-item__detail">
+          cd frontend && npx tsc --noEmit → 无 TypeScript 错误。<br>
+          cargo build → Rust 编译无错误。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- .container -->
+
 <script>
-const TOTAL = 17;
-const STORAGE_KEY = 'sloth-iter3-verification';
+const items = document.querySelectorAll('.check-item');
+const STATE_KEY = 'iter3-verification-state';
 
-var _popoverTarget = null;
-
-function loadState() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-  catch { return {}; }
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch(e) { return {}; }
 }
-
 function saveState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
 }
 
-function setVerdict(btn, verdict) {
-  var item = btn.closest('.check-item');
-  var id = item.getAttribute('data-id');
+function toggle(btn, type) {
+  const item = btn.closest('.check-item');
+  const allBtns = item.querySelectorAll('.btn--pass, .btn--bug, .btn--opt, .btn--fail');
+  allBtns.forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 
-  item.querySelectorAll('.btn--pass,.btn--fail').forEach(function(b) {
-    b.classList.remove('btn--active');
-    if (b.textContent.trim() === verdict.toUpperCase()) b.classList.add('btn--active');
-  });
+  const id = item.dataset.id;
+  const state = getState();
+  state[id] = type;
+  saveState(state);
 
   item.classList.remove('check-item--pass', 'check-item--fail');
-  item.classList.add('check-item--' + verdict);
+  if (type === 'pass') item.classList.add('check-item--pass');
+  if (type === 'bug') item.classList.add('check-item--fail');
+  if (type === 'opt') item.classList.add('check-item--pass');
 
-  var state = loadState();
-  if (!state[id]) state[id] = {};
-  state[id].verdict = verdict;
-  saveState(state);
   updateSummary();
-}
-
-function openPopover(btn) {
-  _popoverTarget = btn.closest('.check-item');
-  var popover = document.getElementById('popover');
-  var rect = btn.getBoundingClientRect();
-  popover.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-  popover.style.left = (rect.left + window.scrollX - 100) + 'px';
-  popover.classList.add('fb-popover--open');
-}
-
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.fb-popover') && !e.target.closest('.btn--add')) {
-    document.getElementById('popover').classList.remove('fb-popover--open');
-  }
-});
-
-function addFeedback(type) {
-  document.getElementById('popover').classList.remove('fb-popover--open');
-  if (!_popoverTarget) return;
-
-  var item = _popoverTarget;
-  var id = item.getAttribute('data-id');
-  var state = loadState();
-  if (!state[id]) state[id] = {};
-  if (!state[id].feedbacks) state[id].feedbacks = [];
-  state[id].feedbacks.push({type: type, text: ''});
-  saveState(state);
-  renderFeedbacks(item, id, state[id].feedbacks);
-  updateSummary();
-}
-
-function removeFeedback(item, idx) {
-  var id = item.getAttribute('data-id');
-  var state = loadState();
-  if (state[id] && state[id].feedbacks) {
-    state[id].feedbacks.splice(idx, 1);
-    saveState(state);
-    renderFeedbacks(item, id, state[id].feedbacks);
-    updateSummary();
-  }
-}
-
-function onFeedbackInput(item, idx) {
-  var id = item.getAttribute('data-id');
-  var state = loadState();
-  if (state[id] && state[id].feedbacks && state[id].feedbacks[idx]) {
-    var textarea = item.querySelectorAll('.fb-card__textarea')[idx];
-    if (textarea) state[id].feedbacks[idx].text = textarea.value;
-    saveState(state);
-    updateSummary();
-  }
-}
-
-function renderFeedbacks(item, id, feedbacks) {
-  var container = item.querySelector('.fb-cards');
-  if (!feedbacks || feedbacks.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-  var html = '';
-  feedbacks.forEach(function(fb, i) {
-    var typeLabel = fb.type === 'bug' ? 'BUG' : 'OPT';
-    html += '<div class="fb-card">' +
-      '<div class="fb-card__type fb-card__type--' + fb.type + '"></div>' +
-      '<div class="fb-card__body">' +
-        '<div class="fb-card__header">' +
-          '<span class="fb-card__tag fb-card__tag--' + fb.type + '">' + typeLabel + '</span>' +
-          '<button class="fb-card__remove" title="Remove" onclick="removeFeedback(this.closest(\'.check-item\'),' + i + ')">&times;</button>' +
-        '</div>' +
-        '<textarea class="fb-card__textarea" placeholder="Describe this ' + fb.type + '…" oninput="onFeedbackInput(this.closest(\'.check-item\'),' + i + ')">' + escapeHtml(fb.text) + '</textarea>' +
-      '</div>' +
-    '</div>';
-  });
-  container.innerHTML = html;
 }
 
 function updateSummary() {
-  var state = loadState();
-  var pass = 0, fail = 0, bugs = 0, opts = 0;
-  var detailHtml = '';
+  const state = getState();
+  let pass = 0, bug = 0, opt = 0, total = items.length;
+  let checked = 0;
 
-  for (var i = 1; i <= TOTAL; i++) {
-    if (state[i] && state[i].verdict === 'pass') pass++;
-    if (state[i] && state[i].verdict === 'fail') fail++;
-    if (state[i] && state[i].feedbacks) {
-      state[i].feedbacks.forEach(function(fb) {
-        if (fb.text && fb.text.trim()) {
-          var tagClass = fb.type === 'bug' ? 'bug' : 'opt';
-          var tagLabel = fb.type === 'bug' ? 'BUG' : 'OPT';
-          detailHtml += '<div class="summary__fb-row">' +
-            '<span class="summary__fb-tag summary__fb-tag--' + tagClass + '">' + tagLabel + '</span>' +
-            '<span style="color:#9ea7b0">#' + i + '</span>' +
-            '<span>' + escapeHtml(fb.text) + '</span>' +
-            '</div>';
-          if (fb.type === 'bug') bugs++; else opts++;
-        }
-      });
-    }
-  }
-
-  var pending = TOTAL - pass - fail;
-  var pct = Math.round(((pass + fail) / TOTAL) * 100);
-
-  document.getElementById('countPass').textContent = pass;
-  document.getElementById('countFail').textContent = fail;
-  document.getElementById('countPending').textContent = pending;
-  document.getElementById('progressBar').style.width = pct + '%';
-  document.getElementById('progressText').textContent = (pass + fail) + ' / ' + TOTAL + ' verified';
-
-  var detailHeader = '';
-  if (bugs > 0 || opts > 0) {
-    detailHeader = '<p style="font-size:12px;color:#9ea7b0;margin-bottom:8px">' +
-      bugs + ' bugs, ' + opts + ' optimizations reported</p>';
-  }
-  document.getElementById('feedbackDetail').innerHTML = detailHeader + detailHtml || '<p style="font-size:12px;color:#9ea7b0;">No feedback notes yet</p>';
-  document.getElementById('timestamp').textContent = 'Last updated: ' + new Date().toLocaleString();
-}
-
-function exportReport() {
-  var state = loadState();
-  var pass = 0, fail = 0, bugs = 0, opts = 0;
-
-  var sections = document.querySelectorAll('.section');
-  var lines = [];
-  lines.push('Sloth Agent — Iter-3 Verification Checklist');
-  lines.push('Generated: ' + new Date().toISOString());
-  lines.push('');
-
-  sections.forEach(function(sec) {
-    var secTitle = sec.querySelector('.section__title').textContent.trim();
-    lines.push('--- ' + secTitle + ' ---');
-
-    sec.querySelectorAll('.check-item').forEach(function(item) {
-      var id = item.getAttribute('data-id');
-      var label = item.querySelector('.check-item__label').textContent.trim();
-      var entry = state[id] || {};
-      var status = entry.verdict ? entry.verdict.toUpperCase() : 'PENDING';
-      lines.push('  [' + status + '] ' + label);
-
-      if (entry.feedbacks) {
-        entry.feedbacks.forEach(function(fb) {
-          var prefix = fb.type === 'bug' ? '  [BUG]' : '  [OPT]';
-          lines.push(prefix + ' ' + fb.text);
-          if (fb.type === 'bug') bugs++; else opts++;
-        });
-      }
-    });
-    lines.push('');
+  items.forEach(item => {
+    const id = item.dataset.id;
+    const s = state[id];
+    if (s) checked++;
+    if (s === 'pass') pass++;
+    if (s === 'bug') bug++;
+    if (s === 'opt') opt++;
   });
 
-  for (var i = 1; i <= TOTAL; i++) {
-    if (state[i] && state[i].verdict === 'pass') pass++;
-    if (state[i] && state[i].verdict === 'fail') fail++;
-  }
-  lines.unshift('SUMMARY: ' + pass + ' passed, ' + fail + ' failed, ' + (TOTAL - pass - fail) + ' pending | ' + bugs + ' bugs, ' + opts + ' optimizations');
-  lines.unshift('');
+  const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = checked + ' / ' + total + ' checked  (' + pct + '%)';
 
-  var content = lines.join('\n');
-  if (typeof showSaveFilePicker !== 'undefined') {
-    (async function() {
-      try {
-        var handle = await showSaveFilePicker({
-          suggestedName: 'iter-3-verification-report.txt',
-          types: [{ description: 'Text files', accept: { 'text/plain': ['.txt'] } }]
+  let summaryHtml = '';
+  if (pass > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--pass"></span> ' + pass + ' Pass</span>';
+  if (bug > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--bug"></span> ' + bug + ' Bug</span>';
+  if (opt > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--opt"></span> ' + opt + ' 优化</span>';
+  document.getElementById('summary').innerHTML = summaryHtml;
+}
+
+// Restore state on load
+const savedState = getState();
+Object.entries(savedState).forEach(([id, type]) => {
+  const item = document.querySelector(`.check-item[data-id="${id}"]`);
+  if (!item) return;
+  const btn = item.querySelector(type === 'bug' ? '.btn--bug' : type === 'opt' ? '.btn--opt' : '.btn--pass');
+  if (btn) {
+    btn.classList.add('active');
+    item.classList.remove('check-item--pass', 'check-item--fail');
+    if (type === 'pass' || type === 'opt') item.classList.add('check-item--pass');
+    if (type === 'bug') item.classList.add('check-item--fail');
+  }
+});
+updateSummary();
+
+function exportJSON() {
+  const state = getState();
+  const notes = {};
+  document.querySelectorAll('.check-item textarea').forEach(ta => {
+    const id = ta.closest('.check-item').dataset.id;
+    if (ta.value.trim()) notes[id] = ta.value;
+  });
+  const exportData = { version: 'iter-3', exportedAt: new Date().toISOString(), verdicts: state, notes: notes };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'iter-3-verification-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  document.getElementById('importFile').click();
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.verdicts) { alert('Invalid file: no verdicts found'); return; }
+      if (!confirm('Import ' + Object.keys(data.verdicts).length + ' verdicts + ' + (data.notes ? Object.keys(data.notes).length : 0) + ' notes? This will overwrite current state.')) return;
+      saveState(data.verdicts);
+      if (data.notes) {
+        const notesState = {};
+        Object.entries(data.notes).forEach(([id, text]) => { notesState[id] = text; });
+        localStorage.setItem('iter3-verification-notes', JSON.stringify(notesState));
+        document.querySelectorAll('.check-item textarea').forEach(ta => {
+          const id = ta.closest('.check-item').dataset.id;
+          if (data.notes[id]) ta.value = data.notes[id];
         });
-        var writable = await handle.createWritable();
-        await writable.write(content);
-        await writable.close();
-      } catch(e) {
-        // User cancelled — do nothing
       }
-    })();
-  } else {
-    var blob = new Blob([content], {type: 'text/plain'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'iter-3-verification-report.txt';
-    a.click();
-  }
+      location.reload();
+    } catch(err) { alert('Failed to parse file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
-function resetAll() {
-  if (confirm('Reset all verification results? This cannot be undone.')) {
-    localStorage.removeItem(STORAGE_KEY);
-    document.querySelectorAll('.check-item').forEach(function(item) {
-      item.classList.remove('check-item--pass', 'check-item--fail');
-      item.querySelectorAll('.btn--pass,.btn--fail').forEach(function(b) { b.classList.remove('btn--active'); });
-      item.querySelector('.fb-cards').innerHTML = '';
-    });
-    updateSummary();
-  }
-}
+// Persist notes in localStorage on input
+document.querySelectorAll('.check-item textarea').forEach(ta => {
+  ta.addEventListener('input', function() {
+    const notesState = JSON.parse(localStorage.getItem('iter3-verification-notes') || '{}');
+    const id = this.closest('.check-item').dataset.id;
+    if (this.value.trim()) notesState[id] = this.value;
+    else delete notesState[id];
+    localStorage.setItem('iter3-verification-notes', JSON.stringify(notesState));
+  });
+});
 
-function escapeHtml(str) {
-  var div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+// Restore notes on load
+(function() {
+  const notesState = JSON.parse(localStorage.getItem('iter3-verification-notes') || '{}');
+  Object.entries(notesState).forEach(([id, text]) => {
+    const ta = document.querySelector('.check-item[data-id="' + id + '"] textarea');
+    if (ta) ta.value = text;
+  });
+})();
 
-restoreUI();
 </script>
+
 </body>
 </html>
