@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAgentPoolStore } from "../stores/agentPoolStore";
 
+const ROLE_COLOR: Record<string, string> = {
+  lead: "#8B5CF6",
+  fortune: "#06B6D4",
+};
+
 export default function AgentPoolList() {
   const { templates, activeId, loading, fetchAll, setActive } = useAgentPoolStore();
   const [error, setError] = useState<string | null>(null);
@@ -51,9 +56,14 @@ export default function AgentPoolList() {
               onClick={() => setActive(t.id)}
             >
               <div
-                className={`projectlist__item-avatar${isActive ? " projectlist__item-avatar--active" : ""}`}
+                className="projectlist__item-avatar"
+                style={{
+                  background: `${ROLE_COLOR[t.role] ?? "#94A3B8"}22`,
+                  border: `1px solid ${ROLE_COLOR[t.role] ?? "#94A3B8"}44`,
+                  color: ROLE_COLOR[t.role] ?? "#94A3B8",
+                }}
               >
-                {t.role === "lead" ? "L" : t.name.slice(0, 2).toUpperCase()}
+                {t.name.slice(0, 1).toUpperCase()}
               </div>
               <div className="projectlist__item-body">
                 <div className="projectlist__item-row">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
+import { useAgentStore } from "../stores/agentStore";
 import * as api from "../api/client";
 import type { Message } from "../api/client";
 
@@ -25,6 +26,16 @@ export default function ChatArea() {
 
   const col4Content = useUIStore((s) => s.col4Content);
   const openCol4 = useUIStore((s) => s.openCol4);
+
+  const teamMembers = useAgentStore((s) => s.teamMembers);
+  const fetchTeam = useAgentStore((s) => s.fetchTeam);
+  const workingCount = teamMembers.filter((m) => m.status === "working").length;
+
+  useEffect(() => {
+    if (activeId) {
+      fetchTeam(activeId);
+    }
+  }, [activeId]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -115,8 +126,10 @@ export default function ChatArea() {
             <>
               <h2 className="chatarea__project-name">{activeInspiration.name}</h2>
               <span className="chatarea__status">
-                <span className={`chatarea__status-dot${activeInspiration.agent_count > 0 ? " chatarea__status-dot--idle" : ""}`} />
-                {activeInspiration.agent_count === 1 ? "1 Agent active" : `${activeInspiration.agent_count} Agents active`}
+                <span className={`chatarea__status-dot${workingCount > 0 ? " chatarea__status-dot--working" : " chatarea__status-dot--idle"}`} />
+                {workingCount > 0
+                  ? `${workingCount} Agent${workingCount > 1 ? "s" : ""} working`
+                  : `${teamMembers.length} Agent${teamMembers.length !== 1 ? "s" : ""} idle`}
               </span>
             </>
           ) : (
@@ -126,7 +139,7 @@ export default function ChatArea() {
           )}
         </div>
         <div className="chatarea__topbar-actions">
-          <button className={`chatarea__icon-btn${col4Content === "team" ? " chatarea__icon-btn--active" : ""}`} title="Team" onClick={() => openCol4("team")}>
+          <button className={`chatarea__icon-btn${col4Content === "team" ? " chatarea__icon-btn--active" : ""}`} title="Team" onClick={() => openCol4("team")} disabled={!activeInspiration}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="8" r="4" />
               <path d="M1 20v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" />

@@ -42,9 +42,13 @@ export default function AgentDetail() {
     );
   }
 
+  const BUILTIN_ROLES = ["lead", "fortune"];
   const isLead = template.role === "lead";
+  const isBuiltin = BUILTIN_ROLES.includes(template.role);
   const defaultCfg = configs.find((c) => c.is_default);
-  const effectiveModel = defaultModel || (defaultCfg ? `${defaultCfg.provider} · ${defaultCfg.model}` : "");
+  const effectiveModel = isLead
+    ? (defaultModel || (defaultCfg ? `${defaultCfg.provider} · ${defaultCfg.model}` : ""))
+    : defaultModel;
   const selectedConfig = configs.find((c) => `${c.provider} · ${c.model}` === effectiveModel);
 
   const handleSave = async () => {
@@ -108,15 +112,23 @@ export default function AgentDetail() {
           <div className="detail-field">
             <span className="detail-field__label">LLM Provider</span>
             <span className="detail-field__value">
-              {selectedConfig ? (
-                <span className="agent-detail__provider-ref">
-                  <span className="agent-detail__provider-ref-icon">
-                    <ProviderIcon provider={selectedConfig.provider} />
+              {isLead ? (
+                selectedConfig ? (
+                  <span className="agent-detail__provider-ref">
+                    <span className="agent-detail__provider-ref-icon">
+                      <ProviderIcon provider={selectedConfig.provider} />
+                    </span>
+                    {selectedConfig.provider} · {selectedConfig.model}
                   </span>
-                  {selectedConfig.provider} · {selectedConfig.model}
-                </span>
+                ) : (
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
+                    Go to Settings → LLM Provider to set a default LLM
+                  </span>
+                )
               ) : (
-                <span style={{ color: "var(--text-muted)" }}>Not configured</span>
+                <span style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
+                  Set when adding this agent to an Inspiration
+                </span>
               )}
             </span>
           </div>
@@ -141,37 +153,39 @@ export default function AgentDetail() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              disabled={isLead}
+              disabled={isBuiltin}
             />
           </div>
 
-          <div className="detail-field">
-            <span className="detail-field__label">LLM Provider</span>
-            <div className="agent-detail__provider-select">
-              {configs.map((c) => {
-                const value = `${c.provider} · ${c.model}`;
-                const isSelected = value === defaultModel;
-                return (
-                  <div
-                    key={c.id}
-                    className={`agent-detail__provider-option${isSelected ? " agent-detail__provider-option--selected" : ""}`}
-                    onClick={() => setDefaultModel(value)}
-                  >
-                    <span className="agent-detail__provider-option-icon">
-                      <ProviderIcon provider={c.provider} />
-                    </span>
-                    <span className="agent-detail__provider-option-name">{c.provider}</span>
-                    <span className="agent-detail__provider-option-model">{c.model}</span>
+          {isLead && (
+            <div className="detail-field">
+              <span className="detail-field__label">LLM Provider</span>
+              <div className="agent-detail__provider-select">
+                {configs.map((c) => {
+                  const value = `${c.provider} · ${c.model}`;
+                  const isSelected = value === defaultModel;
+                  return (
+                    <div
+                      key={c.id}
+                      className={`agent-detail__provider-option${isSelected ? " agent-detail__provider-option--selected" : ""}`}
+                      onClick={() => setDefaultModel(value)}
+                    >
+                      <span className="agent-detail__provider-option-icon">
+                        <ProviderIcon provider={c.provider} />
+                      </span>
+                      <span className="agent-detail__provider-option-name">{c.provider}</span>
+                      <span className="agent-detail__provider-option-model">{c.model}</span>
+                    </div>
+                  );
+                })}
+                {configs.length === 0 && (
+                  <div className="agent-detail__provider-empty">
+                    No providers configured. Add one in Settings.
                   </div>
-                );
-              })}
-              {configs.length === 0 && (
-                <div className="agent-detail__provider-empty">
-                  No providers configured. Add one in Settings.
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="detail-field detail-field--top">
             <span className="detail-field__label">System Prompt</span>

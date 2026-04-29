@@ -234,6 +234,35 @@ export async function updateAgentTemplate(
   return call<AgentTemplate>("update_agent_template", { id, req });
 }
 
+// ---- Agent Team Management ----
+
+export interface TeamAgent {
+  id: string;
+  inspiration_id: string;
+  template_id: string | null;
+  name: string;
+  role: string;
+  model: string;
+  status: string;
+  joined_at: string;
+}
+
+export async function listTeamAgents(inspirationId: string): Promise<TeamAgent[]> {
+  return call<TeamAgent[]>("list_agents", { inspirationId });
+}
+
+export async function addAgentToTeam(inspirationId: string, templateId: string): Promise<TeamAgent> {
+  return call<TeamAgent>("add_agent_to_team", { inspirationId, templateId });
+}
+
+export async function updateTeamAgent(agentId: string, model: string): Promise<TeamAgent> {
+  return call<TeamAgent>("update_agent", { agentId, model });
+}
+
+export async function removeAgentFromTeam(inspirationId: string, agentId: string): Promise<void> {
+  return call<void>("remove_agent_from_team", { inspirationId, agentId });
+}
+
 // ---- Chat ----
 
 export async function sendChatMessage(

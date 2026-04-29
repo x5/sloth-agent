@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <title>Spec vs Plan — 需求与实现的分层方法论</title>
+  <meta name="description" content="在 Sloth Agent 项目中用 Spec + Plan 双层文档驱动开发：什么是 Spec、什么是 Plan、如何配合使用、模板与标准。" />
+  <style>
+    :root {
+      --bg: #0B0F19;
+      --card: #151B2B;
+      --card-hover: #1a2135;
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139,92,246,0.12);
+      --purple-glow: rgba(139,92,246,0.25);
+      --purple-dim: rgba(139,92,246,0.06);
+      --cyan: #06B6D4;
+      --cyan-soft: rgba(6,182,212,0.12);
+      --green: #22c55e;
+      --green-soft: rgba(34,197,94,0.12);
+      --amber: #F59E0B;
+      --amber-soft: rgba(245,158,11,0.12);
+      --red: #EF4444;
+      --red-soft: rgba(239,68,68,0.12);
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --muted-dim: #64748B;
+      --border: rgba(255,255,255,0.06);
+      --border-accent: rgba(139,92,246,0.25);
+      --radius-card: 16px;
+      --radius-panel: 24px;
+      --shadow-base: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-hover: 0 8px 40px rgba(139,92,246,0.12);
+      --font-mono: "JetBrains Mono", "Noto Sans SC", monospace;
+      --font-heading: "JetBrains Mono", "Noto Sans SC", sans-serif;
+      --font-body: "Inter", "Noto Sans SC", sans-serif;
+      --font-sc: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+      --font-code: "JetBrains Mono", "Noto Sans SC", monospace;
+      --max-w: 1200px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%);
+      z-index: 0;
+    }
+
+    /* ---- progress bar ---- */
+    .progress-bar {
+      position: fixed; top: 0; left: 0; width: 100%; height: 3px;
+      background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa);
+      transform-origin: left; transform: scaleX(0); z-index: 100;
+    }
+
+    /* ---- topbar ---- */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 24px;
+      background: rgba(11,15,25,0.85); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      max-width: var(--max-w); margin: 0 auto;
+    }
+    .brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-mono); font-weight: 700; font-size: 14px;
+      letter-spacing: 0.14em; color: var(--text);
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15);
+    }
+    .topbar-date {
+      font-family: var(--font-mono); font-size: 12px;
+      color: var(--muted); letter-spacing: 0.08em;
+    }
+
+    /* ---- sections ---- */
+    .section {
+      max-width: var(--max-w); margin: 0 auto; padding: 64px 24px;
+    }
+    .section-label {
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.2em;
+      color: var(--purple); margin-bottom: 12px;
+    }
+    .section-heading {
+      font-family: var(--font-heading);
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 700; line-height: 1.25; color: var(--text); margin: 0;
+    }
+    .section-desc {
+      color: var(--muted); font-size: 0.95rem;
+      max-width: 72ch; line-height: 1.7; margin-top: 16px;
+    }
+    .heading-group {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .heading-dialect {
+      font-family: var(--font-sc);
+      font-size: clamp(0.88rem, 1.8vw, 1.05rem);
+      font-weight: 500; color: var(--amber);
+      line-height: 1.5;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .dialect-tag {
+      flex-shrink: 0; padding: 1px 8px; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600; color: var(--amber);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      letter-spacing: 0.04em; white-space: nowrap;
+    }
+
+    /* ---- hero ---- */
+    .hero { text-align: center; padding-top: 48px; }
+    .hero-icon {
+      width: 96px; height: 96px; margin: 0 auto 24px; display: block;
+    }
+    .hero-title {
+      font-family: var(--font-heading);
+      font-size: clamp(2.4rem, 6vw, 4.5rem);
+      font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text) 0%, var(--cyan) 50%, var(--purple) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 20px;
+    }
+    .hero-subtitle {
+      font-family: var(--font-sc);
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      font-weight: 400; color: var(--muted);
+      max-width: 48ch; margin: 0 auto 24px; line-height: 2;
+    }
+    .hero-subtitle strong { color: var(--text); font-weight: 600; }
+    .hero-pills {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 999px;
+      font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+      border: 1px solid var(--border); background: var(--card); color: var(--muted);
+    }
+    .pill.purple { border-color: var(--border-accent); color: var(--purple); }
+    .pill.cyan { border-color: rgba(6,182,212,0.25); color: var(--cyan); }
+    .pill.green { border-color: rgba(34,197,94,0.25); color: var(--green); }
+
+    /* ---- SVG diagrams ---- */
+    .diagram-svg {
+      width: 100%; height: auto; margin-top: 32px;
+      border-radius: var(--radius-panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-base);
+    }
+
+    /* ---- comparison table ---- */
+    .cmp-table-wrap {
+      margin-top: 32px; border-radius: var(--radius-panel);
+      border: 1px solid var(--border); overflow: hidden;
+      box-shadow: var(--shadow-base);
+    }
+    .cmp-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    .cmp-table thead th {
+      background: rgba(139,92,246,0.08);
+      font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600;
+      color: var(--text); padding: 18px 20px; text-align: left;
+    }
+    .cmp-table tbody td {
+      padding: 14px 20px; border-top: 1px solid var(--border);
+      color: var(--muted); line-height: 1.6; vertical-align: top;
+    }
+    .cmp-table tbody td:first-child {
+      font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600;
+      color: var(--purple); white-space: nowrap; width: 140px;
+    }
+    .cmp-table tbody td:nth-child(2) {
+      color: var(--text); width: 280px;
+    }
+    .cmp-table tbody td:last-child {
+      width: 280px;
+    }
+    .cmp-table tbody tr:hover td {
+      background: rgba(139,92,246,0.04);
+    }
+
+    /* ---- cards grid ---- */
+    .grid-2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px;
+    }
+    .grid-4 {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 32px;
+    }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-card); padding: 24px;
+      display: grid; grid-template-columns: 1fr; align-content: start;
+      gap: 14px; box-shadow: var(--shadow-base);
+      transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-hover);
+    }
+    .card-icon {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--purple-soft); border: 1px solid var(--border-accent);
+    }
+    .card-icon svg {
+      width: 20px; height: 20px; stroke: var(--purple);
+      stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .card h3 {
+      font-family: var(--font-heading); font-size: 1rem;
+      font-weight: 600; color: var(--text); line-height: 1.3;
+    }
+    .card p {
+      color: var(--muted); font-size: 0.88rem; line-height: 1.6;
+    }
+
+    /* ---- template cards ---- */
+    .template-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-panel); overflow: hidden;
+      margin-top: 32px; box-shadow: var(--shadow-base);
+    }
+    .template-card.spec { border-left: 3px solid var(--cyan); }
+    .template-card.plan { border-left: 3px solid var(--purple); }
+    .template-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 20px 24px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+    }
+    .template-header .badge {
+      padding: 3px 10px; border-radius: 999px;
+      font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .template-card.spec .badge { background: var(--cyan-soft); color: var(--cyan); border: 1px solid rgba(6,182,212,0.25); }
+    .template-card.plan .badge { background: var(--purple-soft); color: var(--purple); border: 1px solid var(--border-accent); }
+    .template-header h3 {
+      font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600; color: var(--text);
+    }
+    .template-body {
+      padding: 24px;
+      font-family: var(--font-mono); font-size: 0.8rem;
+      line-height: 1.8; color: var(--muted);
+    }
+    .template-body .t-h1 { color: #a78bfa; }
+    .template-body .t-h2 { color: var(--cyan); }
+    .template-body .t-key { color: var(--amber); }
+    .template-body .t-str { color: #34d399; }
+    .template-body .t-meta { color: var(--muted-dim); }
+    .template-body .t-bracket { color: var(--muted-dim); }
+
+    /* ---- standards list ---- */
+    .standards-list {
+      margin-top: 24px; display: grid; gap: 12px;
+    }
+    .std-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 16px 20px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+    }
+    .std-num {
+      flex-shrink: 0; width: 28px; height: 28px;
+      border-radius: 50%; border: 2px solid var(--purple);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+      color: var(--purple); background: var(--purple-soft);
+    }
+    .std-content strong {
+      font-family: var(--font-heading); color: var(--text); font-weight: 600;
+    }
+    .std-content p {
+      color: var(--muted); font-size: 0.88rem; margin-top: 3px;
+    }
+
+    /* ---- anti-patterns table ---- */
+    .anti-table-wrap {
+      margin-top: 32px; border-radius: var(--radius-panel);
+      border: 1px solid var(--border); overflow: hidden;
+      box-shadow: var(--shadow-base);
+    }
+    .anti-table {
+      width: 100%; border-collapse: collapse; font-size: 0.9rem;
+    }
+    .anti-table thead th {
+      background: rgba(239,68,68,0.06);
+      font-family: var(--font-heading); font-size: 0.9rem; font-weight: 600;
+      color: var(--text); padding: 16px 20px; text-align: left;
+      border-bottom: 1px solid rgba(239,68,68,0.15);
+    }
+    .anti-table tbody td {
+      padding: 14px 20px; border-top: 1px solid var(--border);
+      color: var(--muted); line-height: 1.6; vertical-align: top;
+    }
+    .anti-table tbody td:first-child {
+      color: var(--red); font-weight: 600; white-space: nowrap;
+    }
+    .anti-table tbody td:last-child {
+      color: var(--green);
+    }
+    .anti-table tbody tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    /* ---- terminal ---- */
+    .terminal {
+      background: #0a0d14; border: 1px solid var(--border);
+      border-radius: var(--radius-card); overflow: hidden; margin-top: 32px;
+    }
+    .terminal-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px; background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #F59E0B; }
+    .terminal-dot.green { background: #22c55e; }
+    .terminal-title {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--muted-dim); margin-left: 8px;
+    }
+    .terminal-body {
+      padding: 20px; font-family: var(--font-mono); font-size: 13px;
+      line-height: 1.8; white-space: pre-wrap; word-break: break-word;
+    }
+    .t-purple { color: #a78bfa; }
+    .t-cyan { color: var(--cyan); }
+    .t-green { color: var(--green); }
+    .t-amber { color: var(--amber); }
+    .t-muted { color: var(--muted-dim); }
+    .t-white { color: var(--text); }
+
+    /* ---- quote ---- */
+    .quote-panel {
+      background: var(--card); border: 1px solid var(--border-accent);
+      border-radius: var(--radius-panel); padding: 32px;
+      margin-top: 64px;
+      display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start;
+    }
+    .quote-mark {
+      font-family: var(--font-mono); font-size: 4rem; font-weight: 700;
+      color: var(--purple); line-height: 0.8;
+    }
+    .quote-text {
+      font-family: var(--font-sc); font-size: 1.15rem;
+      font-weight: 500; color: var(--text); line-height: 1.7;
+    }
+
+    /* ---- footer ---- */
+    .footer {
+      max-width: var(--max-w); margin: 0 auto; padding: 0 24px 64px;
+    }
+    .footer-panel {
+      background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%);
+      border: 1px solid var(--border); border-radius: var(--radius-panel);
+      padding: 40px; display: grid; gap: 24px;
+      box-shadow: var(--shadow-base);
+    }
+    .footer-heading {
+      font-family: var(--font-heading);
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      font-weight: 700; line-height: 1.25; color: var(--text);
+    }
+    .footer-note {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--muted-dim); padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ---- animation ---- */
+    .fade-in {
+      opacity: 0; transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ---- responsive ---- */
+    @media (max-width: 980px) {
+      .grid-2, .grid-4 { grid-template-columns: 1fr; }
+      .cmp-table-wrap { overflow-x: auto; }
+      .cmp-table { min-width: 700px; }
+      .anti-table-wrap { overflow-x: auto; }
+      .anti-table { min-width: 600px; }
+    }
+    @media (max-width: 720px) {
+      .section { padding: 48px 16px; }
+      .topbar { flex-direction: column; gap: 8px; align-items: flex-start; }
+      .footer-panel { padding: 24px; }
+      .quote-panel { padding: 24px; }
+      .card { min-height: auto; }
+      .template-body { font-size: 0.7rem; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar" id="progress"></div>
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      SLOTH AGENT &middot; METHODOLOGY
+    </div>
+    <div class="topbar-date">2026-04-29 &middot; Engineering Standards</div>
+  </header>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="section hero">
+    <svg class="hero-icon" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="hero-glow"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="8" y="8" width="34" height="34" rx="8" fill="rgba(6,182,212,0.15)" stroke="#06B6D4" stroke-width="2" filter="url(#hero-glow)"/>
+      <text x="25" y="30" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#06B6D4">Spec</text>
+      <line x1="48" y1="25" x2="42" y2="25" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3,2"/>
+      <polygon points="48,25 44,22 44,28" fill="#94A3B8"/>
+      <rect x="54" y="54" width="34" height="34" rx="8" fill="rgba(139,92,246,0.15)" stroke="#8B5CF6" stroke-width="2" filter="url(#hero-glow)"/>
+      <text x="71" y="76" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#8B5CF6">Plan</text>
+      <line x1="37" y1="60" x2="37" y2="71" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3,2"/>
+      <polygon points="33,71 37,76 41,71" fill="#94A3B8"/>
+      <circle cx="25" cy="71" r="2" fill="#F59E0B"/>
+      <circle cx="71" cy="25" r="2" fill="#22c55e"/>
+    </svg>
+    <h1 class="hero-title">Spec vs Plan</h1>
+    <p class="hero-subtitle">
+      <strong>需求与实现的分层方法论</strong><br>
+      Spec 回答 What &amp; Why&ensp;·&ensp;Plan 回答 How &amp; When<br>
+      双层文档驱动，让 AI 和人都知道<strong>做到哪了、下一步做什么</strong>
+    </p>
+    <div class="hero-pills">
+      <span class="pill cyan">What &amp; Why</span>
+      <span class="pill purple">How &amp; When</span>
+      <span class="pill green">Single Source of Truth</span>
+      <span class="pill">v1.0</span>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 1: COMPARISON ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§1 Definition</div>
+    <div class="heading-group">
+      <h2 class="section-heading">什么是 Spec？什么是 Plan？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">一句话</span>Spec = 盖什么房子；Plan = 施工图纸和工序</p>
+    </div>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr><th style="width:120px">维度</th><th>Spec（规格文档）</th><th>Plan（实施计划）</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>回答什么问题</td><td>What &amp; Why — 做什么、为什么</td><td>How &amp; When — 怎么做、何时做</td></tr>
+          <tr><td>读者</td><td>PM、决策者、新加入的开发者</td><td>执行开发的工程师</td></tr>
+          <tr><td>稳定性</td><td>高 — 功能需求不轻易变</td><td>低 — 随实现进展频繁更新</td></tr>
+          <tr><td>生命周期</td><td>长期存在，归档后仍可回溯</td><td>实施完成后冻结，不再更新</td></tr>
+          <tr><td>内容粒度</td><td>功能列表 + 验收标准</td><td>具体任务 + 文件路径 + 代码模式</td></tr>
+          <tr><td>语言</td><td>业务语言，不涉及技术细节</td><td>技术语言，含具体实现方案</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 2: WHY ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§2 Rationale</div>
+    <div class="heading-group">
+      <h2 class="section-heading">为什么需要两层文档？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>没人会把户型图和施工图画在同一张纸上</p>
+    </div>
+
+    <div class="grid-4">
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3>分离关注点</h3>
+        <p>Spec 和 Plan 的读者不同。PM 不需要知道 <code>main.py:42</code> 改了什么，开发者不需要在功能需求里翻找实现任务。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h3>稳定 vs 易变</h3>
+        <p>功能需求稳定（"用户能创建项目"），实现细节频繁变化。分开就不会因为改了方案而破坏需求文档。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <h3>可回溯</h3>
+        <p>一个 Spec 对应多个 Plan（Iter-1→Iter-4）。Spec 始终一致，Plan 各自独立，方便以后了解"当初怎么实现的"。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>单一真相源</h3>
+        <p><strong>Spec 是源头，Plan 由 Spec 生成。</strong>两者冲突以 Spec 为准。禁止跨 Plan 搬运内容而不回归 Spec。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 3: WORKFLOW DIAGRAM ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§3 Workflow</div>
+    <div class="heading-group">
+      <h2 class="section-heading">Spec → Plan → Execute 完整工作流</h2>
+      <p class="heading-dialect"><span class="dialect-tag">铁律</span>需求变了先改 Spec，方案变了只改 Plan</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spec-Plan Workflow">
+      <defs>
+        <pattern id="wf-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/>
+        </pattern>
+        <filter id="wf-glow-p"><feGaussianBlur stdDeviation="5"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="wf-glow-c"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="wf-glow-g"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="wf-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/>
+        </marker>
+        <marker id="wf-arr-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/>
+        </marker>
+        <marker id="wf-arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
+        </marker>
+      </defs>
+      <rect width="1000" height="340" fill="#0B0F19"/>
+      <rect width="1000" height="340" fill="url(#wf-grid)"/>
+
+      <!-- Phase labels -->
+      <text x="50" y="50" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.4)" letter-spacing="0.2em">PHASE 1: DEFINE</text>
+      <text x="50" y="160" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.4)" letter-spacing="0.2em">PHASE 2: PLAN</text>
+      <text x="50" y="270" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.4)" letter-spacing="0.2em">PHASE 3: EXECUTE</text>
+
+      <!-- Row 1: 需求澄清 → Spec -->
+      <rect x="70" y="65" width="150" height="52" rx="12" fill="rgba(148,163,184,0.06)" stroke="rgba(148,163,184,0.2)" stroke-width="1.5"/>
+      <text x="145" y="96" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="500" fill="#94A3B8">需求澄清</text>
+
+      <line x1="220" y1="91" x2="265" y2="91" stroke="#06B6D4" stroke-width="2" marker-end="url(#wf-arr-cyan)"/>
+
+      <rect x="270" y="60" width="180" height="62" rx="14" fill="rgba(6,182,212,0.08)" stroke="#06B6D4" stroke-width="2.5" filter="url(#wf-glow-c)"/>
+      <text x="360" y="88" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#06B6D4">编写 Spec</text>
+      <text x="360" y="108" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">What &amp; Why</text>
+
+      <line x1="450" y1="91" x2="495" y2="91" stroke="#8B5CF6" stroke-width="2" marker-end="url(#wf-arr)"/>
+
+      <rect x="500" y="65" width="130" height="52" rx="12" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="565" y="96" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="500" fill="#8B5CF6">Spec 确认</text>
+
+      <!-- Down arrow row 1→2 -->
+      <line x1="360" y1="122" x2="360" y2="148" stroke="#8B5CF6" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <polygon points="356,148 360,155 364,148" fill="#8B5CF6"/>
+
+      <!-- Row 2: Spec → Plan -->
+      <rect x="500" y="155" width="130" height="52" rx="12" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="565" y="186" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="500" fill="#8B5CF6">编写 Plan</text>
+
+      <line x1="450" y1="181" x2="495" y2="181" stroke="#8B5CF6" stroke-width="2" marker-end="url(#wf-arr)"/>
+
+      <rect x="270" y="155" width="180" height="52" rx="14" fill="rgba(139,92,246,0.08)" stroke="#8B5CF6" stroke-width="2.5" filter="url(#wf-glow-p)"/>
+      <text x="360" y="186" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#8B5CF6">实施计划</text>
+
+      <line x1="270" y1="186" x2="225" y2="186" stroke="rgba(148,163,184,0.3)" stroke-width="1.5"/>
+      <rect x="70" y="165" width="150" height="42" rx="10" fill="rgba(148,163,184,0.04)" stroke="rgba(148,163,184,0.12)" stroke-width="1"/>
+      <text x="145" y="191" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#64748B">Plan 确认（评审）</text>
+
+      <!-- Down arrow row 2→3 -->
+      <line x1="360" y1="207" x2="360" y2="238" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <polygon points="356,238 360,245 364,238" fill="#22c55e"/>
+
+      <!-- Row 3: 执行 TODO → 完成 -->
+      <rect x="70" y="250" width="160" height="52" rx="12" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>
+      <text x="150" y="273" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="600" fill="#22c55e">创建 TODO 列表</text>
+      <text x="150" y="291" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">逐个 Task 实现</text>
+
+      <line x1="230" y1="276" x2="270" y2="276" stroke="#22c55e" stroke-width="2" marker-end="url(#wf-arr-green)"/>
+
+      <rect x="275" y="250" width="160" height="52" rx="12" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="2" filter="url(#wf-glow-g)"/>
+      <text x="355" y="281" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="600" fill="#22c55e">完成 Iter</text>
+
+      <line x1="435" y1="276" x2="475" y2="276" stroke="#22c55e" stroke-width="2" marker-end="url(#wf-arr-green)"/>
+
+      <rect x="480" y="250" width="200" height="52" rx="12" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="1.5"/>
+      <text x="580" y="273" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="600" fill="#06B6D4">更新 Plan 状态</text>
+      <text x="580" y="291" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">+ Spec 标记 DONE</text>
+
+      <!-- Change management box -->
+      <rect x="720" y="80" width="230" height="185" rx="14" fill="rgba(245,158,11,0.04)" stroke="rgba(245,158,11,0.18)" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="835" y="108" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#F59E0B">变更管理规则</text>
+      <line x1="745" y1="118" x2="925" y2="118" stroke="rgba(245,158,11,0.1)" stroke-width="1"/>
+
+      <circle cx="745" cy="142" r="4" fill="#06B6D4"/>
+      <text x="758" y="146" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">需求变了 → <strong style="color:#06B6D4">先改 Spec</strong>，再改 Plan</text>
+
+      <circle cx="745" cy="167" r="4" fill="#8B5CF6"/>
+      <text x="758" y="171" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">方案变了 → <strong style="color:#8B5CF6">只改 Plan</strong>，不改 Spec</text>
+
+      <circle cx="745" cy="192" r="4" fill="#EF4444"/>
+      <text x="758" y="196" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">冲突 → <strong style="color:#EF4444">Spec 为准</strong>，Plan 纠正</text>
+
+      <circle cx="745" cy="217" r="4" fill="#F59E0B"/>
+      <text x="758" y="221" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">跨 Plan 引用 → 引用<strong style="color:#F59E0B"> Spec 章节</strong></text>
+    </svg>
+  </section>
+
+  <!-- ==================== SECTION 4: SPEC TEMPLATE ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§4 Templates</div>
+    <div class="heading-group">
+      <h2 class="section-heading">Spec 文档模板</h2>
+      <p class="heading-dialect"><span class="dialect-tag">要点</span>功能需求 + 验收标准 + 不做什么 = 完整 Spec</p>
+    </div>
+
+    <div class="template-card spec">
+      <div class="template-header">
+        <span class="badge">Spec</span>
+        <h3>docs/specs/YYYYMMDD-feature-slug-spec.md</h3>
+      </div>
+      <div class="template-body">
+<span class="t-meta"># [产品/功能名称] 规格</span>
+<span class="t-meta">&gt; 关联架构: `docs/design/xxx.md`</span>
+<span class="t-meta">&gt; Figma 设计: `fileKey` node `nodeId`</span>
+<span class="t-meta">&gt; 日期: YYYY-MM-DD</span>
+<span class="t-meta">&gt; 状态: <span class="t-amber">DRAFT</span> | <span class="t-cyan">IN PROGRESS</span> | <span class="t-green">DONE</span></span>
+
+<span class="t-h1">## 1. 产品概述</span>
+<span class="t-meta">[一段话说明这个产品/功能是什么，给谁用，解决什么问题]</span>
+<span class="t-meta">**原则：** [核心设计原则]</span>
+
+<span class="t-h1">## 2. 技术栈</span>
+<span class="t-meta">| 层 | 技术 |</span>
+
+<span class="t-h1">## 3. 功能需求</span>
+<span class="t-h2">### 3.1 功能模块 A（迭代 X）</span>
+<span class="t-meta">| 功能 | 描述 | API |</span>
+<span class="t-meta">| 创建 | [描述] | `POST /api/xxx` |</span>
+
+<span class="t-h1">## 4. UI 结构</span>
+<span class="t-meta">[布局图或线框图]</span>
+
+<span class="t-h1">## 5. 数据模型</span>
+<span class="t-meta">字段名: 类型 (约束) — 说明</span>
+
+<span class="t-h1">## 6. 迭代规划</span>
+<span class="t-h2">### 迭代 1: [名称]（N 天）</span>
+<span class="t-meta">**目标/交付物/验收标准**</span>
+
+<span class="t-h1">## 7. 错误处理</span>
+<span class="t-meta">- [场景] → [处理方式]</span>
+
+<span class="t-h1">## 8. 不做什么</span>
+<span class="t-key">- 不实现 XXX（延至迭代 N）</span>
+
+<span class="t-h1">## 9. 项目结构（目标）</span>
+
+<span class="t-meta">*Spec 版本: X.X — YYYY-MM-DD*</span>
+      </div>
+    </div>
+
+    <div class="standards-list">
+      <div class="std-item">
+        <div class="std-num">1</div>
+        <div class="std-content"><strong>功能需求用表格</strong><p>功能名、描述、API 端点三列清晰，一眼看懂范围</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">2</div>
+        <div class="std-content"><strong>验收标准用 checkbox</strong><p>每个迭代下的验收项必须是可验证的、非歧义的</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">3</div>
+        <div class="std-content"><strong>"不做什么"是硬约束</strong><p>比"做什么"同样重要，防止范围蔓延</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">4</div>
+        <div class="std-content"><strong>数据模型要完整</strong><p>字段名、类型、约束、说明缺一不可</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">5</div>
+        <div class="std-content"><strong>版本号 + 变更日志</strong><p>每次修改 Spec 都要更新版本号和变更摘要</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">6</div>
+        <div class="std-content"><strong>状态标记</strong><p>DRAFT → IN PROGRESS → DONE，让读者一眼知道当前阶段</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 5: PLAN TEMPLATE ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§5 Templates</div>
+    <div class="heading-group">
+      <h2 class="section-heading">Plan 文档模板</h2>
+      <p class="heading-dialect"><span class="dialect-tag">要点</span>任务 + 文件路径 + 实现要点 + 验证步骤 = 可执行的 Plan</p>
+    </div>
+
+    <div class="template-card plan">
+      <div class="template-header">
+        <span class="badge">Plan</span>
+        <h3>docs/plans/YYYYMMDD-feature-slug-plan.md</h3>
+      </div>
+      <div class="template-body">
+<span class="t-meta"># [产品/功能名称] 实施计划</span>
+<span class="t-meta">&gt; 对应 Spec: `docs/specs/xxx.md`</span>
+<span class="t-meta">&gt; 日期: YYYY-MM-DD  &gt; 版本: X.X</span>
+
+<span class="t-h1">## 0. 总览</span>
+<span class="t-meta">| 迭代 | 内容 | 状态 |</span>
+<span class="t-meta">| Iter-1 | 功能A | <span class="t-green">✅ DONE</span> |</span>
+<span class="t-meta">| Iter-2 | 功能B | <span class="t-amber">🚧 IN PROGRESS</span> |</span>
+
+<span class="t-h1">## N. Iter-N: [名称]（N 天）</span>
+<span class="t-h2">### 目标</span>
+<span class="t-meta">[一句话说清本轮交付什么]</span>
+
+<span class="t-h2">### Task N.1: [任务名称]</span>
+<span class="t-meta">**状态：** <span class="t-green">✅</span> | <span class="t-amber">🚧</span> | ⬜</span>
+<span class="t-meta">**描述：** [任务要做什么]</span>
+<span class="t-key">**文件：**</span>
+<span class="t-meta">- `path/to/file1.tsx` — [修改内容]</span>
+<span class="t-key">**实现要点：**</span>
+<span class="t-meta">- [关键实现细节 1]</span>
+<span class="t-key">**验证：**</span>
+<span class="t-meta">- [ ] [验证步骤]</span>
+
+<span class="t-meta">*Plan 版本: X.X — YYYY-MM-DD*</span>
+      </div>
+    </div>
+
+    <div class="standards-list">
+      <div class="std-item">
+        <div class="std-num">1</div>
+        <div class="std-content"><strong>每个 Task 标注状态</strong><p>✅ DONE / 🚧 IN PROGRESS / ⬜ TODO，一眼看懂进度</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">2</div>
+        <div class="std-content"><strong>文件路径必须精确</strong><p><code>path/to/file.tsx:42</code> 级别，不是目录级别</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">3</div>
+        <div class="std-content"><strong>实现要点写关键决策</strong><p>不是"写一个函数"，而是"复用 X 模式，参数用 Y 结构"</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">4</div>
+        <div class="std-content"><strong>验证步骤要可执行</strong><p>不是"测试通过"，而是具体的 curl 命令和预期响应</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">5</div>
+        <div class="std-content"><strong>Plan 可以推翻重写</strong><p>Plan 是消耗品，发现更好的方案就更新，不用保留历史</p></div>
+      </div>
+      <div class="std-item">
+        <div class="std-num">6</div>
+        <div class="std-content"><strong>关联 Spec 链接</strong><p>Plan 文件头部必须引用对应的 Spec 文件路径</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 6: DOC RELATIONSHIP DIAGRAM ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§6 Architecture</div>
+    <div class="heading-group">
+      <h2 class="section-heading">文档体系全景图</h2>
+      <p class="heading-dialect"><span class="dialect-tag">结构</span>Spec 是圆心，Plan 是半径，QA 是终点</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Document Architecture">
+      <defs>
+        <pattern id="doc-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/>
+        </pattern>
+        <filter id="doc-glow-p"><feGaussianBlur stdDeviation="5"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="doc-glow-c"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="doc-glow-g"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="doc-glow-a"><feGaussianBlur stdDeviation="4"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="doc-arr-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/>
+        </marker>
+        <marker id="doc-arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/>
+        </marker>
+        <marker id="doc-arr-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
+        </marker>
+      </defs>
+      <rect width="1000" height="460" fill="#0B0F19"/>
+      <rect width="1000" height="460" fill="url(#doc-grid)"/>
+
+      <!-- Top: articles/ + guides/ -->
+      <rect x="325" y="30" width="180" height="50" rx="14" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.25)" stroke-width="1.5"/>
+      <text x="415" y="53" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#F59E0B">articles/</text>
+      <text x="415" y="69" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">方法论 · 博客（本文档）</text>
+
+      <rect x="530" y="30" width="160" height="50" rx="14" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.25)" stroke-width="1.5"/>
+      <text x="610" y="53" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#F59E0B">guides/</text>
+      <text x="610" y="69" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">使用指南</text>
+
+      <!-- Arrow: articles → specs -->
+      <line x1="415" y1="80" x2="415" y2="115" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <polygon points="411,115 415,122 419,115" fill="#F59E0B"/>
+      <text x="430" y="102" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">指导怎么写</text>
+
+      <!-- Center row: design/ → specs/ ← ref/ -->
+      <rect x="90" y="130" width="160" height="55" rx="14" fill="rgba(148,163,184,0.05)" stroke="rgba(148,163,184,0.18)" stroke-width="1.5"/>
+      <text x="170" y="155" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" fill="#94A3B8">design/</text>
+      <text x="170" y="173" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">架构设计</text>
+
+      <line x1="250" y1="157" x2="310" y2="157" stroke="#06B6D4" stroke-width="2.5" marker-end="url(#doc-arr-c)"/>
+
+      <!-- Specs (cyan - center) -->
+      <rect x="330" y="115" width="250" height="80" rx="18" fill="rgba(6,182,212,0.1)" stroke="#06B6D4" stroke-width="3" filter="url(#doc-glow-c)"/>
+      <text x="455" y="148" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="16" font-weight="700" fill="#06B6D4">specs/</text>
+      <text x="455" y="168" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="500" fill="#F1F5F9">功能规格 · 单一真相源</text>
+      <text x="455" y="185" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#64748B">YYYYMMDD-feature-slug-spec.md</text>
+
+      <line x1="580" y1="155" x2="650" y2="155" stroke="#06B6D4" stroke-width="2.5" marker-end="url(#doc-arr-c)"/>
+
+      <rect x="660" y="130" width="160" height="55" rx="14" fill="rgba(148,163,184,0.05)" stroke="rgba(148,163,184,0.18)" stroke-width="1.5"/>
+      <text x="740" y="155" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="600" fill="#94A3B8">ref/</text>
+      <text x="740" y="173" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">参考资料</text>
+
+      <!-- Arrow: specs → plans (down) -->
+      <line x1="455" y1="195" x2="455" y2="240" stroke="#8B5CF6" stroke-width="2.5" marker-end="url(#doc-arr-p)"/>
+      <text x="470" y="222" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#8B5CF6">生成</text>
+
+      <!-- Plans (purple) -->
+      <rect x="330" y="250" width="250" height="70" rx="16" fill="rgba(139,92,246,0.1)" stroke="#8B5CF6" stroke-width="2.5" filter="url(#doc-glow-p)"/>
+      <text x="455" y="278" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="15" font-weight="700" fill="#8B5CF6">plans/</text>
+      <text x="455" y="296" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="500" fill="#F1F5F9">实施计划 · Task + 文件路径</text>
+      <text x="455" y="312" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#64748B">YYYYMMDD-feature-slug-plan.md</text>
+
+      <!-- Arrow: plans → qa (down) -->
+      <line x1="455" y1="320" x2="455" y2="360" stroke="#22c55e" stroke-width="2.5" marker-end="url(#doc-arr-g)"/>
+      <text x="470" y="345" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#22c55e">验证</text>
+
+      <!-- QA (green) -->
+      <rect x="330" y="368" width="250" height="55" rx="14" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="2" filter="url(#doc-glow-g)"/>
+      <text x="455" y="393" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#22c55e">qa/</text>
+      <text x="455" y="412" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">iter-N-verification.html</text>
+
+      <!-- Right: naming convention box -->
+      <rect x="670" y="250" width="280" height="170" rx="14" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      <text x="810" y="278" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#94A3B8">命名规范</text>
+      <line x1="695" y1="288" x2="925" y2="288" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+      <text x="695" y="310" font-family="JetBrains Mono, monospace" font-size="10" fill="#06B6D4">specs/</text>
+      <text x="745" y="310" font-family="JetBrains Mono, monospace" font-size="10" fill="#94A3B8">YYYYMMDD-slug-<strong style="color:#06B6D4">spec</strong>.md</text>
+
+      <text x="695" y="332" font-family="JetBrains Mono, monospace" font-size="10" fill="#8B5CF6">plans/</text>
+      <text x="745" y="332" font-family="JetBrains Mono, monospace" font-size="10" fill="#94A3B8">YYYYMMDD-slug-<strong style="color:#8B5CF6">plan</strong>.md</text>
+
+      <text x="695" y="354" font-family="JetBrains Mono, monospace" font-size="10" fill="#94A3B8">design/</text>
+      <text x="745" y="354" font-family="JetBrains Mono, monospace" font-size="10" fill="#64748B">topic-architecture.md</text>
+
+      <text x="695" y="376" font-family="JetBrains Mono, monospace" font-size="10" fill="#22c55e">qa/</text>
+      <text x="745" y="376" font-family="JetBrains Mono, monospace" font-size="10" fill="#94A3B8">iter-N-verification.html</text>
+
+      <text x="695" y="398" font-family="JetBrains Mono, monospace" font-size="10" fill="#F59E0B">articles/</text>
+      <text x="745" y="398" font-family="JetBrains Mono, monospace" font-size="10" fill="#94A3B8">YYYYMMDD-topic.md</text>
+    </svg>
+  </section>
+
+  <!-- ==================== SECTION 7: ANTI-PATTERNS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§7 Pitfalls</div>
+    <div class="heading-group">
+      <h2 class="section-heading">常见反模式</h2>
+      <p class="heading-dialect"><span class="dialect-tag">避坑</span>知道不该做什么，和知道该做什么一样重要</p>
+    </div>
+
+    <div class="anti-table-wrap">
+      <table class="anti-table">
+        <thead>
+          <tr><th style="width:200px">❌ 反模式</th><th>为什么不好</th><th style="width:220px">✅ 正确做法</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>没有 Spec 直接写 Plan</td>
+            <td>不知道要做成什么样就开始拆任务，方向大概率偏</td>
+            <td>先写 Spec 对齐需求</td>
+          </tr>
+          <tr>
+            <td>Plan 里写功能需求</td>
+            <td>Plan 应该只有实现任务，需求归属 Spec</td>
+            <td>需求变更先改 Spec</td>
+          </tr>
+          <tr>
+            <td>Spec 里写文件路径</td>
+            <td>Spec 是给 PM 看的，文件路径是开发者的事</td>
+            <td>文件路径只放在 Plan 里</td>
+          </tr>
+          <tr>
+            <td>多个 Plan 互相搬运内容</td>
+            <td>维护两份同样的内容必有一份过期</td>
+            <td>引用 Spec 章节，不跨 Plan 引用</td>
+          </tr>
+          <tr>
+            <td>Spec 完工后不再更新</td>
+            <td>需求澄清是持续过程，Spec 要跟着演进</td>
+            <td>每次变更更新版本号 + 变更日志</td>
+          </tr>
+          <tr>
+            <td>Plan 的状态不更新</td>
+            <td>别人不知道做到哪了</td>
+            <td>每个 Task 标注 ✅/🚧/⬜</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 8: REAL EXAMPLE ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§8 Example</div>
+    <div class="heading-group">
+      <h2 class="section-heading">实际案例：Sloth Agent 桌面版 MVP</h2>
+      <p class="heading-dialect"><span class="dialect-tag">对照</span>看看真实的 Spec 和 Plan 长什么样</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card" style="border-left: 3px solid var(--cyan);">
+        <h3 style="color:var(--cyan);">📋 Spec 片段</h3>
+        <p style="font-family:var(--font-mono); font-size:0.82rem; color:var(--muted); line-height:1.8;">
+          <span style="color:#a78bfa;">## 3.1 Inspiration 管理（迭代 1）</span><br>
+          | 创建 | 输入名称创建 Inspiration | POST /api/inspirations |<br>
+          | 列表 | 返回所有，含最后消息摘要 | GET /api/inspirations |<br>
+          | 删除 | 删除及关联数据 | DELETE /api/inspirations/{id} |<br><br>
+          <span style="color:#a78bfa;">## 6. 迭代 1 验收标准</span><br>
+          - [ ] 应用启动，看到完整 4 列布局<br>
+          - [ ] 创建 3 个不同名称的 Inspiration<br>
+          - [ ] 重启应用，数据持久化不丢失
+        </p>
+      </div>
+      <div class="card" style="border-left: 3px solid var(--purple);">
+        <h3 style="color:var(--purple);">🔧 Plan 片段</h3>
+        <p style="font-family:var(--font-mono); font-size:0.82rem; color:var(--muted); line-height:1.8;">
+          <span style="color:#a78bfa;">### Task 1.3: Inspiration API</span><br>
+          状态: ✅ DONE<br>
+          文件:<br>
+          - <span style="color:#8B5CF6;">backend/app/routers/inspirations.py</span> — CRUD<br>
+          - <span style="color:#8B5CF6;">frontend/src/api/client.ts</span> — invoke<br>
+          实现要点:<br>
+          - 创建时自动生成默认 Agent<br>
+          - 搜索用 LIKE 模糊匹配<br>
+          验证:<br>
+          - [x] curl POST /api/inspirations 返回 201
+        </p>
+      </div>
+    </div>
+
+    <div class="terminal" style="margin-top:24px;">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">实际文件结构</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-muted">docs/</span>
+<span class="t-muted">├──</span> <span class="t-cyan">specs/20260425-mvp-desktop-app-spec.md</span>    <span class="t-muted">← Spec v1.1 (What & Why)</span>
+<span class="t-muted">├──</span> <span class="t-purple">plans/20260425-mvp-desktop-app-plan.md</span>    <span class="t-muted">← Plan v3.0 (How & When)</span>
+<span class="t-muted">├──</span> <span class="t-green">qa/iter-1-verification.html</span>              <span class="t-muted">← QA 验证清单</span>
+<span class="t-muted">├──</span> <span class="t-green">qa/iter-2-verification.html</span>
+<span class="t-muted">├──</span> <span class="t-green">qa/iter-3-verification.html</span>
+<span class="t-muted">└──</span> <span class="t-amber">articles/20260429-spec-vs-plan-methodology.html</span> <span class="t-muted">← 本文档</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quote -->
+  <div class="section fade-in">
+    <div class="quote-panel">
+      <div class="quote-mark">&ldquo;</div>
+      <div class="quote-text">
+        <p>Spec 是源头，Plan 由 Spec 生成。需求变了先改 Spec，方案变了只改 Plan。两者冲突以 Spec 为准。禁止跨 Plan 搬运内容而不回归 Spec。</p>
+        <p style="color:var(--muted); font-size:0.95rem; margin-top:10px;">—— Sloth Agent 文档驱动开发铁律</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer fade-in">
+    <div class="footer-panel">
+      <div class="section-label">Closing</div>
+      <h2 class="footer-heading">好的文档体系，不是写得更多，而是让正确的人在对的时间看到对的内容。</h2>
+      <p class="heading-dialect"><span class="dialect-tag">记住</span>Spec 给 PM 看需求，Plan 给 Dev 看任务，两者分工明确、互不越界</p>
+      <p class="footer-note">
+        文章版本 1.0 · 2026-04-29 · 适用 Sloth Agent 及所有采用双层文档驱动的项目 ·
+        完整 Markdown 版见 <code style="color:var(--purple);">docs/articles/20260429-spec-vs-plan-methodology.md</code>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const progress = document.getElementById('progress');
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')';
+    };
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+
+    const observer = new IntersectionObserver(
+      (entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

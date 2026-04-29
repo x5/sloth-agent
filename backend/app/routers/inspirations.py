@@ -47,7 +47,19 @@ async def create_inspiration(req: CreateInspirationRequest, db: AsyncSession = D
     await db.commit()
     await db.refresh(inspiration)
     await AgentService.join_auto_agents(inspiration.id)
-    return inspiration
+
+    agent_count = await db.scalar(
+        select(func.count()).select_from(InspirationAgent)
+        .where(InspirationAgent.inspiration_id == inspiration.id)
+    ) or 0
+
+    return InspirationResponse(
+        id=inspiration.id,
+        name=inspiration.name,
+        agent_count=agent_count,
+        created_at=inspiration.created_at,
+        updated_at=inspiration.updated_at,
+    )
 
 
 @router.get("", response_model=list[InspirationResponse])

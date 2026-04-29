@@ -373,6 +373,89 @@ async fn get_messages(inspiration_id: String, limit: u32, before: Option<String>
     resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
 }
 
+// ---- Agent Team Management (Iter-3) ----
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TeamAgent {
+    id: String,
+    inspiration_id: String,
+    template_id: Option<String>,
+    name: String,
+    role: String,
+    model: String,
+    status: String,
+    joined_at: String,
+}
+
+#[tauri::command]
+async fn list_agents(inspiration_id: String) -> Result<Vec<TeamAgent>, String> {
+    let client = http_client()?;
+    let resp = client
+        .get(format!("{}/api/inspirations/{}/agents", BACKEND_URL, inspiration_id))
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to list agents: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
+#[tauri::command]
+async fn add_agent_to_team(inspiration_id: String, template_id: String) -> Result<TeamAgent, String> {
+    let client = http_client()?;
+    let body = serde_json::json!({ "template_id": template_id });
+    let resp = client
+        .post(format!("{}/api/inspirations/{}/agents", BACKEND_URL, inspiration_id))
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to add agent to team: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
+#[tauri::command]
+async fn update_agent(agent_id: String, model: String) -> Result<TeamAgent, String> {
+    let client = http_client()?;
+    let body = serde_json::json!({ "model": model });
+    let resp = client
+        .patch(format!("{}/api/agents/{}", BACKEND_URL, agent_id))
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to update agent: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
+#[tauri::command]
+async fn remove_agent_from_team(inspiration_id: String, agent_id: String) -> Result<(), String> {
+    let client = http_client()?;
+    let resp = client
+        .delete(format!(
+            "{}/api/inspirations/{}/agents/{}",
+            BACKEND_URL, inspiration_id, agent_id
+        ))
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to remove agent from team: {}", detail));
+    }
+    Ok(())
+}
+
 // ---- Entry Point ----
 
 pub fn run() {
@@ -392,6 +475,10 @@ pub fn run() {
             set_default_llm,
             list_agent_templates,
             update_agent_template,
+            list_agents,
+            add_agent_to_team,
+            update_agent,
+            remove_agent_from_team,
             send_chat_message,
             get_messages,
         ])

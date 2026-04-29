@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/settings/agents", tags=["settings-agents"])
 class UpdateAgentTemplateRequest(BaseModel):
     name: str | None = Field(default=None, max_length=100)
     default_model: str | None = Field(default=None, max_length=100)
-    system_prompt: str | None = Field(default=None, max_length=5000)
+    system_prompt: str | None = Field(default=None, max_length=15000)
     auto_join: bool | None = None
 
 

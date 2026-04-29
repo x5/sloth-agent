@@ -57,8 +57,23 @@ Sloth Agent 桌面版 — 让产品经理输入需求文档，通过 AI Agent �
 | 功能 | 描述 | API |
 |------|------|-----|
 | Agent 列表 | 返回 Inspiration 下所有 Agent | `GET /api/inspirations/{id}/agents` |
-| 添加 Agent | 创建新 Agent 并指定模型 | `POST /api/inspirations/{id}/agents` |
+| 添加 Agent | 从 Agent Pool 拉入模板到 Team | `POST /api/inspirations/{id}/agents` |
 | 配置 LLM | 修改 Agent 的 LLM 模型和参数 | `PATCH /api/agents/{id}` |
+| 移除 Agent | 从 Team 中移除 Agent（Lead 不可移除） | `DELETE /api/inspirations/{id}/agents/{agentId}` |
+
+### 3.4 Brainstorm 多 Agent 协作（迭代 4）
+
+| 功能 | 描述 | API |
+|------|------|-----|
+| Brainstorm 发起 | 向 Team 发起讨论话题，多个 Agent 并行回复 | `POST /api/inspirations/{id}/brainstorm` |
+| 意图收集 | 每轮先并行收集各 Agent 发言意图（YES/NO + 方向） | 内嵌在 brainstorm 流程 |
+| 并行回复 | 意图为 YES 的 Agent 并行生成完整回复 | SSE 多路流 |
+| 冷却停止 | 5s 无人发言 → 3s 确认 → 自动结束 + 总结 | 服务端计时 |
+| 硬截断 | 达到 500 条消息上限自动结束 | 服务端计数 |
+| 消息回复 | 用户/Agent 可回复特定消息（parent_message_id） | 扩展现有 Chat API |
+| Token 追踪 | 记录每次 LLM 调用的 input/output tokens | `GET /api/inspirations/{id}/cost` |
+| 上下文管理 | Chat 模式隔离上下文，Brainstorm 模式共享上下文 + reply_to 链保护 | 内嵌 |
+| 讨论总结 | Brainstorm 结束 → Lead Agent 生成共识/分歧/下一步 | 内嵌在 brainstorm 流程 |
 
 ---
 
@@ -167,6 +182,21 @@ created_at: DateTime
 - [ ] "Add Agent"按钮创建新 Agent
 - [ ] Agent 状态随对话实时更新（idle → working → idle）
 
+### 迭代 4: Brainstorm 多 Agent 协作 + 上下文引擎（7 天）
+
+**目标：** 多 Agent 并行讨论，智能冷却停止，Token 成本可追踪  
+**交付物：** Brainstorm API + 双模 ContextWindowManager + Token 计数器 + 消息回复 UI  
+**验收标准：**
+- [ ] 用户发起 Brainstorm → 多个 Agent 并行生成回复
+- [ ] 每轮先收集意图（YES/NO），仅 YES 的 Agent 正式发言
+- [ ] 冷却计时：5s 无人发言 → 3s 确认 → 自动结束
+- [ ] 达到 500 条消息 → 硬截断，讨论安全结束
+- [ ] 讨论结束 → Lead Agent 生成总结（共识 + 分歧 + 下一步）
+- [ ] 用户/Agent 可引用回复特定消息（parent_message_id）
+- [ ] 每次 LLM 调用的 input/output tokens 被记录，可查询成本
+- [ ] Chat 模式 Agent 上下文隔离；Brainstorm 模式共享 + reply_to 链保护
+- [ ] System prompt 标记为可缓存前缀，连续请求延迟降低
+
 ---
 
 ## 7. 错误处理
@@ -179,7 +209,7 @@ created_at: DateTime
 
 ## 8. 不做什么
 
-- 不实现多 Agent 并行协作（单 Agent 串行对话）
+- 不实现多 Agent 并行协作（延至迭代 4）
 - 不实现代码预览/Monaco Editor
 - 不实现 Collaborators（人类协作者）
 - 不实现 @mention 功能
@@ -225,4 +255,5 @@ backend/app/
 
 ---
 
-*Spec 版本: 1.0 — 2026-04-25*
+*Spec 版本: 1.1 — 2026-04-29*
+*变更: 修正 Iter-3 API 措辞（添加 Agent → 从 Pool 拉入模板）；新增 Iter-4: Brainstorm 多 Agent 协作 + 上下文引擎*
