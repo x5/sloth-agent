@@ -66,6 +66,10 @@ class Message(Base):
     agent_id: Mapped[str] = mapped_column(CHAR(36), ForeignKey("inspiration_agents.id", ondelete="SET NULL"), nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(String(20), default="chat", nullable=False)
+    brainstorm_session_id: Mapped[str | None] = mapped_column(
+        CHAR(36), ForeignKey("brainstorm_sessions.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

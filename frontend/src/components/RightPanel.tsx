@@ -311,7 +311,6 @@ export default function RightPanel() {
                         <div className="bs-search__empty">No matching sessions</div>
                       ) : (
                         bsSearchResults.slice(0, 8).map((s) => {
-                          const num = sessionNum(brainstormSessions, s.id);
                           const isActive = s.id === brainstormActiveId;
                           return (
                             <button
@@ -323,7 +322,11 @@ export default function RightPanel() {
                                 setBsSearchQuery("");
                               }}
                             >
-                              <span className="bs-search__item-num">#{num}</span>
+                              <span className="bs-search__item-num">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                </svg>
+                              </span>
                               <span className="bs-search__item-title">{s.title}</span>
                               <span className={`bs-search__item-status bs-search__item-status--${s.status}`}>{s.status}</span>
                             </button>
@@ -338,29 +341,37 @@ export default function RightPanel() {
                 {brainstormActiveId ? (() => {
                   const session = brainstormSessions.find((s) => s.id === brainstormActiveId);
                   if (!session) return null;
-                  const num = sessionNum(brainstormSessions, session.id);
                   return (
                     <div className="bs-card">
                       {/* Hero — accent header */}
                       <div className="bs-card__hero">
                         <div className="bs-card__hero-top">
                           <div className="bs-card__hero-left">
-                            <span className="bs-card__num-badge">#{num}</span>
+                            <span className="bs-card__num-badge">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                              </svg>
+                            </span>
                             <span className="bs-card__title">{session.title}</span>
                           </div>
-                          <button
-                            className={`bs-toggle${session.status === "active" ? " bs-toggle--active" : ""}`}
-                            title={session.status === "active" ? "Deactivate session" : "Activate session"}
-                            onClick={() => {
-                              if (session.status === "active") {
-                                brainstormEndSession(session.id);
-                              } else {
-                                brainstormActivateSession(session.id);
-                              }
-                            }}
-                          >
-                            <span className="bs-toggle__knob" />
-                          </button>
+                          <div className="bs-toggle-wrap">
+                            <button
+                              className={`bs-toggle${session.status === "active" ? " bs-toggle--active" : ""}`}
+                              role="switch"
+                              aria-checked={session.status === "active"}
+                              aria-label={session.status === "active" ? "Deactivate session" : "Activate session"}
+                              title={session.status === "active" ? "Deactivate session" : "Activate session"}
+                              onClick={() => {
+                                if (session.status === "active") {
+                                  brainstormEndSession(session.id);
+                                } else {
+                                  brainstormActivateSession(session.id);
+                                }
+                              }}
+                            >
+                              <span className="bs-toggle__knob" />
+                            </button>
+                          </div>
                         </div>
                         <div className="bs-card__meta-row">
                           <span>{formatTime(session.created_at)}</span>
@@ -376,56 +387,103 @@ export default function RightPanel() {
                       {/* Body — scrollable sections */}
                       <div className="bs-card__body">
                         {/* Sandbox */}
-                        <div className="bs-card__section">
-                          <h4 className="bs-card__label">Sandbox</h4>
-                          <div className="bs-card__path">
-                            <svg className="bs-card__path-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                            </svg>
-                            <span>{session.sandbox_path}</span>
+                        <div className="bs-section">
+                          <div className="bs-section__header">
+                            <span className="bs-section__icon">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <polyline points="9 3 9 21" />
+                              </svg>
+                            </span>
+                            <h4 className="bs-section__title">Sandbox</h4>
+                          </div>
+                          <div className="bs-section__body">
+                            <div className="bs-card__path">
+                              <svg className="bs-card__path-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                              </svg>
+                              <span className="bs-card__path-text">{session.sandbox_path}</span>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Settings */}
-                        <div className="bs-card__section">
-                          <h4 className="bs-card__label">Configuration</h4>
-                          <div className="bs-card__grid">
-                            <div className="bs-card__field">
-                              <span className="bs-card__key">Max Messages</span>
-                              <span className="bs-card__value">{session.max_messages}</span>
-                            </div>
-                            <div className="bs-card__field">
-                              <span className="bs-card__key">Cooldown</span>
-                              <span className="bs-card__value">{session.cooldown_seconds}s</span>
-                            </div>
-                            <div className="bs-card__field">
-                              <span className="bs-card__key">Messages</span>
-                              <span className="bs-card__value">{session.message_count}</span>
-                            </div>
-                            <div className="bs-card__field">
-                              <span className="bs-card__key">Status</span>
-                              <span className="bs-card__value" style={{ color: session.status === "active" ? "#16a34a" : "#94a3b8" }}>
-                                {session.status}
-                              </span>
+                        {/* Configuration */}
+                        <div className="bs-section">
+                          <div className="bs-section__header">
+                            <span className="bs-section__icon">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                              </svg>
+                            </span>
+                            <h4 className="bs-section__title">Configuration</h4>
+                          </div>
+                          <div className="bs-section__body">
+                            <div className="bs-card__config-list">
+                              <div className="bs-card__config-row">
+                                <span className="bs-card__config-key">Max Messages</span>
+                                <span className="bs-card__config-value">{session.max_messages}</span>
+                              </div>
+                              <div className="bs-card__config-row">
+                                <span className="bs-card__config-key">Cooldown</span>
+                                <span className="bs-card__config-value">{session.cooldown_seconds}s</span>
+                              </div>
+                              <div className="bs-card__config-row">
+                                <span className="bs-card__config-key">Messages Used</span>
+                                <span className="bs-card__config-value">{session.message_count}</span>
+                              </div>
+                              <div className="bs-card__config-row">
+                                <span className="bs-card__config-key">Status</span>
+                                <span className={`bs-card__config-value${session.status === "active" ? " bs-card__config-value--active" : " bs-card__config-value--ended"}`}>
+                                  {session.status}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {/* Files */}
-                        <div className="bs-card__section">
-                          <h4 className="bs-card__label">Files ({session.file_tree.length})</h4>
-                          {session.file_tree.length > 0 ? (
-                            <ul className="bs-card__file-list">
-                              {session.file_tree.map((f) => (
-                                <li key={f.path} className="bs-card__file">
-                                  <span className="bs-card__file-icon">{f.type === "directory" ? "\u{1F4C1}" : "\u{1F4C4}"}</span>
-                                  <span className="bs-card__file-name">{f.name}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="bs-card__empty">No files generated yet.</p>
-                          )}
+                        <div className="bs-section">
+                          <div className="bs-section__header">
+                            <span className="bs-section__icon">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                                <polyline points="10 9 9 9 8 9" />
+                              </svg>
+                            </span>
+                            <h4 className="bs-section__title">Files</h4>
+                            {session.file_tree.length > 0 && (
+                              <span className="bs-card__config-value" style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text-muted)" }}>{session.file_tree.length}</span>
+                            )}
+                          </div>
+                          <div className="bs-section__body">
+                            {session.file_tree.length > 0 ? (
+                              <ul className="bs-card__file-list">
+                                {session.file_tree.map((f) => (
+                                  <li key={f.path} className="bs-card__file">
+                                    <span className="bs-card__file-icon">
+                                      {f.type === "directory" ? (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                        </svg>
+                                      ) : (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                          <polyline points="14 2 14 8 20 8" />
+                                        </svg>
+                                      )}
+                                    </span>
+                                    <span className="bs-card__file-name">{f.name}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="bs-card__empty">No files generated yet.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -433,7 +491,7 @@ export default function RightPanel() {
                 })() : (
                   <div className="bs-empty">
                     <div className="bs-empty__icon-wrap">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--bs-purple)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                       </svg>
                     </div>

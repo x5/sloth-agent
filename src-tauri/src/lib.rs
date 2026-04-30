@@ -77,6 +77,14 @@ struct Message {
     agent_number: Option<i32>,
     #[serde(default)]
     agent_model: Option<String>,
+    #[serde(default = "default_chat_mode")]
+    mode: String,
+    #[serde(default)]
+    brainstorm_session_id: Option<String>,
+}
+
+fn default_chat_mode() -> String {
+    "chat".to_string()
 }
 
 // ---- Greet / Echo (Phase 0) ----
@@ -334,9 +342,18 @@ struct AgentTemplateUpdateRequest {
 // ---- Chat (Iter-2) ----
 
 #[tauri::command]
-async fn send_chat_message(inspiration_id: String, content: String) -> Result<Message, String> {
+async fn send_chat_message(
+    inspiration_id: String,
+    content: String,
+    mode: Option<String>,
+    brainstorm_session_id: Option<String>,
+) -> Result<Message, String> {
     let client = http_client()?;
-    let body = serde_json::json!({ "content": content });
+    let body = serde_json::json!({
+        "content": content,
+        "mode": mode.unwrap_or_else(|| "chat".to_string()),
+        "brainstorm_session_id": brainstorm_session_id,
+    });
     let resp = client
         .post(format!("{}/api/inspirations/{}/chat", BACKEND_URL, inspiration_id))
         .header("Content-Type", "application/json")
@@ -352,7 +369,12 @@ async fn send_chat_message(inspiration_id: String, content: String) -> Result<Me
 }
 
 #[tauri::command]
-async fn get_messages(inspiration_id: String, limit: u32, before: Option<String>) -> Result<Vec<Message>, String> {
+async fn get_messages(
+    inspiration_id: String,
+    limit: u32,
+    before: Option<String>,
+    brainstorm_session_id: Option<String>,
+) -> Result<Vec<Message>, String> {
     let client = http_client()?;
     let mut url = format!(
         "{}/api/inspirations/{}/messages?limit={}",
@@ -360,6 +382,9 @@ async fn get_messages(inspiration_id: String, limit: u32, before: Option<String>
     );
     if let Some(b) = &before {
         url = format!("{}&before={}", url, b);
+    }
+    if let Some(sid) = &brainstorm_session_id {
+        url = format!("{}&brainstorm_session_id={}", url, sid);
     }
     let resp = client
         .get(&url)

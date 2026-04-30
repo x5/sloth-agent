@@ -1,5 +1,6 @@
 import os
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -14,6 +15,22 @@ class Base(DeclarativeBase):
     pass
 
 
+async def _migrate_db():
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='messages'")
+        )
+        if not result.first():
+            return
+        result = await conn.execute(text("PRAGMA table_info(messages)"))
+        cols = {row[1] for row in result.fetchall()}
+        if "mode" not in cols:
+            await conn.execute(text("ALTER TABLE messages ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'"))
+        if "brainstorm_session_id" not in cols:
+            await conn.execute(text("ALTER TABLE messages ADD COLUMN brainstorm_session_id TEXT"))
+
+
 async def init_db():
+    await _migrate_db()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

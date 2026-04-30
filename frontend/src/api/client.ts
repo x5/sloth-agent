@@ -14,115 +14,163 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
   return httpFallback<T>(cmd, args);
 }
 
-const BACKEND = "http://127.0.0.1:8080";
+// ---- Declarative route table ----
+
+const BACKEND = "http://127.0.0.1:8000";
+
+type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+interface RouteConfig {
+  method: HttpMethod;
+  url: (args: Record<string, unknown>) => string;
+  body?: (args: Record<string, unknown>) => unknown;
+  voidOn204?: boolean;
+}
+
+const routes: Record<string, RouteConfig> = {
+  // ---- Inspiration CRUD ----
+  list_inspirations: {
+    method: "GET",
+    url: (a) => `${BACKEND}/api/inspirations?query=${encodeURIComponent((a.query as string) || "")}`,
+  },
+  create_inspiration: {
+    method: "POST",
+    url: () => `${BACKEND}/api/inspirations`,
+    body: (a) => ({ name: a.name }),
+  },
+  get_inspiration: {
+    method: "GET",
+    url: (a) => `${BACKEND}/api/inspirations/${a.id}`,
+  },
+  delete_inspiration: {
+    method: "DELETE",
+    url: (a) => `${BACKEND}/api/inspirations/${a.id}`,
+    voidOn204: true,
+  },
+
+  // ---- LLM Config CRUD ----
+  list_llm_configs: {
+    method: "GET",
+    url: () => `${BACKEND}/api/settings/llm`,
+  },
+  create_llm_config: {
+    method: "POST",
+    url: () => `${BACKEND}/api/settings/llm`,
+    body: (a) => a.req,
+  },
+  update_llm_config: {
+    method: "PATCH",
+    url: (a) => `${BACKEND}/api/settings/llm/${a.id}`,
+    body: (a) => a.req,
+  },
+  delete_llm_config: {
+    method: "DELETE",
+    url: (a) => `${BACKEND}/api/settings/llm/${a.id}`,
+    voidOn204: true,
+  },
+  set_default_llm: {
+    method: "PUT",
+    url: (a) => `${BACKEND}/api/settings/llm/${a.id}/default`,
+  },
+  test_llm: {
+    method: "POST",
+    url: (a) => `${BACKEND}/api/settings/llm/${a.id}/test`,
+  },
+
+  // ---- Agent Template CRUD ----
+  list_agent_templates: {
+    method: "GET",
+    url: () => `${BACKEND}/api/settings/agents`,
+  },
+  update_agent_template: {
+    method: "PATCH",
+    url: (a) => `${BACKEND}/api/settings/agents/${a.id}`,
+    body: (a) => a.req,
+  },
+
+  // ---- Team Agent Management ----
+  list_agents: {
+    method: "GET",
+    url: (a) => `${BACKEND}/api/inspirations/${a.inspirationId}/agents`,
+  },
+  add_agent_to_team: {
+    method: "POST",
+    url: (a) => `${BACKEND}/api/inspirations/${a.inspirationId}/agents`,
+    body: (a) => ({ template_id: a.templateId }),
+  },
+  update_agent: {
+    method: "PATCH",
+    url: (a) => `${BACKEND}/api/agents/${a.agentId}`,
+    body: (a) => ({ model: a.model }),
+  },
+  remove_agent_from_team: {
+    method: "DELETE",
+    url: (a) => `${BACKEND}/api/inspirations/${a.inspirationId}/agents/${a.agentId}`,
+    voidOn204: true,
+  },
+
+  // ---- Chat ----
+  send_chat_message: {
+    method: "POST",
+    url: (a) => `${BACKEND}/api/inspirations/${a.inspirationId}/chat`,
+    body: (a) => ({
+      content: a.content,
+      mode: a.mode || "chat",
+      brainstorm_session_id: a.brainstormSessionId || null,
+    }),
+  },
+  get_messages: {
+    method: "GET",
+    url: (a) => {
+      const params = new URLSearchParams();
+      if (a.limit) params.set("limit", String(a.limit));
+      if (a.before) params.set("before", String(a.before));
+      if (a.brainstormSessionId) params.set("brainstorm_session_id", String(a.brainstormSessionId));
+      return `${BACKEND}/api/inspirations/${a.inspirationId}/messages?${params}`;
+    },
+  },
+
+  // ---- Brainstorm ----
+  create_brainstorm_session: {
+    method: "POST",
+    url: (a) => `${BACKEND}/api/inspirations/${a.inspirationId}/brainstorm-sessions`,
+    body: (a) => ({ title: a.title }),
+  },
+  list_brainstorm_sessions: {
+    method: "GET",
+    url: (a) => `${BACKEND}/api/inspirations/${a.inspirationId}/brainstorm-sessions`,
+  },
+  get_brainstorm_session: {
+    method: "GET",
+    url: (a) => `${BACKEND}/api/brainstorm-sessions/${a.sessionId}`,
+  },
+  update_brainstorm_session: {
+    method: "PATCH",
+    url: (a) => `${BACKEND}/api/brainstorm-sessions/${a.sessionId}`,
+    body: (a) => a.data || {},
+  },
+};
+
+export const ROUTE_KEYS = Object.keys(routes);
 
 async function httpFallback<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  let res: Response;
-  const baseHeaders: Record<string, string> = { "Content-Type": "application/json" };
+  const route = routes[cmd];
+  if (!route) throw new Error(`Unknown command: ${cmd}`);
 
-  switch (cmd) {
-    // ---- Inspiration CRUD ----
-    case "list_inspirations": {
-      const q = (args?.query as string) || "";
-      res = await fetch(`${BACKEND}/api/inspirations?query=${encodeURIComponent(q)}`);
-      break;
-    }
-    case "create_inspiration":
-      res = await fetch(`${BACKEND}/api/inspirations`, {
-        method: "POST", headers: baseHeaders,
-        body: JSON.stringify({ name: args?.name }),
-      });
-      break;
-    case "get_inspiration":
-      res = await fetch(`${BACKEND}/api/inspirations/${args?.id}`);
-      break;
-    case "delete_inspiration":
-      res = await fetch(`${BACKEND}/api/inspirations/${args?.id}`, { method: "DELETE" });
-      if (res.status === 204) return undefined as T;
-      break;
-
-    // ---- LLM Config CRUD ----
-    case "list_llm_configs":
-      res = await fetch(`${BACKEND}/api/settings/llm`);
-      break;
-    case "create_llm_config":
-      res = await fetch(`${BACKEND}/api/settings/llm`, {
-        method: "POST", headers: baseHeaders,
-        body: JSON.stringify(args?.req),
-      });
-      break;
-    case "update_llm_config":
-      res = await fetch(`${BACKEND}/api/settings/llm/${args?.id}`, {
-        method: "PATCH", headers: baseHeaders,
-        body: JSON.stringify(args?.req),
-      });
-      break;
-    case "delete_llm_config":
-      res = await fetch(`${BACKEND}/api/settings/llm/${args?.id}`, { method: "DELETE" });
-      if (res.status === 204) return undefined as T;
-      break;
-    case "set_default_llm":
-      res = await fetch(`${BACKEND}/api/settings/llm/${args?.id}/default`, { method: "PUT" });
-      break;
-    case "test_llm":
-      res = await fetch(`${BACKEND}/api/settings/llm/${args?.id}/test`, { method: "POST" });
-      break;
-
-    // ---- Agent Template CRUD ----
-    case "list_agent_templates":
-      res = await fetch(`${BACKEND}/api/settings/agents`);
-      break;
-    case "update_agent_template":
-      res = await fetch(`${BACKEND}/api/settings/agents/${args?.id}`, {
-        method: "PATCH", headers: baseHeaders,
-        body: JSON.stringify(args?.req),
-      });
-      break;
-
-    // ---- Chat ----
-    case "send_chat_message":
-      res = await fetch(`${BACKEND}/api/inspirations/${args?.inspirationId}/chat`, {
-        method: "POST", headers: baseHeaders,
-        body: JSON.stringify({ content: args?.content }),
-      });
-      break;
-    case "get_messages": {
-      const params = new URLSearchParams();
-      if (args?.limit) params.set("limit", String(args.limit));
-      if (args?.before) params.set("before", String(args.before));
-      res = await fetch(`${BACKEND}/api/inspirations/${args?.inspirationId}/messages?${params}`);
-      break;
-    }
-
-    // ---- Brainstorm ----
-    case "create_brainstorm_session":
-      res = await fetch(`${BACKEND}/api/inspirations/${args?.inspirationId}/brainstorm-sessions`, {
-        method: "POST", headers: baseHeaders,
-        body: JSON.stringify({ title: args?.title }),
-      });
-      break;
-    case "list_brainstorm_sessions":
-      res = await fetch(`${BACKEND}/api/inspirations/${args?.inspirationId}/brainstorm-sessions`);
-      break;
-    case "get_brainstorm_session":
-      res = await fetch(`${BACKEND}/api/brainstorm-sessions/${args?.sessionId}`);
-      break;
-    case "update_brainstorm_session":
-      res = await fetch(`${BACKEND}/api/brainstorm-sessions/${args?.sessionId}`, {
-        method: "PATCH", headers: baseHeaders,
-        body: JSON.stringify(args?.data || {}),
-      });
-      break;
-
-    default:
-      throw new Error(`Unknown command: ${cmd}`);
+  const a = args || {};
+  const fetchOpts: RequestInit = { method: route.method };
+  if (route.body) {
+    fetchOpts.headers = { "Content-Type": "application/json" };
+    fetchOpts.body = JSON.stringify(route.body(a));
   }
 
-  if (!res!.ok) {
-    const err = await res!.text();
-    throw new Error(err || `${cmd} failed (${res!.status})`);
+  const res = await fetch(route.url(a), fetchOpts);
+  if (route.voidOn204 && res.status === 204) return undefined as T;
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || `${cmd} failed (${res.status})`);
   }
-  return res!.json();
+  return res.json();
 }
 
 // ---- Types ----
@@ -167,6 +215,8 @@ export interface Message {
   agent_name: string | null;
   agent_number: number | null;
   agent_model: string | null;
+  mode: string;
+  brainstorm_session_id: string | null;
 }
 
 export interface BrainstormSession {
@@ -311,20 +361,28 @@ export async function removeAgentFromTeam(inspirationId: string, agentId: string
 
 export async function sendChatMessage(
   inspirationId: string,
-  content: string
+  content: string,
+  opts?: { mode?: string; brainstormSessionId?: string }
 ): Promise<Message> {
-  return call<Message>("send_chat_message", { inspirationId, content });
+  return call<Message>("send_chat_message", {
+    inspirationId,
+    content,
+    mode: opts?.mode || "chat",
+    brainstormSessionId: opts?.brainstormSessionId || null,
+  });
 }
 
 export async function getMessages(
   inspirationId: string,
   limit?: number,
-  before?: string | null
+  before?: string | null,
+  brainstormSessionId?: string | null,
 ): Promise<Message[]> {
   return call<Message[]>("get_messages", {
     inspirationId,
     limit: limit || 50,
     before: before || null,
+    brainstormSessionId: brainstormSessionId || null,
   });
 }
 
