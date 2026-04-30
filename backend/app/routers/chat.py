@@ -19,6 +19,8 @@ router = APIRouter(prefix="/api/inspirations", tags=["chat"])
 
 class ChatRequest(BaseModel):
     content: str = Field(min_length=1, max_length=10000)
+    mode: str = "chat"
+    brainstorm_session_id: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -31,6 +33,8 @@ class MessageResponse(BaseModel):
     agent_name: str | None = None
     agent_number: int | None = None
     agent_model: str | None = None
+    mode: str = "chat"
+    brainstorm_session_id: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -54,6 +58,24 @@ ROLE_MAP = {"human": "user", "agent": "assistant", "system": "system"}
 
 def _map_role(role: str) -> str:
     return ROLE_MAP.get(role, role)
+
+
+def _build_message_query(inspiration_id: str, brainstorm_session_id: str | None = None):
+    """Return filtered message query with session context isolation.
+
+    When brainstorm_session_id is set: chat-mode messages (shared base) +
+    only the current session's brainstorm messages. Other sessions are excluded.
+    When brainstorm_session_id is None: chat-mode messages only.
+    """
+    conditions = [Message.inspiration_id == inspiration_id]
+    if brainstorm_session_id:
+        conditions.append(
+            (Message.mode == "chat") |
+            ((Message.mode == "brainstorm") & (Message.brainstorm_session_id == brainstorm_session_id))
+        )
+    else:
+        conditions.append(Message.mode == "chat")
+    return select(Message).where(*conditions)
 
 
 async def _get_default_agent_or_raise(inspiration_id: str, db: AsyncSession):
@@ -105,16 +127,17 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
         agent_id=agent.id,
         role="human",
         content=req.content,
+        mode=req.mode,
+        brainstorm_session_id=req.brainstorm_session_id,
     )
     db.add(human_msg)
 
     # Load template for system prompt
     tpl = await db.get(AgentTemplate, agent.template_id) if agent.template_id else None
 
-    # Load history
+    # Load history with session context isolation
     result = await db.execute(
-        select(Message)
-        .where(Message.inspiration_id == inspiration_id)
+        _build_message_query(inspiration_id, req.brainstorm_session_id)
         .order_by(Message.created_at.desc())
         .limit(1000)
     )
@@ -140,6 +163,8 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
         agent_id=agent.id,
         role="agent",
         content=reply_content,
+        mode=req.mode,
+        brainstorm_session_id=req.brainstorm_session_id,
     )
     db.add(agent_msg)
     agent.status = "idle"
@@ -159,6 +184,8 @@ async def chat(inspiration_id: str, req: ChatRequest, db: AsyncSession = Depends
         agent_name=name,
         agent_number=num,
         agent_model=model,
+        mode=agent_msg.mode,
+        brainstorm_session_id=agent_msg.brainstorm_session_id,
     )
 
 
@@ -172,6 +199,8 @@ async def chat_stream(inspiration_id: str, req: ChatRequest, db: AsyncSession = 
         agent_id=agent.id,
         role="human",
         content=req.content,
+        mode=req.mode,
+        brainstorm_session_id=req.brainstorm_session_id,
     )
     db.add(human_msg)
     agent.status = "working"
@@ -180,10 +209,9 @@ async def chat_stream(inspiration_id: str, req: ChatRequest, db: AsyncSession = 
     # Load template for system prompt
     tpl = await db.get(AgentTemplate, agent.template_id) if agent.template_id else None
 
-    # Load history
+    # Load history with session context isolation
     result = await db.execute(
-        select(Message)
-        .where(Message.inspiration_id == inspiration_id)
+        _build_message_query(inspiration_id, req.brainstorm_session_id)
         .order_by(Message.created_at.desc())
         .limit(1000)
     )
@@ -216,6 +244,8 @@ async def chat_stream(inspiration_id: str, req: ChatRequest, db: AsyncSession = 
                         agent_id=agent.id,
                         role="agent",
                         content=full_reply,
+                        mode=req.mode,
+                        brainstorm_session_id=req.brainstorm_session_id,
                     )
                     save_db.add(agent_msg)
                     a.status = "idle" if full_reply else "error"
@@ -229,9 +259,10 @@ async def get_messages(
     inspiration_id: str,
     limit: int = 50,
     before: str | None = None,
+    brainstorm_session_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Message).where(Message.inspiration_id == inspiration_id)
+    stmt = _build_message_query(inspiration_id, brainstorm_session_id)
     if before:
         result = await db.execute(
             select(Message.created_at).where(Message.id == before)
@@ -257,5 +288,7 @@ async def get_messages(
             agent_name=name,
             agent_number=num,
             agent_model=model,
+            mode=m.mode,
+            brainstorm_session_id=m.brainstorm_session_id,
         ))
     return out

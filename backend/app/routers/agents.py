@@ -1,6 +1,6 @@
 """Team member management — per-Inspiration agent instances."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -11,6 +11,14 @@ from ..database import async_session
 from ..models import AgentTemplate, Inspiration, InspirationAgent
 
 router = APIRouter(tags=["agents"])
+
+
+def _ensure_tz(v: object) -> str:
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.isoformat()
+    return str(v)
 
 
 class AddAgentRequest(BaseModel):
@@ -37,6 +45,8 @@ class AgentResponse(BaseModel):
     @classmethod
     def serialize_joined_at(cls, v: object) -> str:
         if isinstance(v, datetime):
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
             return v.isoformat()
         return v
 
@@ -77,7 +87,7 @@ async def list_agents(inspiration_id: str, db: AsyncSession = Depends(get_db)):
             role=role,
             model=a.model,
             status=a.status,
-            joined_at=a.joined_at.isoformat() if isinstance(a.joined_at, datetime) else str(a.joined_at),
+            joined_at=_ensure_tz(a.joined_at),
         ))
     return out
 
@@ -128,7 +138,7 @@ async def add_agent(
         role=tmpl.role,
         model=agent.model,
         status=agent.status,
-        joined_at=agent.joined_at.isoformat() if isinstance(agent.joined_at, datetime) else str(agent.joined_at),
+        joined_at=_ensure_tz(agent.joined_at),
     )
 
 
@@ -162,7 +172,7 @@ async def update_agent(
         role=role,
         model=agent.model,
         status=agent.status,
-        joined_at=agent.joined_at.isoformat() if isinstance(agent.joined_at, datetime) else str(agent.joined_at),
+        joined_at=_ensure_tz(agent.joined_at),
     )
 
 

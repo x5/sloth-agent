@@ -545,7 +545,6 @@ body {
   align-items: center;
   gap: 16px;
   min-width: 0;
-  overflow: hidden;
 }
 
 .chatarea__project-name {
@@ -565,17 +564,14 @@ body {
 }
 
 .chatarea__status {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 10px;
-  border-radius: 2px;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
   background: var(--color-accent-status);
-  font-size: 10px;
-  font-weight: 400;
-  color: var(--color-accent);
-  text-transform: uppercase;
-  line-height: 18px;
+  cursor: default;
 }
 
 .chatarea__status-dot {
@@ -583,10 +579,23 @@ body {
   height: 6px;
   border-radius: 50%;
   background: var(--color-accent);
+  flex-shrink: 0;
 }
-.chatarea__status-dot--idle { background: #22c55e; }
-.chatarea__status-dot--working { background: #f59e0b; }
+.chatarea__status-dot--idle { background: #94a3b8; }
+.chatarea__status-dot--working { background: #22c55e; }
 .chatarea__status-dot--error { background: #ef4444; }
+
+.chatarea__status-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.chatarea__status-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
 
 .chatarea__topbar-actions {
   display: flex;
@@ -1070,6 +1079,7 @@ body {
   padding: 20px;
   align-items: flex-start;
   justify-content: flex-start;
+  overflow-y: auto;
 }
 
 /* ---- Right Panel: Section header with badge ---- */
@@ -2571,104 +2581,432 @@ body {
   padding: 0 1px;
 }
 
-/* ---- Brainstorm Session Detail ---- */
+/* ========================================
+   Brainstorm Tab — Mission Control
+   ======================================== */
 
-.brainstorm-detail {
-  padding: 24px 32px;
-  max-width: 640px;
+/* ---- Search ---- */
+
+.bs-search {
+  position: relative;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-default);
 }
 
-.brainstorm-detail__section {
-  margin-bottom: 24px;
+.bs-search__box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 11px;
+  background: var(--bg-input);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.brainstorm-detail__label {
+.bs-search__box:focus-within {
+  border-color: rgba(124, 58, 237, 0.35);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.06);
+}
+
+.bs-search__box svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.bs-search__input {
+  flex: 1 0 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.bs-search__input::placeholder {
+  color: var(--text-muted);
+}
+
+.bs-search__dropdown {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 14px;
+  right: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.06);
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.bs-search__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: background 0.1s;
+}
+
+.bs-search__item:hover {
+  background: var(--bg-hover);
+}
+
+.bs-search__item--active {
+  background: rgba(124, 58, 237, 0.06);
+}
+
+.bs-search__item-num {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 11px;
+  font-weight: 700;
+  color: #7c3aed;
+  flex-shrink: 0;
+  min-width: 28px;
+}
+
+.bs-search__item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 450;
+}
+
+.bs-search__item-status {
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #9ea7b0;
-  margin: 0 0 8px 0;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.brainstorm-detail__path {
-  display: block;
-  font-size: 12px;
-  font-family: "SF Mono", "Fira Code", monospace;
-  color: #4e6073;
-  background: #f3f3f3;
-  padding: 8px 12px;
-  border-radius: 6px;
+.bs-search__item-status--active {
+  background: rgba(34, 197, 94, 0.10);
+  color: #16a34a;
+}
+
+.bs-search__item-status--ended {
+  background: rgba(148, 163, 184, 0.10);
+  color: #94a3b8;
+}
+
+.bs-search__empty {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ---- Session Card — The main detail view ---- */
+
+.bs-card {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* Session Header — full-width accent band */
+.bs-card__hero {
+  position: relative;
+  padding: 16px 14px 14px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.04) 0%, rgba(124, 58, 237, 0.01) 100%);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.bs-card__hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #7c3aed, #a78bfa, #7c3aed);
+  opacity: 0.6;
+}
+
+.bs-card__hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bs-card__hero-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bs-card__num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(124, 58, 237, 0.10);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: #7c3aed;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.bs-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bs-card__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.bs-card__meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.4;
+}
+
+/* Toggle — refined pill */
+.bs-toggle {
+  position: relative;
+  width: 38px;
+  height: 21px;
+  border-radius: 11px;
+  border: 1.5px solid #d1d5db;
+  background: #e5e7eb;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.bs-toggle:hover {
+  border-color: #b0b5be;
+}
+
+.bs-toggle--active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+.bs-toggle--active:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}
+
+.bs-toggle__knob {
+  position: absolute;
+  top: 1.5px;
+  left: 1.5px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bs-toggle--active .bs-toggle__knob {
+  transform: translateX(17px);
+}
+
+/* Card Body — scrollable content area */
+.bs-card__body {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 16px;
+}
+
+/* Sections — clean label + content blocks */
+.bs-card__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bs-card__label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Sandbox — monospace path with folder icon */
+.bs-card__path {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
   word-break: break-all;
+  line-height: 1.5;
 }
 
-.brainstorm-detail__grid {
+.bs-card__path-icon {
+  flex-shrink: 0;
+  color: #7c3aed;
+  opacity: 0.7;
+}
+
+/* Settings — compact grid with accent borders */
+.bs-card__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 5px;
 }
 
-.brainstorm-detail__field {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 12px;
+.bs-card__field {
+  position: relative;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px 7px 11px;
+  border: 1px solid var(--border-default);
+  border-left: 2px solid rgba(124, 58, 237, 0.20);
 }
 
-.brainstorm-detail__key {
+.bs-card__key {
   display: block;
-  font-size: 11px;
-  color: #9ea7b0;
-  margin-bottom: 4px;
-}
-
-.brainstorm-detail__value {
-  font-size: 14px;
-  color: #1a1c1c;
+  font-size: 10px;
   font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 1px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
-.brainstorm-detail__file-list {
+.bs-card__value {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+/* Files — tree list with hover highlight */
+.bs-card__file-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
-.brainstorm-detail__file {
+.bs-card__file {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  transition: background 0.1s;
 }
 
-.brainstorm-detail__file:hover {
-  background: #f3f3f3;
+.bs-card__file:hover {
+  background: var(--bg-hover);
 }
 
-.brainstorm-detail__file-icon {
-  font-size: 14px;
+.bs-card__file-icon {
+  font-size: 12px;
   flex-shrink: 0;
+  opacity: 0.65;
 }
 
-.brainstorm-detail__file-name {
-  color: #1a1c1c;
-  font-weight: 500;
-}
-
-.brainstorm-detail__file-path {
-  color: #9ea7b0;
+.bs-card__file-name {
+  font-weight: 450;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 11px;
-  margin-left: auto;
 }
 
-.brainstorm-detail__empty-files {
-  color: #9ea7b0;
-  font-size: 13px;
+.bs-card__empty {
+  color: var(--text-muted);
+  font-size: 12px;
   margin: 0;
+  padding: 4px 0;
+}
+
+/* ---- Empty State — Refined ---- */
+
+.bs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.bs-empty__icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(124, 58, 237, 0.05);
+  border: 1px solid rgba(124, 58, 237, 0.08);
+}
+
+.bs-empty__icon-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 18px;
+  border: 1px dashed rgba(124, 58, 237, 0.12);
+}
+
+.bs-empty__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.bs-empty__subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* ---- Brainstorm List inline create (reuse projectlist styles) ---- */
@@ -2781,4 +3119,142 @@ body {
 @keyframes loading-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ========================================
+   Brainstorm Dividers (ChatArea)
+   ======================================== */
+
+.brainstorm-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 0;
+}
+
+.brainstorm-divider__line {
+  flex: 1 0 0;
+  height: 1px;
+  background: var(--border-default);
+}
+
+.brainstorm-divider__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.brainstorm-divider--start .brainstorm-divider__label {
+  color: #7c3aed;
+}
+
+.brainstorm-divider--start .brainstorm-divider__line {
+  background: rgba(124, 58, 237, 0.25);
+}
+
+.brainstorm-divider--end .brainstorm-divider__label {
+  color: var(--text-muted);
+}
+
+.brainstorm-divider--end .brainstorm-divider__line {
+  background: rgba(158, 167, 176, 0.25);
+}
+
+.brainstorm-divider--transition .brainstorm-divider__label {
+  color: #7c3aed;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.brainstorm-divider--transition .brainstorm-divider__line {
+  background: rgba(124, 58, 237, 0.15);
+  border-top: 1px dashed rgba(124, 58, 237, 0.3);
+  height: 0;
+}
+
+/* ========================================
+   Brainstorm Badge (ChatArea topbar)
+   ======================================== */
+
+.chatarea__brainstorm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+.chatarea__brainstorm-badge svg {
+  flex-shrink: 0;
+}
+
+/* ========================================
+   Tool Btn Active (lightning bolt brainstorm toggle)
+   ======================================== */
+
+.chatarea__tool-btn--active {
+  color: #7c3aed;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.5));
+}
+
+.chatarea__tool-btn--active:hover:not(:disabled) {
+  color: #6d28d9;
+  opacity: 1;
+}
+
+/* ========================================
+   Input Box Brainstorm Mode (purple border)
+   ======================================== */
+
+.chatarea__input-box--brainstorm {
+  border-color: rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.08),
+              0 1px 3px rgba(0, 0, 0, 0.04),
+              0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.chatarea__input-box--brainstorm:focus-within {
+  border-color: rgba(124, 58, 237, 0.6);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+/* ========================================
+   RightPanel Tab Bar
+   ======================================== */
+
+.rightpanel__tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rightpanel__tab {
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.rightpanel__tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.rightpanel__tab--active {
+  background: var(--color-accent-bg-light);
+  color: var(--color-accent);
 }

@@ -2,21 +2,7 @@ import { useEffect, useState } from "react";
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
 import ConfirmModal from "./ConfirmModal";
-
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHrs = Math.floor(diffMin / 60);
-  if (diffHrs < 24) return `${diffHrs}h ago`;
-  const diffDays = Math.floor(diffHrs / 24);
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
+import { formatRelativeTime } from "../utils/time";
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/);
@@ -150,7 +136,7 @@ export default function ProjectList() {
                     {p.name}
                   </span>
                   <span className="projectlist__item-time">
-                    {formatTime(p.latest_message_at || p.updated_at)}
+                    {formatRelativeTime(p.latest_message_at || p.updated_at)}
                   </span>
                 </div>
                 <div className="projectlist__item-subrow">

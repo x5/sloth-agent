@@ -1,22 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
 import { useAgentStore } from "../stores/agentStore";
+import { useBrainstormStore } from "../stores/brainstormStore";
 import * as api from "../api/client";
 import type { Message } from "../api/client";
+import { formatTime as formatMessageTime } from "../utils/time";
 
-function formatMessageTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  if (isToday) {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-  }
+interface DividerItem {
+  id: string;
+  type: "divider";
+  variant: "start" | "end" | "transition";
+  label: string;
+  ts: string;
+}
+
+function BrainstormDivider({ label, variant }: { label: string; variant: "start" | "end" | "transition" }) {
   return (
-    date.toLocaleDateString([], { month: "short", day: "numeric" }) +
-    " " +
-    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+    <div className={`brainstorm-divider brainstorm-divider--${variant}`}>
+      <span className="brainstorm-divider__line" />
+      <span className="brainstorm-divider__label">{label}</span>
+      <span className="brainstorm-divider__line" />
+    </div>
   );
+}
+
+/** Sessions array is newest-first. Oldest = #1, newest = #N. */
+function sessionNum(sessions: { id: string }[], sessionId: string): number {
+  const idx = sessions.findIndex((s) => s.id === sessionId);
+  if (idx < 0) return sessions.length + 1;
+  return sessions.length - idx;
 }
 
 export default function ChatArea() {
@@ -37,11 +50,28 @@ export default function ChatArea() {
     }
   }, [activeId]);
 
+  // Brainstorm store
+  const brainstormSessions = useBrainstormStore((s) => s.sessions);
+  const brainstormFetchAll = useBrainstormStore((s) => s.fetchAll);
+  const brainstormMode = useBrainstormStore((s) => s.brainstormMode);
+  const brainstormActiveId = useBrainstormStore((s) => s.activeId);
+  const brainstormStart = useBrainstormStore((s) => s.startBrainstorm);
+  const brainstormStop = useBrainstormStore((s) => s.stopBrainstorm);
+
+  useEffect(() => {
+    if (activeId) {
+      brainstormFetchAll(activeId);
+    }
+  }, [activeId]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Brainstorm dividers (local state)
+  const [dividers, setDividers] = useState<DividerItem[]>([]);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -49,14 +79,25 @@ export default function ChatArea() {
     setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 150);
   };
 
-  useEffect(() => {
-    if (activeId) {
-      api.getMessages(activeId).then(setMessages).catch(() => setMessages([]));
-    } else {
+  const loadMessages = useCallback(async () => {
+    if (!activeId) { setMessages([]); return; }
+    try {
+      const msgs = await api.getMessages(
+        activeId,
+        undefined,
+        undefined,
+        brainstormMode ? brainstormActiveId : null,
+      );
+      setMessages(msgs);
+    } catch {
       setMessages([]);
     }
+  }, [activeId, brainstormMode, brainstormActiveId]);
+
+  useEffect(() => {
+    loadMessages();
     setInput("");
-  }, [activeId]);
+  }, [loadMessages]);
 
   useEffect(() => {
     // Auto-scroll only if user is near the bottom
@@ -68,6 +109,47 @@ export default function ChatArea() {
     }
   }, [messages]);
 
+  // Push dividers when active brainstorm session changes
+  const prevSessionRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevSessionRef.current;
+    if (prev === brainstormActiveId) return;
+    prevSessionRef.current = brainstormActiveId;
+
+    if (!brainstormMode) return;
+    if (!brainstormActiveId) return;
+
+    const newNum = sessionNum(brainstormSessions, brainstormActiveId);
+    const newDividers: DividerItem[] = [];
+    if (prev) {
+      const oldNum = sessionNum(brainstormSessions, prev);
+      newDividers.push({
+        id: `div-switch-${Date.now()}`,
+        type: "divider",
+        variant: "transition",
+        label: `Session #${oldNum} → Session #${newNum}`,
+        ts: new Date().toISOString(),
+      });
+    }
+    newDividers.push({
+      id: `div-start-${Date.now() + 1}`,
+      type: "divider",
+      variant: "start",
+      label: `Session #${newNum} Started`,
+      ts: new Date().toISOString(),
+    });
+    setDividers((d) => [...d, ...newDividers]);
+  }, [brainstormActiveId, brainstormMode, brainstormSessions]);
+
+  const handleToggleBrainstorm = useCallback(async () => {
+    if (!activeId || sending) return;
+    if (!brainstormMode) {
+      await brainstormStart(activeId);
+    } else {
+      brainstormStop();
+    }
+  }, [activeId, sending, brainstormMode, brainstormStart, brainstormStop]);
+
   const handleSend = async () => {
     const content = input.trim();
     if (!content || !activeId || sending) return;
@@ -75,7 +157,9 @@ export default function ChatArea() {
     setInput("");
     setSending(true);
 
-    // Optimistic human message
+    const mode = brainstormMode ? "brainstorm" : "chat";
+    const sessionId = brainstormMode ? brainstormActiveId : null;
+
     const tempHuman: Message = {
       id: "temp-" + Date.now(),
       inspiration_id: activeId,
@@ -86,11 +170,13 @@ export default function ChatArea() {
       agent_name: null,
       agent_number: null,
       agent_model: null,
+      mode,
+      brainstorm_session_id: sessionId,
     };
     setMessages((prev) => [...prev, tempHuman]);
 
     try {
-      const reply = await api.sendChatMessage(activeId, content);
+      const reply = await api.sendChatMessage(activeId, content, { mode, brainstormSessionId: sessionId ?? undefined });
       setMessages((prev) => [...prev, reply]);
     } catch (e) {
       const errMsg: Message = {
@@ -103,6 +189,8 @@ export default function ChatArea() {
         agent_name: null,
         agent_number: null,
         agent_model: null,
+        mode,
+        brainstorm_session_id: sessionId,
       };
       setMessages((prev) => [...prev, errMsg]);
     } finally {
@@ -125,12 +213,34 @@ export default function ChatArea() {
           {activeInspiration ? (
             <>
               <h2 className="chatarea__project-name">{activeInspiration.name}</h2>
-              <span className="chatarea__status">
+              <span
+                className="chatarea__status"
+                title={workingCount > 0
+                  ? `${workingCount} AGENT${workingCount > 1 ? "S" : ""} WORKING`
+                  : `${teamMembers.length} AGENT${teamMembers.length !== 1 ? "S" : ""} IDLE`}
+              >
                 <span className={`chatarea__status-dot${workingCount > 0 ? " chatarea__status-dot--working" : " chatarea__status-dot--idle"}`} />
-                {workingCount > 0
-                  ? `${workingCount} Agent${workingCount > 1 ? "s" : ""} working`
-                  : `${teamMembers.length} Agent${teamMembers.length !== 1 ? "s" : ""} idle`}
+                <span className="chatarea__status-count">{teamMembers.length}</span>
+                <svg className="chatarea__status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="8" width="18" height="12" rx="3" />
+                  <circle cx="9" cy="14" r="2" />
+                  <circle cx="15" cy="14" r="2" />
+                  <line x1="9" y1="6" x2="9" y2="4" />
+                  <line x1="15" y1="6" x2="15" y2="4" />
+                  <line x1="12" y1="6" x2="12" y2="3" />
+                </svg>
               </span>
+              {brainstormMode && brainstormActiveId && (() => {
+                const sessionIndex = sessionNum(brainstormSessions, brainstormActiveId);
+                return (
+                  <span className="chatarea__brainstorm-badge" title="Brainstorm Mode Active">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span>#{sessionIndex}</span>
+                  </span>
+                );
+              })()}
             </>
           ) : (
             <h2 className="chatarea__project-name chatarea__project-name--dimmed">
@@ -162,7 +272,7 @@ export default function ChatArea() {
 
       {/* Messages */}
       <div className="chatarea__canvas" ref={scrollRef} onScroll={handleScroll}>
-        {messages.length === 0 ? (
+        {messages.length === 0 && dividers.length === 0 ? (
           <div className="chatarea__empty">
             <div className="chatarea__empty-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c7c7c7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -177,47 +287,7 @@ export default function ChatArea() {
           </div>
         ) : (
           <div className="chatarea__messages">
-            {messages.map((m) => {
-              const isHuman = m.role === "human";
-              return (
-                <div
-                  key={m.id}
-                  className={`chat-message${isHuman ? " chat-message--human" : " chat-message--agent"}`}
-                >
-                  {!isHuman && (
-                    <div className="chat-message__avatar">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="8" width="18" height="12" rx="3" />
-                        <circle cx="9" cy="14" r="2" />
-                        <circle cx="15" cy="14" r="2" />
-                        <line x1="9" y1="6" x2="9" y2="4" />
-                        <line x1="15" y1="6" x2="15" y2="4" />
-                        <line x1="12" y1="6" x2="12" y2="3" />
-                      </svg>
-                      <span className="chat-message__avatar-num">{m.agent_number ?? "?"}</span>
-                    </div>
-                  )}
-                  <div className="chat-message__bubble">
-                    {!isHuman && (
-                      <div className="chat-message__agent-info">
-                        <span className="chat-message__agent-name">{m.agent_name || "Agent"}</span>
-                        {m.agent_model && (
-                          <span className="chat-message__agent-model">{m.agent_model}</span>
-                        )}
-                        <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
-                      </div>
-                    )}
-                    {isHuman && (
-                      <div className="chat-message__agent-info">
-                        <span className="chat-message__role">You</span>
-                        <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
-                      </div>
-                    )}
-                    <div className="chat-message__content">{m.content}</div>
-                  </div>
-                </div>
-              );
-            })}
+            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} />
             {sending && <ThinkingBubble />}
           </div>
         )}
@@ -237,7 +307,7 @@ export default function ChatArea() {
 
       {/* Input Area */}
       <div className="chatarea__input">
-        <div className="chatarea__input-box">
+        <div className={`chatarea__input-box${brainstormMode ? " chatarea__input-box--brainstorm" : ""}`}>
           <textarea
             className="chatarea__input-field chatarea__input-field--active"
             placeholder={
@@ -262,6 +332,16 @@ export default function ChatArea() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+              <button
+                className={`chatarea__tool-btn${brainstormMode ? " chatarea__tool-btn--active" : ""}`}
+                title={brainstormMode ? "End Brainstorm" : "Start Brainstorm"}
+                onClick={handleToggleBrainstorm}
+                disabled={!activeInspiration || sending}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
               </button>
             </div>
@@ -322,6 +402,84 @@ const THINKING_COLORS = [
   "#f59e0b", "#22c55e", "#3b82f6", "#ef4444",
   "#06b6d4", "#a855f7", "#d946ef", "#84cc16",
 ];
+
+type DisplayItem = Message | DividerItem;
+
+function DisplayItems({
+  messages,
+  dividers,
+  formatMessageTime,
+}: {
+  messages: Message[];
+  dividers: DividerItem[];
+  formatMessageTime: (iso: string) => string;
+}) {
+  const items = useMemo<DisplayItem[]>(() => {
+    const sorted = [...dividers].sort((a, b) => a.ts.localeCompare(b.ts));
+    const all: DisplayItem[] = [];
+    let di = 0;
+    for (const msg of messages) {
+      while (di < sorted.length && sorted[di].ts < msg.created_at) {
+        all.push(sorted[di++]);
+      }
+      all.push(msg);
+    }
+    while (di < sorted.length) {
+      all.push(sorted[di++]);
+    }
+    return all;
+  }, [messages, dividers]);
+
+  return (
+    <>
+      {items.map((item) => {
+        if ("type" in item && item.type === "divider") {
+          return <BrainstormDivider key={item.id} label={item.label} variant={item.variant} />;
+        }
+        const m = item as Message;
+        const isHuman = m.role === "human";
+        return (
+          <div
+            key={m.id}
+            className={`chat-message${isHuman ? " chat-message--human" : " chat-message--agent"}`}
+          >
+            {!isHuman && (
+              <div className="chat-message__avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="8" width="18" height="12" rx="3" />
+                  <circle cx="9" cy="14" r="2" />
+                  <circle cx="15" cy="14" r="2" />
+                  <line x1="9" y1="6" x2="9" y2="4" />
+                  <line x1="15" y1="6" x2="15" y2="4" />
+                  <line x1="12" y1="6" x2="12" y2="3" />
+                </svg>
+                <span className="chat-message__avatar-num">{m.agent_number ?? "?"}</span>
+              </div>
+            )}
+            <div className="chat-message__bubble">
+              {!isHuman && (
+                <div className="chat-message__agent-info">
+                  <span className="chat-message__agent-name">{m.agent_name || "Agent"}</span>
+                  {m.agent_model && (
+                    <span className="chat-message__agent-model">{m.agent_model}</span>
+                  )}
+                  <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
+                </div>
+              )}
+              {isHuman && (
+                <div className="chat-message__agent-info">
+                  <span className="chat-message__role">You</span>
+                  <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
+                </div>
+              )}
+              <div className="chat-message__content">{m.content}</div>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];

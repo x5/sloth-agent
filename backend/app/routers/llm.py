@@ -2,7 +2,7 @@
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -63,6 +63,8 @@ class LLMResponse(BaseModel):
     @classmethod
     def serialize_created_at(cls, v: object) -> str:
         if isinstance(v, datetime):
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
             return v.isoformat()
         return v
 
