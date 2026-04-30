@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type Col4Content = "team" | "status" | null;
-export type ActiveNav = "inspirations" | "agents" | "settings";
+export type ActiveNav = "inspirations" | "agents" | "settings" | "brainstorm";
 export type SettingsSubNav = "llm" | null;
 
 interface UIState {

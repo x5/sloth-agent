@@ -4,6 +4,8 @@ import ChatArea from './components/ChatArea';
 import RightPanel from './components/RightPanel';
 import AgentPoolList from './components/AgentPoolList';
 import AgentDetail from './components/AgentDetail';
+import BrainstormList from './components/BrainstormList';
+import BrainstormSessionDetail from './components/BrainstormSessionDetail';
 import SettingsLayout from './components/SettingsLayout';
 import { useUIStore } from './stores/uiStore';
 import './App.css';
@@ -22,12 +24,24 @@ function App() {
     );
   }
 
+  const col2 = activeNav === "agents"
+    ? <AgentPoolList />
+    : activeNav === "brainstorm"
+      ? <BrainstormList />
+      : <ProjectList />;
+
+  const col3 = activeNav === "agents"
+    ? <AgentDetail />
+    : activeNav === "brainstorm"
+      ? <BrainstormSessionDetail />
+      : <ChatArea />;
+
   return (
     <div className="app-shell">
       <SideNavBar />
       <div className="app-main">
-        {activeNav === "agents" ? <AgentPoolList /> : <ProjectList />}
-        {activeNav === "agents" ? <AgentDetail /> : <ChatArea />}
+        {col2}
+        {col3}
         {col4Open && <RightPanel />}
       </div>
     </div>

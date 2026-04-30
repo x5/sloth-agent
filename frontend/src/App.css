@@ -2570,3 +2570,215 @@ body {
   border-radius: 2px;
   padding: 0 1px;
 }
+
+/* ---- Brainstorm Session Detail ---- */
+
+.brainstorm-detail {
+  padding: 24px 32px;
+  max-width: 640px;
+}
+
+.brainstorm-detail__section {
+  margin-bottom: 24px;
+}
+
+.brainstorm-detail__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ea7b0;
+  margin: 0 0 8px 0;
+}
+
+.brainstorm-detail__path {
+  display: block;
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  color: #4e6073;
+  background: #f3f3f3;
+  padding: 8px 12px;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.brainstorm-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.brainstorm-detail__field {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.brainstorm-detail__key {
+  display: block;
+  font-size: 11px;
+  color: #9ea7b0;
+  margin-bottom: 4px;
+}
+
+.brainstorm-detail__value {
+  font-size: 14px;
+  color: #1a1c1c;
+  font-weight: 500;
+}
+
+.brainstorm-detail__file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brainstorm-detail__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.brainstorm-detail__file:hover {
+  background: #f3f3f3;
+}
+
+.brainstorm-detail__file-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.brainstorm-detail__file-name {
+  color: #1a1c1c;
+  font-weight: 500;
+}
+
+.brainstorm-detail__file-path {
+  color: #9ea7b0;
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.brainstorm-detail__empty-files {
+  color: #9ea7b0;
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ---- Brainstorm List inline create (reuse projectlist styles) ---- */
+
+.projectlist__inline-create {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.projectlist__inline-input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-accent-border);
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  background: #f3f3f3;
+}
+
+.projectlist__inline-input:focus {
+  border-color: var(--color-accent);
+  background: #fff;
+}
+
+.projectlist__inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.projectlist__inline-cancel {
+  padding: 4px 12px;
+  background: none;
+  border: none;
+  color: #9ea7b0;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.projectlist__inline-cancel:hover {
+  background: #f3f3f3;
+}
+
+.projectlist__inline-create-btn {
+  padding: 4px 14px;
+  background: var(--color-accent);
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.projectlist__inline-create-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.projectlist__status {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.projectlist__status--active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.projectlist__status--ended {
+  background: rgba(158, 167, 176, 0.15);
+  color: #4e6073;
+}
+
+.projectlist__status--cooling_down {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.projectlist__status--summarized {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+}
+
+.projectlist__empty {
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.projectlist__empty-text {
+  font-size: 13px;
+  color: #9ea7b0;
+  margin: 0;
+}
+
+.projectlist__loading {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #f3f3f3 0%, #e0e0e0 50%, #f3f3f3 100%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -94,6 +94,26 @@ async function httpFallback<T>(cmd: string, args?: Record<string, unknown>): Pro
       break;
     }
 
+    // ---- Brainstorm ----
+    case "create_brainstorm_session":
+      res = await fetch(`${BACKEND}/api/inspirations/${args?.inspirationId}/brainstorm-sessions`, {
+        method: "POST", headers: baseHeaders,
+        body: JSON.stringify({ title: args?.title }),
+      });
+      break;
+    case "list_brainstorm_sessions":
+      res = await fetch(`${BACKEND}/api/inspirations/${args?.inspirationId}/brainstorm-sessions`);
+      break;
+    case "get_brainstorm_session":
+      res = await fetch(`${BACKEND}/api/brainstorm-sessions/${args?.sessionId}`);
+      break;
+    case "update_brainstorm_session":
+      res = await fetch(`${BACKEND}/api/brainstorm-sessions/${args?.sessionId}`, {
+        method: "PATCH", headers: baseHeaders,
+        body: JSON.stringify(args?.data || {}),
+      });
+      break;
+
     default:
       throw new Error(`Unknown command: ${cmd}`);
   }
@@ -147,6 +167,30 @@ export interface Message {
   agent_name: string | null;
   agent_number: number | null;
   agent_model: string | null;
+}
+
+export interface BrainstormSession {
+  id: string;
+  inspiration_id: string;
+  title: string;
+  status: string;
+  sandbox_path: string;
+  max_messages: number;
+  cooldown_seconds: number;
+  message_count: number;
+  summary: string | null;
+  started_by: string | null;
+  notification_sent: boolean;
+  created_at: string;
+  ended_at: string | null;
+  file_tree: FileTreeEntry[];
+}
+
+export interface FileTreeEntry {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size: number;
 }
 
 // ---- Inspiration CRUD ----
@@ -282,4 +326,32 @@ export async function getMessages(
     limit: limit || 50,
     before: before || null,
   });
+}
+
+// ---- Brainstorm ----
+
+export async function createBrainstormSession(
+  inspirationId: string,
+  title: string,
+): Promise<BrainstormSession> {
+  return call<BrainstormSession>("create_brainstorm_session", { inspirationId, title });
+}
+
+export async function listBrainstormSessions(
+  inspirationId: string,
+): Promise<BrainstormSession[]> {
+  return call<BrainstormSession[]>("list_brainstorm_sessions", { inspirationId });
+}
+
+export async function getBrainstormSession(
+  sessionId: string,
+): Promise<BrainstormSession> {
+  return call<BrainstormSession>("get_brainstorm_session", { sessionId });
+}
+
+export async function updateBrainstormSession(
+  sessionId: string,
+  data: { title?: string; status?: string },
+): Promise<BrainstormSession> {
+  return call<BrainstormSession>("update_brainstorm_session", { sessionId, data });
 }

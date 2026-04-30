@@ -10,7 +10,7 @@ from pydantic import BaseModel
 load_dotenv()
 
 from .database import init_db
-from .routers import agent_templates, agents, chat, inspirations, llm
+from .routers import agent_templates, agents, brainstorm, chat, inspirations, llm
 from .services.agent import AgentService
 from .services.llm import seed_default_llm
 
@@ -38,6 +38,7 @@ app.include_router(llm.router)
 app.include_router(agent_templates.router)
 app.include_router(agents.router)
 app.include_router(chat.router)
+app.include_router(brainstorm.router)
 
 
 class EchoRequest(BaseModel):

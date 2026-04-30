@@ -373,6 +373,97 @@ async fn get_messages(inspiration_id: String, limit: u32, before: Option<String>
     resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
 }
 
+// ---- Brainstorm Sessions (Iter-4) ----
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BrainstormSession {
+    id: String,
+    inspiration_id: String,
+    title: String,
+    status: String,
+    sandbox_path: String,
+    max_messages: i32,
+    cooldown_seconds: i32,
+    message_count: i32,
+    summary: Option<String>,
+    started_by: Option<String>,
+    notification_sent: bool,
+    created_at: String,
+    ended_at: Option<String>,
+    file_tree: Vec<serde_json::Value>,
+}
+
+#[tauri::command]
+async fn create_brainstorm_session(inspiration_id: String, title: String) -> Result<BrainstormSession, String> {
+    let client = http_client()?;
+    let body = serde_json::json!({ "title": title });
+    let resp = client
+        .post(format!(
+            "{}/api/inspirations/{}/brainstorm-sessions",
+            BACKEND_URL, inspiration_id
+        ))
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to create brainstorm session: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
+#[tauri::command]
+async fn list_brainstorm_sessions(inspiration_id: String) -> Result<Vec<BrainstormSession>, String> {
+    let client = http_client()?;
+    let resp = client
+        .get(format!(
+            "{}/api/inspirations/{}/brainstorm-sessions",
+            BACKEND_URL, inspiration_id
+        ))
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to list brainstorm sessions: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
+#[tauri::command]
+async fn get_brainstorm_session(session_id: String) -> Result<BrainstormSession, String> {
+    let client = http_client()?;
+    let resp = client
+        .get(format!("{}/api/brainstorm-sessions/{}", BACKEND_URL, session_id))
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to get brainstorm session: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
+#[tauri::command]
+async fn update_brainstorm_session(session_id: String, data: serde_json::Value) -> Result<BrainstormSession, String> {
+    let client = http_client()?;
+    let resp = client
+        .patch(format!("{}/api/brainstorm-sessions/{}", BACKEND_URL, session_id))
+        .header("Content-Type", "application/json")
+        .body(data.to_string())
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+    if !resp.status().is_success() {
+        let detail = resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to update brainstorm session: {}", detail));
+    }
+    resp.json().await.map_err(|e| format!("JSON parse error: {}", e))
+}
+
 // ---- Agent Team Management (Iter-3) ----
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -481,6 +572,10 @@ pub fn run() {
             remove_agent_from_team,
             send_chat_message,
             get_messages,
+            create_brainstorm_session,
+            list_brainstorm_sessions,
+            get_brainstorm_session,
+            update_brainstorm_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Sloth Agent");
