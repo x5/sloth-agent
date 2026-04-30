@@ -1,7 +1,7 @@
 # Sloth Agent 桌面版 MVP 实现计划
 
-> Spec: `docs/specs/20260425-mvp-desktop-app-spec.md`
-> Brainstorm Spec: `docs/specs/20260430-brainstorm-mode-spec.md`
+> Spec: `docs/specs/desktop/spec.md`
+> Brainstorm Spec: `docs/specs/brainstorm/spec.md`
 > Arch: `docs/design/desktop-app-architecture.md`
 > 日期: 2026-04-25
 > 更新: 2026-04-30
@@ -1721,4 +1721,4 @@ commands:
 ---
 
 *Plan 版本: 4.0 — 2026-04-30*
-*变更: Brainstorm 模式全面重规划。旧 Iter-4 stub (Tasks 4.0-4.6) 替换为完整 Iter-4 至 Iter-9 任务，对应 Brainstorm Spec `docs/specs/20260430-brainstorm-mode-spec.md`。新增: Iter-4 会话沙箱 (3 tasks), Iter-5 讨论引擎+SSE (3 tasks), Iter-6 彩色线程UI (3 tasks), Iter-7 读Tools+上下文 (3 tasks), Iter-8 写Tools+执行器 (3 tasks), Iter-9 异步自主模式 (3 tasks)。总迭代数从 4 扩展到 9。*
+*变更: Brainstorm 模式全面重规划。旧 Iter-4 stub (Tasks 4.0-4.6) 替换为完整 Iter-4 至 Iter-9 任务，对应 Brainstorm Spec `docs/specs/brainstorm/spec.md`。新增: Iter-4 会话沙箱 (3 tasks), Iter-5 讨论引擎+SSE (3 tasks), Iter-6 彩色线程UI (3 tasks), Iter-7 读Tools+上下文 (3 tasks), Iter-8 写Tools+执行器 (3 tasks), Iter-9 异步自主模式 (3 tasks)。总迭代数从 4 扩展到 9。*

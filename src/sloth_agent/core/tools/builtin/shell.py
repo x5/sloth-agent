@@ -1,6 +1,6 @@
 """Shell execution: run_command.
 
-Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.5.2
+Canonical spec: docs/specs/tools/spec.md
 """
 
 import subprocess

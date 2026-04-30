@@ -1,7 +1,6 @@
 """RiskGate — evaluates whether a tool call should be approved.
 
-Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.6
-Invocation spec: 20260416-tools-invocation-spec.md §4.2
+Canonical spec: docs/specs/tools/spec.md
 """
 
 from datetime import datetime

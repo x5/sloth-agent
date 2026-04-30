@@ -1,6 +1,6 @@
 """File operations: read_file, write_file, edit_file.
 
-Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.5.1
+Canonical spec: docs/specs/tools/spec.md
 """
 
 from pathlib import Path

@@ -45,7 +45,7 @@ class Planner:
         if not specs_dir.exists():
             return None
 
-        spec_files = list(specs_dir.glob("*.md")) + list(specs_dir.glob("*.txt"))
+        spec_files = list(specs_dir.rglob("*.md")) + list(specs_dir.rglob("*.txt"))
         if not spec_files:
             return None
 

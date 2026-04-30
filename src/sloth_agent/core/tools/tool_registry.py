@@ -1,6 +1,6 @@
 """Tool Registry — Tool base class + Registry.
 
-Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10
+Canonical spec: docs/specs/tools/spec.md
 """
 
 import logging

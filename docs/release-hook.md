@@ -9,10 +9,11 @@
 
 对比以下文档，确认当前版本的所有功能点均已实现：
 
-1. **架构总览**：`docs/specs/00000000-00-architecture-overview.md` — 查找版本对应章节（如 §14.2 v0.2.0）
-2. **TODO.md**：检查所有版本任务项是否均标记为 `[x]`
-3. **Implementation Plan**：对应 plan 文件（如 `docs/plans/20260417-v1-1-implementation-plan.md`）— 确认所有 task 完成
-4. **对应 Spec**：每个任务标注的 spec 文件 — 确认状态从"待审批"改为"已实现"
+1. **架构总览**：`docs/specs/architecture/spec.md` — 查找版本对应章节
+2. **模块 Spec**：`docs/specs/<module>/spec.md` — 各模块当前状态
+3. **TODO.md**：检查所有版本任务项是否均标记为 `[x]`
+4. **Implementation Plan**：对应 plan 文件（如 `docs/plans/20260417-v1-1-implementation-plan.md`）— 确认所有 task 完成
+5. **对应 Spec**：每个任务标注的 spec 文件 — 确认状态从"待审批"改为"已实现"
 
 **检查内容：**
 - 每个 spec 中列出的文件是否存在于代码库

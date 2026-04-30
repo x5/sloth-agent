@@ -1,6 +1,6 @@
 """Search operations: glob, grep.
 
-Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.5.1
+Canonical spec: docs/specs/tools/spec.md
 """
 
 import re

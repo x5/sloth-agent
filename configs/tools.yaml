@@ -1,5 +1,5 @@
 # Tool Group Configuration
-# Canonical spec: docs/specs/20260416-02-tools-invocation-spec.md §10.7.1
+# Canonical spec: docs/specs/tools/spec.md
 
 tools:
   groups:
