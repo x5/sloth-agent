@@ -1,0 +1,19 @@
+{
+  "version": "iter-3",
+  "exportedAt": "2026-04-30T11:43:48.081Z",
+  "verdicts": {
+    "1": "pass", "2": "pass", "3": "pass", "4": "pass",
+    "5": "pass", "6": "pass", "7": "pass",
+    "8": "opt",
+    "9": "pass", "10": "pass", "11": "pass", "12": "pass",
+    "13": "pass", "14": "pass", "15": "pass", "16": "pass",
+    "17": "pass", "18": "pass", "19": "pass", "20": "pass",
+    "21": "pass", "22": "pass", "23": "pass", "24": "pass",
+    "25": "pass", "26": "pass", "27": "pass",
+    "28": "pass", "29": "pass", "30": "pass", "31": "pass",
+    "32": "pass", "33": "pass"
+  },
+  "notes": {
+    "8": "15000 字符约 5 倍余量（最长~3200），为未来自定义 agent 留空间。合理。→ 可标记 Pass"
+  }
+}

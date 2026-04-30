@@ -1,9 +1,10 @@
 # Sloth Agent 桌面版 MVP 实现计划
 
 > Spec: `docs/specs/20260425-mvp-desktop-app-spec.md`
+> Brainstorm Spec: `docs/specs/20260430-brainstorm-mode-spec.md`
 > Arch: `docs/design/desktop-app-architecture.md`
 > 日期: 2026-04-25
-> 更新: 2026-04-29
+> 更新: 2026-04-30
 > 状态: IN PROGRESS
 
 ---
@@ -15,7 +16,12 @@
 | Iter-1 | Day 1-3 | 项目外壳 + Inspiration CRUD | 4 列布局 + 数据库 + API | ✅ |
 | Iter-2 | Day 4-7 | Settings + 聊天 + 默认 Agent | LLM 管理页 + 消息流 + SSE 流式 | ✅ |
 | Iter-3 | Day 8-14 | Agent Pool 初始化 + Agent 管理 + Right Panel | 5 内置 Agent + Team API + Right Panel 团队面板 | ✅ |
-| Iter-4 | Day 15+ | Brainstorm 模式 + 上下文引擎 | 多 Agent 辩论 + Token 计数 + ContextWindowManager | 📋 |
+| Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ⬜ |
+| Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ⬜ |
+| Iter-6 | Day 21-23 | 彩色线程 UI | BrainstormArea + 色彩竖线 + 回复标签 | ⬜ |
+| Iter-7 | Day 24-26 | 读 Tools + 上下文引擎 | ToolRegistry + ToolPermissionGate + ContextWindowManager | ⬜ |
+| Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer | ⬜ |
+| Iter-9 | Day 30-32 | 异步自主模式 | start-async + 断线恢复 + 浏览器通知 | ⬜ |
 
 ---
 
@@ -1036,17 +1042,655 @@ interface AgentStore {
 
 ---
 
-## Iter-4: Brainstorm 模式 + 上下文引擎（延后）
+## Iter-4: Brainstorm 会话沙箱（3 天）
 
-> 以下任务从原 Iter-3 Plan 中后移。等 Agent Pool 扩展到多角色后再激活。
+> 为 Brainstorm 建立独立的、隔离的工作区。每次 Brainstorm 有一个独立沙箱目录，所有 Agent 产出落在此目录，与项目文件物理隔离。
 
-### Task 4.0: 数据库 — parent_message_id 字段
-### Task 4.1: 后端 — Token 计数 + 成本追踪
-### Task 4.2: 后端 — 双模 ContextWindowManager
-### Task 4.3: 后端 — Brainstorm API + 冷却停止
-### Task 4.4: 前端 — ChatInput 回复标签
-### Task 4.5: 后端 — System Prompt Cache 锚定
-### Task 4.6: 后端 — 摘要/轮次总结
+### Task 4.0: 数据模型 — brainstorm_sessions + brainstorm_files 表
+
+**状态：** ⬜
+
+**描述：** 新增两张表支持 Brainstorm 会话管理。brainstorm_files 表在 Iter-4 建好但实际写入延至 Iter-8。使用 Alembic 迁移管理 schema 变更。
+
+**文件：**
+- `backend/app/models.py` — 新增 BrainstormSession, BrainstormFile 模型
+- Alembic 迁移文件 — `alembic/versions/xxxx_brainstorm_sessions.py`
+
+**实现要点：**
+- BrainstormSession 字段: id, inspiration_id, title, status("active"|"cooling_down"|"ended"|"summarized"), sandbox_path, max_messages(500), cooldown_seconds(5), message_count(0), summary(None), started_by(None), notification_sent(False), created_at, ended_at
+- BrainstormFile 字段: id, session_id(FK), file_path, content, created_by(FK→inspiration_agents), file_type("code"|"doc"|"test"|"config"|"other"), created_at
+- status 字段 default="active"，message_count default=0
+- 迁移文件含 upgrade() 和 downgrade()
+
+**验证：**
+- [ ] 运行 Alembic 迁移 → 两张表创建成功
+- [ ] `alembic downgrade -1` → 表删除，可回滚
+
+### Task 4.1: SandboxManager 服务
+
+**状态：** ⬜
+
+**描述：** 管理沙箱目录的创建、文件树查询、清理。不负责文件写入（Iter-8）。
+
+**文件：**
+- `backend/app/services/sandbox.py` — 新建 SandboxManager 类
+
+**实现要点：**
+```python
+class SandboxManager:
+    BASE_DIR = "brainstorm-sessions"
+
+    @staticmethod
+    def create_session_dir(session_id: str) -> str:
+        """创建 brainstorm-sessions/{session_id}/ 目录，返回绝对路径"""
+
+    @staticmethod
+    def get_file_tree(session_id: str) -> list[dict]:
+        """递归遍历沙箱目录，返回文件树 [{name, path, type, size}]"""
+
+    @staticmethod
+    def get_session_path(session_id: str) -> str:
+        """返回沙箱目录绝对路径"""
+
+    @staticmethod
+    def archive_session(session_id: str):
+        """移到 .archive/ 子目录"""
+
+    @staticmethod
+    def cleanup_archive(max_age_days: int = 7):
+        """清理过期归档"""
+```
+
+**验证：**
+- [ ] `create_session_dir("test-uuid")` → `brainstorm-sessions/test-uuid/` 目录产生
+- [ ] `get_file_tree()` 返回正确的目录结构（空目录返回空列表）
+- [ ] 手动放文件后 `get_file_tree()` 返回对应文件信息
+
+### Task 4.2: Brainstorm CRUD API
+
+**状态：** ⬜
+
+**描述：** Brainstorm 会话的创建、列表、详情 API。创建会话时自动初始化沙箱目录。
+
+**文件：**
+- `backend/app/routers/brainstorm.py` — 新建 CRUD router
+- `backend/app/main.py` — 注册 router
+
+**API 规格：**
+1. `POST /api/inspirations/{inspiration_id}/brainstorm-sessions`
+   - Body: `{ "title": "Architecture Review" }`
+   - 流程: 生成 UUID → 创建 DB 记录 → SandboxManager.create_session_dir() → 返回 session
+2. `GET /api/inspirations/{inspiration_id}/brainstorm-sessions`
+   - 返回该 Inspiration 下所有会话，按 created_at 降序
+3. `GET /api/brainstorm-sessions/{session_id}`
+   - 返回会话详情（含 sandbox_path + 文件树）
+4. `PATCH /api/brainstorm-sessions/{session_id}`
+   - 更新 status / title
+
+**实现要点：**
+- 创建会话时传入 inspiration_id，验证 Inspiration 存在
+- 详情接口调用 SandboxManager.get_file_tree() 注入响应
+- 错误处理：Inspiration 不存在返回 404
+
+**验证：**
+- [ ] `POST` → 返回 201 + 会话 JSON，`brainstorm-sessions/{uuid}/` 目录存在
+- [ ] `GET /api/inspirations/{id}/brainstorm-sessions` → 返回列表
+- [ ] `GET /api/brainstorm-sessions/{id}` → 返回详情含 file_tree
+- [ ] 重启后端 → 会话数据持久化
+- [ ] `brainstorm-sessions/` 已在 `.gitignore` 中
+
+### Task 4.3: 前端 — Brainstorm 会话列表 + 创建
+
+**状态：** ⬜
+
+**描述：** 前端新增 Brainstorm 视图入口。Col1 SideNavBar 新增 Brainstorm Tab。Col2 显示会话列表，Col3 显示会话详情占位（等 Iter-6）。
+
+**文件：**
+- `frontend/src/components/BrainstormList.tsx` — 新建 Col2 会话列表
+- `frontend/src/components/SideNavBar.tsx` — 添加 Brainstorm Tab 按钮
+- `frontend/src/stores/brainstormStore.ts` — 新建 Zustand store
+- `frontend/src/stores/uiStore.ts` — 扩展 activeNav 支持 "brainstorm"
+- `frontend/src/App.tsx` — 条件渲染 BrainstormList
+- `frontend/src/api/client.ts` — 添加 Brainstorm API 函数
+- `src-tauri/src/lib.rs` — 添加 brainstorm commands
+
+**实现要点：**
+- SideNavBar: 新增 Brainstorm 图标按钮（灯泡/闪电图标），点击切换 activeNav="brainstorm"
+- BrainstormList: 顶部 "Brainstorm" 标题 + "+" 创建按钮，列表每项显示 title + status badge + 创建时间
+- "+" 按钮 → 行内输入框（复用 Iter-1 Task 1.4 的交互模式）→ Enter 创建会话
+- brainstormStore: sessions[], activeId, fetchAll(), create(title), setActive(id)
+- Col3 在 Iter-4 阶段显示会话基本信息占位（title, status, sandbox_path, created_at），完整 UI 等 Iter-6
+
+**验证：**
+- [ ] SideNavBar 显示 Brainstorm Tab，点击切换
+- [ ] 点击 "+" → 输入标题 → Enter → 列表中新增会话
+- [ ] 点击会话 → Col3 显示会话基本信息
+- [ ] 切换 Inspiration → 会话列表过滤为该 Inspiration 的会话
+
+---
+
+## Iter-5: 讨论引擎 — 两轮投票 + SSE 流式（3 天）
+
+> 后端讨论引擎。多个 Agent 并行发言，冷却计时器自然结束讨论。前端不在此迭代做彩色 UI（留给 Iter-6），只做基础 JSON 流式展示。
+
+### Task 5.0: Messages 表扩展（Alembic 迁移）
+
+**状态：** ⬜
+
+**描述：** Message 表新增 5 个字段支持 Brainstorm 讨论模式。Chat 模式下的消息这些字段保持默认值。
+
+**文件：**
+- `backend/app/models.py` — Message 模型新增字段
+- Alembic 迁移文件 — `alembic/versions/xxxx_message_brainstorm_fields.py`
+
+**新增字段：**
+- `brainstorm_session_id: str | None` (FK → brainstorm_sessions, NULL = Chat 模式)
+- `parent_message_id: str | None` (FK → messages, 回复引用)
+- `round: int` (default 1)
+- `intent: str | None` (NULL | "YES" | "NO")
+- `truncated: bool` (default False)
+
+**验证：**
+- [ ] 迁移执行成功 → 现有 Chat 消息不受影响（新字段为默认值）
+- [ ] 可写入含新字段的消息
+
+### Task 5.1: BrainstormEngine — DecisionStrategy + CoolingTimer
+
+**状态：** ⬜
+
+**描述：** 讨论引擎核心。包含两轮投票策略和冷却计时器状态机。
+
+**文件：**
+- `backend/app/services/brainstorm.py` — 新建 BrainstormEngine
+
+**实现要点：**
+
+1. **DecisionStrategy 抽象接口：**
+```python
+class DecisionStrategy(ABC):
+    @abstractmethod
+    async def collect_intents(self, agents, context, topic) -> dict[str, tuple[Literal["YES","NO"], str]]:
+        """Round 1: 并行收集发言意向"""
+    @abstractmethod
+    async def generate_speeches(self, agents, intents, context, topic) -> AsyncIterator[SpeechChunk]:
+        """Round 2: 并行生成发言, 流式产出"""
+```
+
+2. **TwoRoundVoting 实现：**
+   - Round 1: N 个 Agent 并行调用 LLM，`max_tokens=20`，prompt: "回复 'YES: <方向>' 或 'NO'。不超过 10 个词。"
+   - Round 2: YES 的 Agent 并行流式生成完整回复
+   - Lead Agent 不参与 Round 1/2，负责生成轮次总结
+
+3. **CoolingTimer 状态机：**
+   - RUNNING → (5s 无人发言) → COOLING_DOWN
+   - COOLING_DOWN → (3s 确认) → CONFIRMING
+   - CONFIRMING → (3s) → ENDED
+   - 新发言/agent_typing → 重置到 RUNNING
+   - 达到 max_messages(500) → 硬截断 → ENDED
+   - 用户发新消息 → round_aborted → ENDED
+
+4. **错误处理：**
+   - 单个 Agent 超时/失败 → 重试 2 次 → 仍失败跳过
+   - 所有 Agent 全失败 → 讨论终止
+
+**验证：**
+- [ ] 模拟 3 个 Agent 讨论 → Round 1 收集意向 → YES 的进 Round 2
+- [ ] 5s 无人发言 → 冷却开始 → 3s 确认 → 讨论结束
+- [ ] Agent 超时 → 重试 → 最终跳过，不影响其他 Agent
+
+### Task 5.2: SSE Discuss 端点
+
+**状态：** ⬜
+
+**描述：** SSE 端点接收用户消息，启动 BrainstormEngine，将事件流式推送到前端。单一 SSE 连接复用所有 Agent 事件。
+
+**文件：**
+- `backend/app/routers/brainstorm.py` — 新增 SSE discuss 端点
+
+**API 规格：**
+- `POST /api/brainstorm-sessions/{session_id}/discuss`
+  - Body: `{ "content": "我们应该用 JWT 还是 Session?", "reply_to_message_id": null }`
+  - Response: `text/event-stream`
+
+**SSE 事件类型（13 种）：**
+```
+agent_start:      {agent_id, agent_name, agent_number}
+agent_intent:     {agent_id, intent: "YES"|"NO", direction}
+agent_typing:     {agent_id}
+message_token:    {agent_id, message_id, token, parent_message_id}
+message_done:     {agent_id, message_id, full_content, parent_message_id}
+agent_error:      {agent_id, error, retry: bool}
+cooldown_start:   {seconds: 5}
+cooldown_reset:   {triggered_by: agent_id}
+cooldown_confirm: {seconds: 3}
+discussion_end:   {summary: null, message_count}  # summary 在 Iter-5 为 null
+max_reached:      {limit: 500}
+round_aborted:    {reason}
+error:            {error}
+```
+
+**实现要点：**
+- 用户消息先保存为 Message（role="human", round=当前轮次）
+- 加载当前会话历史消息作为上下文
+- 获取 Inspiration 的 Team 成员作为参与 Agent
+- BrainstormEngine 内部通过 asyncio.Queue 发送 SSE 事件
+- 端点从 Queue 读取 → 格式化为 SSE → yield
+- 用户中断处理：`asyncio.Task.cancel()` 取消进行中调用
+
+**验证：**
+- [ ] `curl -N -X POST /api/brainstorm-sessions/{id}/discuss` → 看到逐行 SSE 数据
+- [ ] 每个 Team Agent 都收到 agent_start 事件
+- [ ] Round 1 意向在 agent_intent 中返回
+- [ ] message_token 流式推送 token
+- [ ] message_done 含完整消息内容
+- [ ] 消息持久化到 messages 表，含 brainstorm_session_id, round, parent_message_id
+
+### Task 5.3: 前端 — 基础 SSE 消费 + JSON 展示
+
+**状态：** ⬜
+
+**描述：** 前端实现 SSE 消费，在 Brainstorm 会话下以基础气泡展示讨论消息（不做彩色线程，留给 Iter-6）。
+
+**文件：**
+- `frontend/src/stores/brainstormStore.ts` — 扩展 SSE 消费 + per-agent streaming state
+- `frontend/src/components/BrainstormArea.tsx` — 新建基础版讨论视图
+- `frontend/src/components/ChatArea.tsx` — TopBar 加临时模式标记
+- `src-tauri/src/lib.rs` — 添加 SSE proxy command
+
+**实现要点：**
+- brainstormStore 扩展：
+  - `startDiscussion(sessionId, content, replyToMessageId?)` → fetch SSE
+  - `Map<agentId, StreamingState>` 管理 per-agent 流式状态
+  - `Map<messageId, Message>` 管理持久消息
+  - `intents: Map<string, IntentResult>` 管理 Round 1 意向
+- BrainstormArea: 基础消息列表（复用 ChatArea 的消息渲染逻辑），显示 agent_name, content, time
+- 流式消息显示打字光标闪烁效果（复用 ChatArea ThinkingBubble 动画）
+- 讨论状态指示器："Round 1 意向收集中..." / "Agent 发言中..." / "冷却中..." / "已结束"
+
+**验证：**
+- [ ] 在 Brainstorm 会话中输入消息 → SSE 连接建立
+- [ ] 多个 Agent 消息并行流式渲染，打字效果
+- [ ] 讨论自然结束 → 状态显示"已结束"
+- [ ] 发新消息 → 上一轮标记结束，新轮开始
+
+---
+
+## Iter-6: 彩色线程 UI（3 天）
+
+> 前端 Brainstorm 专用视图。颜色区分线程，用户可指定回复目标。纯前端工作，后端无变更。
+
+### Task 6.0: BrainstormMessage 组件 — 色彩竖线 + 回复标签
+
+**状态：** ⬜
+
+**描述：** 替换基础消息气泡为 Brainstorm 专用气泡。包含线程色彩竖线、回复标签、Agent 信息行。
+
+**文件：**
+- `frontend/src/components/BrainstormMessage.tsx` — 新建
+- `frontend/src/components/BrainstormArea.tsx` — 修改集成新组件
+
+**实现要点：**
+- 色彩生成：`const threadColor = hsl(hash(root_message_id) % 360, 45%, 55%)`
+- 根消息 ID 计算：若无 parent_message_id → 自身为根；若有 → 递归找到最顶层根消息
+- 4px 宽色彩竖线在气泡左侧，`border-left: 4px solid threadColor`
+- 回复标签格式：`回复 {agent_number} · "{被回复消息内容前30字}"`
+- 所有消息左对齐，无缩进
+- Agent 信息行：avatar(28×28, role→letter) + agent_name + 时间
+- Round 1 意向状态：头像旁显示 "thinking..." / "跳过"
+
+**验证：**
+- [ ] 两个不同根线程的消息颜色不同
+- [ ] 同一线程下回复消息颜色与根消息一致
+- [ ] 回复消息显示回复标签
+- [ ] 无 parent_message_id 的消息不显示回复标签和竖线
+
+### Task 6.1: BrainstormInput 组件 — 回复引用
+
+**状态：** ⬜
+
+**描述：** Brainstorm 专用输入组件。支持泛回复和指定回复两种模式。
+
+**文件：**
+- `frontend/src/components/BrainstormInput.tsx` — 新建
+- `frontend/src/components/BrainstormArea.tsx` — 集成输入组件
+
+**实现要点：**
+- 默认模式：泛回复（parent_message_id = NULL），输入框无标签
+- Hover 消息 → 显示回复按钮（ghost 样式，消息右上角）
+- 点击回复按钮 → 输入框上方出现回复标签："回复 {agent_number} · "{原文前30字}" [✕]"
+- 点击 [✕] → 取消引用，回到泛回复模式
+- 发送时带上 `parent_message_id`
+
+**验证：**
+- [ ] Hover 消息 → 回复按钮出现
+- [ ] 点击回复 → 输入框上方出现回复标签
+- [ ] 点击 [✕] → 标签消失
+- [ ] 带 parent_message_id 发送 → 新消息正确关联到被回复消息
+
+### Task 6.2: 模式开关 + 布局集成
+
+**状态：** ⬜
+
+**描述：** ChatArea TopBar 新增 Chat/Brainstorm 模式切换。Brainstorm 模式时 Col3 渲染 BrainstormArea。
+
+**文件：**
+- `frontend/src/components/ChatArea.tsx` — TopBar 新增模式开关
+- `frontend/src/stores/uiStore.ts` — 扩展 chatMode: "chat" | "brainstorm"
+- `frontend/src/components/BrainstormArea.tsx` — 完善整体布局
+
+**实现要点：**
+- TopBar 模式开关：两个 pill 按钮 `[Chat] [Brainstorm]`，选中态 accent 色背景
+- 默认 "chat" 模式
+- 切换 Brainstorm → Col3 渲染 BrainstormArea（含消息列表 + 输入框）
+- Brainstorm 模式下隐藏 ChatArea 原有的 ChatInput
+- 如果当前 Inspiration 无 Brainstorm 会话 → 提示创建
+- 讨论结束时显示 Lead Agent 总结卡片（如 summary 不为 null）
+
+**验证：**
+- [ ] [Chat] [Brainstorm] 切换按钮可见
+- [ ] 切换 Brainstorm → UI 变为 Brainstorm 布局
+- [ ] 切换回 Chat → 恢复 Chat 布局
+- [ ] 讨论自然结束后 → 显示总结卡片
+
+---
+
+## Iter-7: 读 Tools + 上下文引擎（3 天）
+
+> Agent 可以读取项目文件作为讨论依据。引入 ToolPermissionGate 和 ContextWindowManager。
+
+### Task 7.0: ToolRegistry + ToolPermissionGate
+
+**状态：** ⬜
+
+**描述：** 注册读 Tools（read_file, list_directory, grep, read_spec），ToolPermissionGate 强制读→项目目录、写→沙箱目录的路由规则。
+
+**文件：**
+- `backend/app/services/tools.py` — 新建 ToolRegistry + ToolPermissionGate
+
+**实现要点：**
+- ToolRegistry 注册 4 个读 Tools：
+  - `read_file(path: str)` → 读项目根目录下的文件，返回内容
+  - `list_directory(path: str)` → 列项目目录，返回 `[{name, type, size}]`
+  - `grep(pattern: str, path: str)` → 在项目目录搜索，返回匹配行
+  - `read_spec(path: str)` → 读 Markdown 设计文档
+- ToolPermissionGate:
+  - 读 Tools → 路径解析到项目根目录（`os.getcwd()`），禁止 `..` 越界
+  - 写 Tools → 路径解析到沙箱目录（Iter-8 注册）
+  - 所有路径操作前做 `os.path.realpath()` 验证，防止符号链接逃逸
+- Tool 调用格式：System prompt 注入 Tool 列表 JSON → Agent 回复含 `[TOOL_CALL: tool_name, args]` → 引擎解析 → 执行 → 结果注入上下文
+
+**验证：**
+- [ ] `read_file("frontend/src/App.tsx")` → 返回项目文件内容
+- [ ] `read_file("../../../etc/passwd")` → 被 ToolPermissionGate 拒绝（路径越界）
+- [ ] 写文件 Tool 未注册 → 调用被拒绝
+
+### Task 7.1: ContextWindowManager — Brainstorm 模式
+
+**状态：** ⬜
+
+**描述：** 引入上下文窗口管理，Brainstorm 模式实现 reply-to 链保护算法。Chat 模式先用现有扁平逻辑，如进度紧张可延后 Chat 模式重构。
+
+**文件：**
+- `backend/app/services/context.py` — 新建 ContextWindowManager
+- `backend/app/services/brainstorm.py` — 修改，BrainstormEngine 集成 ContextWindowManager
+
+**实现要点：**
+- Reply-to 链保护算法:
+  1. 取尾部 max_count 条消息
+  2. 对每条尾部消息，沿 parent_message_id 链回溯，标记保护
+  3. 最终保留: 尾部消息 ∪ 被保护祖先消息
+- Chat 模式（暂不重构）：沿用现有扁平 `messages[-N:]` 截断
+- 集成到 BrainstormEngine: 每轮开始时调用 `protect_reply_chains(messages, max_tokens)` 裁剪上下文
+
+**验证：**
+- [ ] 讨论 100 条消息，窗口设为 20 条 → 尾部 20 条存在
+- [ ] 尾部某条回复的消息链上祖先（超过窗口的消息）被保留 → 上下文完整
+- [ ] 孤立消息（无引用链）超过窗口的被丢弃
+
+### Task 7.2: Agent Tool-call 循环
+
+**状态：** ⬜
+
+**描述：** Agent system prompt 注入可用 Tools 列表。Agent 在发言中可调用读 Tools。实现 tool_call → 执行 → 结果注入 → 继续生成的循环。每个 Agent 每轮最多 3 次 tool-call（防无限循环）。
+
+**文件：**
+- `backend/app/services/brainstorm.py` — 修改 TwoRoundVoting.generate_speeches()
+
+**实现要点：**
+- System prompt 末尾追加 Tool 列表（JSON 格式，含名称、参数、描述）
+- Prompt 指令："你可以使用以下工具读取项目文件。工具调用格式: [TOOL_CALL: tool_name, {"arg": "value"}]"
+- Round 2 发言循环：
+  1. LLM 流式生成
+  2. 检测到 `[TOOL_CALL: ...]` → 暂停生成 → 解析 → ToolPermissionGate 验证 → 执行
+  3. Tool 结果注入上下文 → 继续生成
+  4. 最多 3 个 tool-call，超过强制结束
+- Tool-call 和结果不存储为独立 Message，而是附加在 Agent 消息的 content 中
+
+**验证：**
+- [ ] Agent 在讨论中说"让我看看现有代码" → `[TOOL_CALL: read_file, ...]` → 读取成功
+- [ ] Tool 结果注入上下文 → Agent 基于文件内容继续发言
+- [ ] Agent 尝试第 4 次 tool-call → 引擎阻止，强制结束本轮发言
+
+### Task 7.3: 前端 — ToolCallBlock 组件
+
+**状态：** ⬜
+
+**描述：** 消息气泡内展示 Agent 的 tool-call 记录。折叠显示，点击展开查看详情。
+
+**文件：**
+- `frontend/src/components/ToolCallBlock.tsx` — 新建
+- `frontend/src/components/BrainstormMessage.tsx` — 修改，集成 ToolCallBlock
+
+**实现要点：**
+- 解析消息 content 中的 `[TOOL_CALL: ...]` 和结果标记
+- 折叠状态：显示 "📄 读取了 `frontend/src/components/App.tsx`" 或 "🔍 搜索了 `useState` in `frontend/src/`"
+- 展开状态：显示文件内容摘要（前 20 行或匹配行）
+- 样式：bg #f8f9fa, border-left 3px solid #6366f1, border-radius 4px, padding 8px 12px, 12px 字号
+
+**验证：**
+- [ ] Agent 消息含 tool-call → 气泡内显示折叠块
+- [ ] 点击展开 → 显示读取内容摘要
+- [ ] 多个 tool-call → 每个独立展示
+
+---
+
+## Iter-8: 写 Tools + 受限执行器（3 天）
+
+> Agent 的讨论结论落地为沙箱中的代码文件、文档、测试用例。用户审查后手动应用到项目。
+
+### Task 8.0: 写 Tools 注册 + tool-whitelist.yaml
+
+**状态：** ⬜
+
+**描述：** 注册写 Tools 和受限执行 Tools。ToolPermissionGate 完善写路径路由。命令白名单由配置文件定义。
+
+**文件：**
+- `backend/app/services/tools.py` — 扩展，注册写/执行 Tools
+- `tool-whitelist.yaml` — 新建（项目根目录）
+- `backend/app/llm/tool_whitelist.py` — 新建白名单加载器
+
+**写 Tools 注册：**
+- `write_file(path: str, content: str)` → 写入沙箱目录，ToolPermissionGate 强制路径映射到 `brainstorm-sessions/{session_id}/`
+- ToolPermissionGate 写路径规则：所有写操作的目标路径自动加沙箱前缀
+
+**受限执行 Tools 注册：**
+- `run_tests(test_dir: str = ".")` → 在沙箱目录执行白名单测试命令
+- `run_linter(file_path: str)` → 对沙箱文件执行白名单 linter
+- `run_build()` → 在沙箱目录执行白名单构建命令
+
+**tool-whitelist.yaml 格式：**
+```yaml
+commands:
+  test:
+    - cmd: "npm test"
+      working_dir: "."
+    - cmd: "pytest"
+      working_dir: "."
+    - cmd: "cargo test"
+      working_dir: "."
+    - cmd: "go test ./..."
+      working_dir: "."
+  lint:
+    - cmd: "npx eslint {file}"
+      working_dir: "."
+    - cmd: "ruff check {file}"
+      working_dir: "."
+  build:
+    - cmd: "npm run build"
+      working_dir: "."
+    - cmd: "cargo build"
+      working_dir: "."
+```
+
+**实现要点：**
+- 白名单加载器解析 YAML → 构建命令索引
+- 执行前验证：命令必须在白名单中，参数替换 `{file}` 占位符，working_dir 加上沙箱前缀
+- 不使用 `subprocess.run(shell=True)`，使用 `subprocess.run([cmd, ...args], cwd=sandbox_dir)`
+- 执行超时：test 60s, lint 30s, build 120s
+- 执行结果（stdout + stderr + exit_code）返回给 Agent 和前端
+
+**验证：**
+- [ ] `write_file("auth/jwt-middleware.ts", content)` → 文件出现在 `brainstorm-sessions/{id}/auth/jwt-middleware.ts`
+- [ ] `run_tests()` → 在沙箱目录执行 `npm test`
+- [ ] 尝试执行白名单外命令 → ToolPermissionGate 拦截，返回错误信息
+- [ ] 命令超时 → 进程被 kill，返回超时错误
+
+### Task 8.1: apply API + discussion_end 扩展
+
+**状态：** ⬜
+
+**描述：** 沙箱文件应用到项目的 API。discussion_end SSE payload 新增 sandbox_files 字段。
+
+**文件：**
+- `backend/app/routers/brainstorm.py` — 新增 apply-file / apply-all 端点
+- `backend/app/services/sandbox.py` — 扩展，新增 apply_file / apply_all 方法
+- `backend/app/services/brainstorm.py` — 修改 discussion_end payload
+
+**API 规格：**
+1. `POST /api/brainstorm-sessions/{session_id}/apply-file`
+   - Body: `{ "file_path": "auth/jwt-middleware.ts" }`
+   - 流程: 验证沙箱文件存在 → 复制到项目目录对应路径 → BrainstormFile 标记 applied → 返回结果
+2. `POST /api/brainstorm-sessions/{session_id}/apply-all`
+   - 流程: 遍历所有沙箱文件 → 逐文件复制 → 返回 `{applied: [...], failed: [...], skipped: [...]}`
+3. discussion_end payload 扩展: `{summary, message_count, sandbox_files: ["auth/jwt-middleware.ts", "docs/architecture.md"]}`
+
+**实现要点：**
+- 复制前检查目标路径是否已有文件 → 已有则标记冲突，不覆盖
+- 冲突由用户手动处理
+- applied 状态保存在 BrainstormFile 记录或内存标记中
+
+**验证：**
+- [ ] `apply-file` → 文件从沙箱复制到项目正确路径
+- [ ] 目标路径已有同名文件 → 返回冲突错误，不覆盖
+- [ ] `apply-all` → 所有文件应用，返回统计
+- [ ] `discussion_end` SSE payload 含 sandbox_files 字段
+
+### Task 8.2: SandboxFileViewer 组件
+
+**状态：** ⬜
+
+**描述：** 前端组件显示沙箱文件树和内容预览。支持逐文件审核和应用到项目。
+
+**文件：**
+- `frontend/src/components/SandboxFileViewer.tsx` — 新建
+- `frontend/src/components/BrainstormArea.tsx` — 修改，集成文件查看器
+
+**实现要点：**
+- 左侧文件树：递归展示目录结构，文件类型图标（📁/📄/🧪/⚙）
+- 已应用文件标记为 ✓ applied（绿色）
+- 新文件标记为 "new" badge
+- 右侧内容预览：
+  - 选中文件 → 显示内容（语法高亮，可用简单的 `<pre>` + 关键词着色）
+  - 顶部工具栏：文件名 + [Apply This File] 按钮
+- 底部 [Apply All] 按钮 → 一键应用所有新文件
+- 文件类型图标映射：".ts"/".tsx"/".js"→📄, ".py"→📄, ".md"→📝, ".test.ts"→🧪, ".yaml"/".json"→⚙
+
+**验证：**
+- [ ] 沙箱有文件 → SandboxFileViewer 显示文件树
+- [ ] 点击文件 → 内容预览区显示文件内容
+- [ ] [Apply This File] → 调用 API → 文件标记为 applied
+- [ ] [Apply All] → 调用 API → 所有新文件标记为 applied
+- [ ] 无文件时显示空状态
+
+---
+
+## Iter-9: 异步自主模式（3 天）
+
+> 用户提一个问题后离线，Agent 自主讨论并产出结果。BrainstormEngine 从"SSE 驱动"重构为"生成即写 DB"模式。
+
+### Task 9.0: BrainstormEngine — 生成即写 DB 重构
+
+**状态：** ⬜
+
+**描述：** 将 BrainstormEngine 的核心生成逻辑从"SSE 驱动"解耦。讨论可以在无 SSE 连接时运行，消息直接写入 DB。SSE 端点变为 DB 变更的实时投影。
+
+**文件：**
+- `backend/app/services/brainstorm.py` — 重构 BrainstormEngine
+- `backend/app/routers/brainstorm.py` — SSE 端点改为 DB 订阅模式
+
+**实现要点：**
+- BrainstormEngine.run_discussion(session_id, topic, reply_to_message_id) → 内部循环生成消息 → 每条消息立即写 DB → 写完后通知
+- SSE 端点模式：BrainstormEngine 运行 → 消息写 DB → 通过 asyncio.Queue 推送给可能连接的 SSE consumer
+- 无 SSE consumer 时讨论仍正常运行（Queue 无 reader，消息跳过推送但 DB 写入正常）
+- `started_by` 字段：用户手动触发为 "user"，Iter-9 异步触发为 "auto"
+- 讨论结束后 `notification_sent` 标记
+
+**验证：**
+- [ ] SSE 无连接时发起讨论 → 消息写入 DB → 讨论正常结束
+- [ ] SSE 有连接时 → 消息同步流式推送给前端
+- [ ] 讨论中 SSE 断连 → 讨论继续 → 重连后恢复
+
+### Task 9.1: start-async + status API
+
+**状态：** ⬜
+
+**描述：** 异步讨论的启动和状态查询 API。
+
+**文件：**
+- `backend/app/routers/brainstorm.py` — 新增 start-async / status 端点
+
+**API 规格：**
+1. `POST /api/brainstorm-sessions/{session_id}/start-async`
+   - Body: `{ "topic": "我们应该用 JWT 还是 Session?" }`
+   - 流程: 验证会话存在 → 创建 asyncio.Task 运行 BrainstormEngine → 立即返回 `{started: true, session_id}`
+2. `GET /api/brainstorm-sessions/{session_id}/status`
+   - 返回: `{status, message_count, round, active_agents: [...], started_by, created_at, ended_at}`
+
+**实现要点：**
+- asyncio.Task 引用存储在 app.state 的 dict 中（key=session_id）
+- status API 直接从 DB 查询最新状态（不依赖内存中的 Task）
+- active_agents: 查询该轮有发言记录的 Agent
+
+**验证：**
+- [ ] `start-async` → 返回 202 → 讨论在后台运行
+- [ ] `status` → 返回正确的 message_count, round, active_agents
+- [ ] 讨论未开始时 start-async → 返回 409 Conflict
+
+### Task 9.2: 前端 — 断线恢复 + 浏览器通知
+
+**状态：** ⬜
+
+**描述：** 前端支持离开页面后恢复讨论状态。讨论完成时浏览器通知。
+
+**文件：**
+- `frontend/src/stores/brainstormStore.ts` — 扩展断线恢复 + 轮询逻辑
+- `frontend/src/components/BrainstormArea.tsx` — 集成恢复和通知
+
+**实现要点：**
+- 页面加载时：检查是否有 active 状态的 Brainstorm 会话 → 调用 status API → 恢复消息列表
+- 讨论进行中：每 5s 轮询 status API（只在非 SSE 连接模式时启用）
+- 页面可见性变化（visibilitychange）：页面重新可见时立即检查状态 + 恢复消息
+- 浏览器 Notification API：
+  - 页面加载时请求通知权限
+  - 讨论结束 → `new Notification("Brainstorm 讨论完成", {body: session.title, icon: "/icon.png"})`
+  - 页面标题闪烁：`document.title = "🔔 讨论完成 - Sloth"` → 2s 后恢复
+- 页面内通知：讨论结束时 TopBar 或消息列表顶部显示 "讨论已完成，查看结果" banner
+
+**验证：**
+- [ ] 异步讨论进行中 → 关闭页面 → 5 分钟后打开 → 讨论状态恢复
+- [ ] 讨论结束 → 浏览器通知弹出（如已授权）
+- [ ] 讨论结束 → 页面标题闪烁
+- [ ] 多个异步讨论同时进行 → 各自状态独立
 
 ---
 
@@ -1064,9 +1708,17 @@ interface AgentStore {
 
 ### 提交策略
 - 每个 Task 完成即提交（atomic commits）
-- 迭代结束时打 tag（`v0.5.0-iter1`, `v0.5.0-iter2`, `v0.5.0-iter3`）
+- 迭代结束时打 tag（`v0.5.0-iter4`, `v0.5.0-iter5`, ...）
+
+### Brainstorm 模式关键设计决策
+- **沙箱隔离是硬约束**：所有 Agent 写操作路由到 `brainstorm-sessions/{session_id}/`，项目文件只读
+- **单一 SSE 连接复用**：所有 Agent 事件通过一个 SSE 连接推送，不创建 N 个并发流
+- **冷却计时器自然结束**：不依赖硬编码轮数限制，Agent 沉默触发冷却 → 确认 → 结束
+- **命令白名单，非任意 shell**：受限执行器只执行 `tool-whitelist.yaml` 中定义的命令
+- **架构可扩展**：DecisionStrategy ABC 支持未来替换投票策略；ToolRegistry 支持增量注册
+- **ContextWindowManager 延至 Iter-7**：从原计划 Iter-5 后移，与读 Tools 一起交付，避免 Iter-5 过载
 
 ---
 
-*Plan 版本: 3.1 — 2026-04-30*
-*变更: Iter-3 全部完成 — Task 3.0 (5 内置 Agent) + Task 3.1 (Team API: agents.py) + Task 3.2 (RightPanel + agentStore + Tauri commands)。Brainstorm 延至 Iter-4。*
+*Plan 版本: 4.0 — 2026-04-30*
+*变更: Brainstorm 模式全面重规划。旧 Iter-4 stub (Tasks 4.0-4.6) 替换为完整 Iter-4 至 Iter-9 任务，对应 Brainstorm Spec `docs/specs/20260430-brainstorm-mode-spec.md`。新增: Iter-4 会话沙箱 (3 tasks), Iter-5 讨论引擎+SSE (3 tasks), Iter-6 彩色线程UI (3 tasks), Iter-7 读Tools+上下文 (3 tasks), Iter-8 写Tools+执行器 (3 tasks), Iter-9 异步自主模式 (3 tasks)。总迭代数从 4 扩展到 9。*
