@@ -6,23 +6,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
-  <title>Introducing Sloth Agent</title>
+  <title>Introducing Sloth Agent — 一站式自主开发 AI Agent</title>
   <meta name="description" content="Sloth Agent 是一个面向中国开发者生态的产品级 AI 开发执行系统，聚焦从 Plan 到开发、审查、部署的可靠闭环。" />
   <style>
     :root {
       --bg: #0B0F19;
       --card: #151B2B;
-      --card-hover: #1a2135;
       --purple: #8B5CF6;
       --purple-soft: rgba(139,92,246,0.12);
       --purple-glow: rgba(139,92,246,0.25);
-      --purple-dim: rgba(139,92,246,0.06);
       --cyan: #06B6D4;
       --cyan-soft: rgba(6,182,212,0.12);
       --green: #22c55e;
       --green-soft: rgba(34,197,94,0.12);
       --amber: #F59E0B;
       --amber-soft: rgba(245,158,11,0.12);
+      --red: #EF4444;
       --text: #F1F5F9;
       --muted: #94A3B8;
       --muted-dim: #64748B;
@@ -36,815 +35,94 @@
       --font-heading: "JetBrains Mono", "Noto Sans SC", sans-serif;
       --font-body: "Inter", "Noto Sans SC", sans-serif;
       --font-sc: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
-      --font-code: "JetBrains Mono", "Noto Sans SC", monospace;
       --max-w: 1200px;
     }
-
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-      background-size: 40px 40px;
-      mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%);
-      z-index: 0;
-    }
-
-    /* ---- progress bar ---- */
-    .progress-bar {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 3px;
-      background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa);
-      transform-origin: left;
-      transform: scaleX(0);
-      z-index: 100;
-    }
-
-    /* ---- top bar ---- */
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 24px;
-      background: rgba(11,15,25,0.85);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      max-width: var(--max-w);
-      margin: 0 auto;
-    }
-
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-family: var(--font-mono);
-      font-weight: 700;
-      font-size: 14px;
-      letter-spacing: 0.14em;
-      color: var(--text);
-    }
-
-    .brand-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--purple);
-      box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15);
-    }
-
-    .topbar-date {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-    }
-
-    /* ---- sections ---- */
-    .section {
-      max-width: var(--max-w);
-      margin: 0 auto;
-      padding: 64px 24px;
-    }
-
-    .section-label {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      color: var(--purple);
-      margin-bottom: 12px;
-    }
-
-    .section-heading {
-      font-family: var(--font-heading);
-      font-size: clamp(1.6rem, 3vw, 2.4rem);
-      font-weight: 700;
-      line-height: 1.25;
-      color: var(--text);
-      margin: 0;
-    }
-
-    .section-desc {
-      color: var(--muted);
-      font-size: 0.95rem;
-      max-width: 72ch;
-      line-height: 1.7;
-    }
-
-    /* ---- heading with dialect subtitle ---- */
-    .heading-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .heading-dialect {
-      font-family: var(--font-sc);
-      font-size: clamp(0.88rem, 1.8vw, 1.05rem);
-      font-weight: 500;
-      color: var(--amber);
-      line-height: 1.5;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .dialect-tag {
-      flex-shrink: 0;
-      padding: 1px 8px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--amber);
-      background: rgba(245,158,11,0.1);
-      border: 1px solid rgba(245,158,11,0.2);
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
-
-    .section-heading + .section-desc,
-    .heading-group + .section-desc {
-      margin-top: 16px;
-    }
-
-    /* ---- hero ---- */
-    .hero {
-      text-align: center;
-      padding-top: 48px;
-    }
-
-    .hero-logo {
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      margin: 0 auto 24px;
-      display: block;
-      border: 2px solid var(--border-accent);
-      box-shadow: 0 0 40px var(--purple-glow), 0 0 80px rgba(139,92,246,0.08);
-    }
-
-    .hero-title {
-      font-family: var(--font-heading);
-      font-size: clamp(3.2rem, 8vw, 6rem);
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -0.02em;
-      background: linear-gradient(135deg, var(--text) 0%, var(--purple) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 20px;
-    }
-
-    .hero-subtitle {
-      font-family: var(--font-sc);
-      font-size: clamp(1rem, 2vw, 1.25rem);
-      font-weight: 400;
-      color: var(--muted);
-      max-width: 48ch;
-      margin: 0 auto 24px;
-      line-height: 2;
-    }
-
-    .hero-subtitle strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .hero-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      font-weight: 500;
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--muted);
-    }
-
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    body::before { content: ""; position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 40px 40px; mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%); z-index: 0; }
+    .progress-bar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa); transform-origin: left; transform: scaleX(0); z-index: 100; }
+    .topbar { position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(11,15,25,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); max-width: var(--max-w); margin: 0 auto; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.14em; color: var(--text); }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15); }
+    .topbar-date { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
+    .section { max-width: var(--max-w); margin: 0 auto; padding: 64px 24px; }
+    .section-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: var(--purple); margin-bottom: 12px; }
+    .section-heading { font-family: var(--font-heading); font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 700; line-height: 1.25; color: var(--text); margin: 0; }
+    .section-desc { color: var(--muted); font-size: 0.95rem; max-width: 72ch; line-height: 1.7; margin-top: 16px; }
+    .heading-group { display: flex; flex-direction: column; gap: 6px; }
+    .heading-dialect { font-family: var(--font-sc); font-size: clamp(0.88rem, 1.8vw, 1.05rem); font-weight: 500; color: var(--amber); line-height: 1.5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .dialect-tag { flex-shrink: 0; padding: 1px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; color: var(--amber); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); letter-spacing: 0.04em; white-space: nowrap; }
+    .hero { text-align: center; padding-top: 48px; }
+    .hero-icon { width: 96px; height: 96px; margin: 0 auto 24px; display: block; }
+    .hero-title { font-family: var(--font-heading); font-size: clamp(3.2rem, 8vw, 6rem); font-weight: 700; line-height: 1; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--purple) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 20px; }
+    .hero-subtitle { font-family: var(--font-sc); font-size: clamp(1rem, 2vw, 1.25rem); font-weight: 400; color: var(--muted); max-width: 48ch; margin: 0 auto 24px; line-height: 2; }
+    .hero-subtitle strong { color: var(--text); font-weight: 600; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
     .pill.purple { border-color: var(--border-accent); color: var(--purple); }
     .pill.cyan { border-color: rgba(6,182,212,0.25); color: var(--cyan); }
     .pill.amber { border-color: rgba(245,158,11,0.25); color: var(--amber); }
-
-    /* ---- architecture diagram ---- */
-    .arch-section {
-      max-width: var(--max-w);
-      margin: 0 auto;
-      padding: 32px 24px 64px;
-    }
-
-    .arch-svg {
-      width: 100%;
-      height: auto;
-      border-radius: var(--radius-panel);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-base);
-    }
-
-    /* ---- grids ---- */
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-top: 32px;
-    }
-
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-top: 32px;
-    }
-
-    .grid-3x2 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: auto auto;
-      gap: 20px;
-      margin-top: 32px;
-    }
-
-    /* ---- cards ---- */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 24px;
-      min-height: 200px;
-      display: grid;
-      grid-template-columns: 1fr;
-      align-content: start;
-      gap: 14px;
-      box-shadow: var(--shadow-base);
-      transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
-    }
-
-    .card:hover {
-      transform: translateY(-3px);
-      border-color: var(--border-accent);
-      box-shadow: var(--shadow-hover);
-    }
-
-    .card-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--purple-soft);
-      border: 1px solid var(--border-accent);
-    }
-
-    .card-icon svg {
-      width: 20px;
-      height: 20px;
-      stroke: var(--purple);
-      stroke-width: 2;
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .card h3 {
-      font-family: var(--font-heading);
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text);
-      line-height: 1.3;
-    }
-
-    .card p {
-      color: var(--muted);
-      font-size: 0.88rem;
-      line-height: 1.6;
-    }
-
-    /* ---- terminal ---- */
-    .terminal {
-      background: #0a0d14;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      overflow: hidden;
-      margin-top: 32px;
-    }
-
-    .terminal-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
-      background: rgba(255,255,255,0.03);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .terminal-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-    }
-
+    .diagram-svg { width: 100%; height: auto; margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); box-shadow: var(--shadow-base); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 32px; }
+    .grid-3x2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; min-height: 200px; display: grid; grid-template-columns: 1fr; align-content: start; gap: 14px; box-shadow: var(--shadow-base); transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+    .card:hover { transform: translateY(-3px); border-color: var(--border-accent); box-shadow: var(--shadow-hover); }
+    .card-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--purple-soft); border: 1px solid var(--border-accent); }
+    .card-icon svg { width: 20px; height: 20px; stroke: var(--purple); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .card h3 { font-family: var(--font-heading); font-size: 1rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .terminal { background: #0a0d14; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; margin-top: 32px; }
+    .terminal-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
     .terminal-dot.red { background: #ef4444; }
     .terminal-dot.yellow { background: #F59E0B; }
     .terminal-dot.green { background: #22c55e; }
-
-    .terminal-title {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--muted-dim);
-      margin-left: 8px;
-    }
-
-    .terminal-body {
-      padding: 20px;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 1.8;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .terminal-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1px;
-      background: var(--border);
-    }
-
-    .terminal-grid > * {
-      background: #0a0d14;
-    }
-
+    .terminal-title { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); margin-left: 8px; }
+    .terminal-body { padding: 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+    .terminal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+    .terminal-grid > * { background: #0a0d14; }
     .t-purple { color: #a78bfa; }
     .t-cyan { color: var(--cyan); }
     .t-green { color: var(--green); }
     .t-amber { color: var(--amber); }
     .t-muted { color: var(--muted-dim); }
     .t-white { color: var(--text); }
-
-    /* ---- flow steps ---- */
-    .flow-section {
-      margin-top: 40px;
-    }
-
-    .flow-line {
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--purple), transparent);
-      margin: 0 24px 24px;
-    }
-
-    .flow-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-    }
-
-    .flow-node {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 20px;
-      min-height: 160px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 12px;
-    }
-
-    .flow-step-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .flow-dot-ring {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 2px solid var(--purple);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--purple-soft);
-    }
-
-    .flow-dot-ring span {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--purple);
-    }
-
-    .flow-step-name {
-      font-family: var(--font-heading);
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .flow-step-desc {
-      color: var(--muted);
-      font-size: 0.85rem;
-      line-height: 1.6;
-    }
-
-    /* ---- control surface list ---- */
-    .control-list {
-      display: grid;
-      gap: 12px;
-      margin-top: 32px;
-    }
-
-    .control-item {
-      padding: 18px 20px;
-      border-left: 3px solid var(--purple);
-      background: var(--purple-dim);
-      border-radius: 0 var(--radius-card) var(--radius-card) 0;
-      transition: background 200ms ease;
-    }
-
-    .control-item:hover {
-      background: var(--purple-soft);
-    }
-
-    strong {
-      font-family: var(--font-sc);
-    }
-
-    .control-item strong {
-      font-family: var(--font-heading);
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .control-item p {
-      color: var(--muted);
-      font-size: 0.88rem;
-      line-height: 1.6;
-      margin-top: 4px;
-    }
-
-    code {
-      font-family: var(--font-code);
-      font-size: 0.825rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-    }
-
-    /* ---- quote ---- */
-    .quote-panel {
-      background: var(--card);
-      border: 1px solid var(--border-accent);
-      border-radius: var(--radius-panel);
-      padding: 32px;
-      margin-top: 64px;
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 20px;
-      align-items: start;
-    }
-
-    .quote-mark {
-      font-family: var(--font-mono);
-      font-size: 4rem;
-      font-weight: 700;
-      color: var(--purple);
-      line-height: 0.8;
-    }
-
-    .quote-text {
-      font-family: var(--font-sc);
-      font-size: 1.15rem;
-      font-weight: 500;
-      color: var(--text);
-      line-height: 1.7;
-    }
-
-    .quote-text p:last-child {
-      color: var(--muted);
-      font-size: 0.95rem;
-      margin-top: 10px;
-      font-weight: 400;
-    }
-
-    /* ---- roadmap ---- */
-    .roadmap-section {
-      position: relative;
-    }
-
-    .roadmap-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-      margin-top: 32px;
-    }
-
-    .roadmap-step {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 24px;
-      min-height: 200px;
-      display: grid;
-      grid-template-rows: auto auto auto;
-      gap: 12px;
-      position: relative;
-    }
-
-    .roadmap-version {
-      font-family: var(--font-mono);
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--purple);
-    }
-
-    .roadmap-badge {
-      display: inline-block;
-      width: fit-content;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      background: var(--purple-soft);
-      color: var(--purple);
-      border: 1px solid var(--border-accent);
-    }
-
-    .roadmap-badge.long {
-      background: var(--amber-soft);
-      color: var(--amber);
-      border-color: rgba(245,158,11,0.25);
-    }
-
-    .roadmap-step ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .roadmap-step li {
-      color: var(--muted);
-      font-size: 0.85rem;
-      line-height: 1.7;
-      padding-left: 14px;
-      position: relative;
-    }
-
-    .roadmap-step li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 8px;
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--purple);
-    }
-
-    .roadmap-connector {
-      position: absolute;
-      top: 36px;
-      right: -12px;
-      width: 24px;
-      height: 2px;
-      background: linear-gradient(90deg, var(--purple), transparent);
-      z-index: 1;
-    }
-
+    .flow-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 32px; }
+    .flow-node { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; min-height: 160px; display: grid; grid-template-rows: auto 1fr; gap: 12px; }
+    .flow-step-header { display: flex; align-items: center; gap: 10px; }
+    .flow-dot-ring { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--purple); display: flex; align-items: center; justify-content: center; background: var(--purple-soft); }
+    .flow-dot-ring span { font-family: var(--font-mono); font-size: 10px; font-weight: 700; color: var(--purple); }
+    .flow-step-name { font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600; color: var(--text); }
+    .flow-step-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+    .control-list { display: grid; gap: 12px; margin-top: 32px; }
+    .control-item { padding: 18px 20px; border-left: 3px solid var(--purple); background: rgba(139,92,246,0.06); border-radius: 0 var(--radius-card) var(--radius-card) 0; transition: background 200ms ease; }
+    .control-item:hover { background: var(--purple-soft); }
+    .control-item strong { font-family: var(--font-heading); color: var(--text); font-weight: 600; }
+    .control-item p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin-top: 4px; }
+    code { font-family: var(--font-mono); font-size: 0.825rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+    .quote-panel { background: var(--card); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 32px; margin-top: 64px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
+    .quote-mark { font-family: var(--font-mono); font-size: 4rem; font-weight: 700; color: var(--purple); line-height: 0.8; }
+    .quote-text { font-family: var(--font-sc); font-size: 1.15rem; font-weight: 500; color: var(--text); line-height: 1.7; }
+    .roadmap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 32px; }
+    .roadmap-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; min-height: 200px; display: grid; grid-template-rows: auto auto auto; gap: 12px; position: relative; }
+    .roadmap-version { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 700; color: var(--purple); }
+    .roadmap-badge { display: inline-block; width: fit-content; padding: 4px 10px; border-radius: 999px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; background: var(--purple-soft); color: var(--purple); border: 1px solid var(--border-accent); }
+    .roadmap-badge.long { background: var(--amber-soft); color: var(--amber); border-color: rgba(245,158,11,0.25); }
+    .roadmap-step ul { list-style: none; padding: 0; margin: 0; }
+    .roadmap-step li { color: var(--muted); font-size: 0.85rem; line-height: 1.7; padding-left: 14px; position: relative; }
+    .roadmap-step li::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--purple); }
+    .roadmap-connector { position: absolute; top: 36px; right: -12px; width: 24px; height: 2px; background: linear-gradient(90deg, var(--purple), transparent); z-index: 1; }
     .roadmap-step:last-child .roadmap-connector { display: none; }
-
-    /* ---- footer ---- */
-    .footer {
-      max-width: var(--max-w);
-      margin: 0 auto;
-      padding: 0 24px 64px;
-    }
-
-    .footer-panel {
-      background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-panel);
-      padding: 40px;
-      display: grid;
-      gap: 24px;
-      box-shadow: var(--shadow-base);
-    }
-
-    .footer-heading {
-      font-family: var(--font-heading);
-      font-size: clamp(1.5rem, 3vw, 2.2rem);
-      font-weight: 700;
-      line-height: 1.25;
-      color: var(--text);
-    }
-
-    .footer-body {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 32px;
-      align-items: stretch;
-    }
-
-    .footer-text {
-      color: var(--muted);
-      font-size: 0.95rem;
-      line-height: 1.7;
-    }
-
-    .footer-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 20px;
-    }
-
-    .footer-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 20px;
-      height: 44px;
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: transform 200ms ease, box-shadow 200ms ease;
-    }
-
-    .footer-btn:hover {
-      transform: translateY(-2px);
-    }
-
-    .footer-btn.primary {
-      background: linear-gradient(135deg, #7c3aed, var(--purple));
-      color: #fff;
-      border: none;
-      box-shadow: 0 4px 20px rgba(139,92,246,0.3);
-    }
-
-    .footer-btn.primary:hover {
-      box-shadow: 0 6px 30px rgba(139,92,246,0.45);
-    }
-
-    .footer-btn.secondary {
-      background: rgba(255,255,255,0.04);
-      color: var(--muted);
-      border: 1px solid var(--border);
-    }
-
-    .footer-badge {
-      background: var(--purple-dim);
-      border: 1px solid var(--border-accent);
-      border-radius: var(--radius-card);
-      padding: 24px;
-      display: grid;
-      gap: 10px;
-      align-content: start;
-    }
-
-    .footer-badge-label {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: var(--purple);
-    }
-
-    .footer-badge-title {
-      font-family: var(--font-mono);
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .footer-badge-copy {
-      color: var(--muted);
-      font-size: 0.88rem;
-      line-height: 1.6;
-    }
-
-    .footer-note {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--muted-dim);
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-    }
-
-    /* ---- scroll animation ---- */
-    .fade-in {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-
-    .fade-in.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    /* ---- responsive ---- */
-    @media (max-width: 980px) {
-      .grid-3, .grid-3x2 {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .grid-4, .roadmap-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .flow-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .terminal-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .footer-body {
-        grid-template-columns: 1fr;
-      }
-
-      .roadmap-connector { display: none; }
-    }
-
-    @media (max-width: 720px) {
-      .section {
-        padding: 48px 16px;
-      }
-
-      .grid-3, .grid-4, .grid-3x2, .roadmap-grid, .flow-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hero-title {
-        font-size: clamp(2.4rem, 12vw, 4rem);
-      }
-
-      .topbar {
-        flex-direction: column;
-        gap: 8px;
-        align-items: flex-start;
-      }
-
-      .footer-panel {
-        padding: 24px;
-      }
-
-      .quote-panel {
-        padding: 24px;
-      }
-
-      .card {
-        min-height: auto;
-      }
-    }
+    .footer { max-width: var(--max-w); margin: 0 auto; padding: 0 24px 64px; }
+    .footer-panel { background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%); border: 1px solid var(--border); border-radius: var(--radius-panel); padding: 40px; display: grid; gap: 24px; box-shadow: var(--shadow-base); }
+    .footer-heading { font-family: var(--font-heading); font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 700; line-height: 1.25; color: var(--text); }
+    .footer-note { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); padding-top: 16px; border-top: 1px solid var(--border); }
+    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+    @media (max-width: 980px) { .grid-3, .grid-3x2 { grid-template-columns: repeat(2, 1fr); } .grid-4, .roadmap-grid { grid-template-columns: repeat(2, 1fr); } .flow-grid { grid-template-columns: repeat(2, 1fr); } .terminal-grid { grid-template-columns: 1fr; } .roadmap-connector { display: none; } }
+    @media (max-width: 720px) { .section { padding: 48px 16px; } .grid-3, .grid-4, .grid-3x2, .roadmap-grid, .flow-grid { grid-template-columns: 1fr; } .hero-title { font-size: clamp(2.4rem, 12vw, 4rem); } .topbar { flex-direction: column; gap: 8px; align-items: flex-start; } .footer-panel { padding: 24px; } .quote-panel { padding: 24px; } .card { min-height: auto; } }
   </style>
 </head>
 <body>
@@ -852,16 +130,35 @@
 
   <!-- Top Bar -->
   <header class="topbar">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      SLOTH AGENT
-    </div>
+    <div class="brand"><span class="brand-dot"></span>SLOTH AGENT &middot; INTRODUCTION</div>
     <div class="topbar-date">2026-04-16 &middot; Product Architecture</div>
   </header>
 
   <!-- Hero -->
   <section class="section hero">
-    <img class="hero-logo" src="../assets/sloth-agent-logo.png" alt="Sloth Agent Logo" />
+    <svg class="hero-icon" viewBox="100 80 880 840" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(512,512) scale(1.48,1.48) translate(-722,-657)">
+        <path fill="rgba(255,255,255,0.15)" d="M 444.18 743.32 C 444.98 741.15 445.15 738.02 445.64 735.91 Q 448.89 721.82 452.21 710.96 Q 458.39 690.73 469.00 671.08 Q 492.00 628.52 528.54 599.12 Q 564.42 570.26 609.43 563.66 Q 630.12 560.63 648.20 562.88 Q 694.15 568.62 723.38 604.28 A 0.82 0.81 44.6 0 0 724.64 604.28 C 746.18 577.51 777.86 562.85 812.02 562.05 C 856.69 561.00 897.63 578.20 930.22 608.29 C 969.28 644.37 996.00 692.99 1003.54 745.65 A 0.27 0.27 0.0 0 0 1004.07 745.64 Q 1006.92 720.60 1005.80 694.04 Q 1003.28 634.07 976.03 580.12 C 945.88 520.41 894.58 471.75 833.15 446.69 Q 781.67 425.69 725.74 425.56 C 657.69 425.40 592.40 447.82 541.19 491.93 C 474.03 549.78 437.12 633.62 442.22 722.73 Q 442.84 733.47 443.79 743.27 A 0.20 0.20 0.0 0 0 444.18 743.32 Z"/>
+        <path fill="rgba(255,255,255,0.15)" d="M 500.89 887.90 C 487.77 871.62 475.80 854.28 467.29 835.55 Q 455.36 809.29 462.20 781.17 C 469.81 749.88 490.99 721.17 516.96 702.85 Q 547.88 681.02 587.36 678.98 C 604.31 678.10 623.40 681.44 635.47 692.71 Q 650.56 706.81 649.43 728.25 Q 648.27 750.74 629.28 764.70 C 618.71 772.48 608.13 774.76 594.98 778.40 Q 554.85 789.52 529.46 819.99 C 513.29 839.39 503.59 862.56 501.50 887.71 A 0.34 0.34 0.0 0 1 500.89 887.90 Z"/>
+        <path fill="rgba(255,255,255,0.15)" d="M 946.99 888.06 A 0.34 0.34 0.0 0 1 946.38 887.87 C 944.30 862.70 934.60 839.51 918.43 820.09 Q 893.03 789.58 852.87 778.44 C 839.72 774.79 829.13 772.50 818.55 764.71 Q 799.56 750.74 798.40 728.23 Q 797.28 706.77 812.39 692.67 C 824.47 681.39 843.58 678.06 860.54 678.95 Q 900.05 681.00 930.99 702.86 C 956.97 721.21 978.15 749.95 985.76 781.27 Q 992.59 809.41 980.64 835.69 C 972.12 854.43 960.13 871.78 946.99 888.06 Z"/>
+        <path fill="#192d4c" d="M 444.18 743.32 A 0.20 0.20 0.0 0 1 443.79 743.27 Q 442.84 733.47 442.22 722.73 C 437.12 633.62 474.03 549.78 541.19 491.93 C 592.40 447.82 657.69 425.40 725.74 425.56 Q 781.67 425.69 833.15 446.69 C 894.58 471.75 945.88 520.41 976.03 580.12 Q 1003.28 634.07 1005.80 694.04 Q 1006.92 720.60 1004.07 745.64 A 0.27 0.27 0.0 0 1 1003.54 745.65 C 996.00 692.99 969.28 644.37 930.22 608.29 C 897.63 578.20 856.69 561.00 812.02 562.05 C 777.86 562.85 746.18 577.51 724.64 604.28 A 0.82 0.81 44.6 0 1 723.38 604.28 Q 694.15 568.62 648.20 562.88 Q 630.12 560.63 609.43 563.66 Q 564.42 570.26 528.54 599.12 Q 492.00 628.52 469.00 671.08 Q 458.39 690.73 452.21 710.96 Q 448.89 721.82 445.64 735.91 C 445.15 738.02 444.98 741.15 444.18 743.32 Z"/>
+        <path fill="#192d4c" d="M 500.89 887.90 C 487.77 871.62 475.80 854.28 467.29 835.55 Q 455.36 809.29 462.20 781.17 C 469.81 749.88 490.99 721.17 516.96 702.85 Q 547.88 681.02 587.36 678.98 C 604.31 678.10 623.40 681.44 635.47 692.71 Q 650.56 706.81 649.43 728.25 Q 648.27 750.74 629.28 764.70 C 618.71 772.48 608.13 774.76 594.98 778.40 Q 554.85 789.52 529.46 819.99 C 513.29 839.39 503.59 862.56 501.50 887.71 A 0.34 0.34 0.0 0 1 500.89 887.90 Z"/>
+        <path fill="#192d4c" d="M 946.99 888.06 A 0.34 0.34 0.0 0 1 946.38 887.87 C 944.30 862.70 934.60 839.51 918.43 820.09 Q 893.03 789.58 852.87 778.44 C 839.72 774.79 829.13 772.50 818.55 764.71 Q 799.56 750.74 798.40 728.23 Q 797.28 706.77 812.39 692.67 C 824.47 681.39 843.58 678.06 860.54 678.95 Q 900.05 681.00 930.99 702.86 C 956.97 721.21 978.15 749.95 985.76 781.27 Q 992.59 809.41 980.64 835.69 C 972.12 854.43 960.13 871.78 946.99 888.06 Z"/>
+        <path fill="#192d4c" d="M 722.94 754.71 C 739.39 754.72 771.24 759.82 771.23 782.51 C 771.22 805.21 739.37 810.28 722.92 810.27 C 706.46 810.27 674.61 805.17 674.62 782.47 C 674.63 759.78 706.48 754.70 722.94 754.71 Z"/>
+        <path fill="#192d4c" d="M 723.63 852.78 C 750.59 852.79 776.27 845.33 798.95 830.90 Q 801.61 829.20 805.74 830.72 Q 810.29 832.39 810.76 837.57 C 811.11 841.39 808.98 843.60 805.57 845.61 Q 765.98 868.96 723.63 868.95 Q 681.28 868.94 641.70 845.57 C 638.29 843.56 636.16 841.35 636.51 837.53 Q 636.99 832.35 641.54 830.68 Q 645.67 829.16 648.33 830.86 C 671.00 845.30 696.68 852.77 723.63 852.78 Z"/>
+        <path fill="#ffffff" d="M 546.14 740.68 C 541.08 737.72 542.30 732.81 546.75 729.98 Q 551.96 726.66 559.88 723.94 C 571.19 720.05 583.21 717.90 595.18 718.88 C 601.17 719.37 609.98 722.89 608.75 730.73 C 607.05 741.56 587.92 745.16 579.18 745.69 C 569.01 746.30 554.89 745.80 546.14 740.68 Z"/>
+        <path fill="#ffffff" d="M 901.11 729.93 C 905.56 732.75 906.79 737.66 901.73 740.63 C 892.99 745.76 878.88 746.27 868.72 745.68 C 859.98 745.16 840.85 741.59 839.14 730.77 C 837.90 722.93 846.70 719.40 852.69 718.90 C 864.65 717.91 876.67 720.04 887.98 723.91 Q 895.90 726.62 901.11 729.93 Z"/>
+        <g stroke="#8c96a6" stroke-width="2.80" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M 444.18 743.32 C 444.98 741.15 445.15 738.02 445.64 735.91 Q 448.89 721.82 452.21 710.96 Q 458.39 690.73 469.00 671.08 Q 492.00 628.52 528.54 599.12 Q 564.42 570.26 609.43 563.66 Q 630.12 560.63 648.20 562.88 Q 694.15 568.62 723.38 604.28 A 0.82 0.81 44.6 0 0 724.64 604.28 C 746.18 577.51 777.86 562.85 812.02 562.05 C 856.69 561.00 897.63 578.20 930.22 608.29 C 969.28 644.37 996.00 692.99 1003.54 745.65 A 0.27 0.27 0.0 0 0 1004.07 745.64 Q 1006.92 720.60 1005.80 694.04 Q 1003.28 634.07 976.03 580.12 C 945.88 520.41 894.58 471.75 833.15 446.69 Q 781.67 425.69 725.74 425.56 C 657.69 425.40 592.40 447.82 541.19 491.93 C 474.03 549.78 437.12 633.62 442.22 722.73 Q 442.84 733.47 443.79 743.27 A 0.20 0.20 0.0 0 0 444.18 743.32"/>
+          <path d="M 500.89 887.90 A 0.34 0.34 0.0 0 0 501.50 887.71 C 503.59 862.56 513.29 839.39 529.46 819.99 Q 554.85 789.52 594.98 778.40 C 608.13 774.76 618.71 772.48 629.28 764.70 Q 648.27 750.74 649.43 728.25 Q 650.56 706.81 635.47 692.71 C 623.40 681.44 604.31 678.10 587.36 678.98 Q 547.88 681.02 516.96 702.85 C 490.99 721.17 469.81 749.88 462.20 781.17 Q 455.36 809.29 467.29 835.55 C 475.80 854.28 487.77 871.62 500.89 887.90"/>
+          <path d="M 946.99 888.06 C 960.13 871.78 972.12 854.43 980.64 835.69 Q 992.59 809.41 985.76 781.27 C 978.15 749.95 956.97 721.21 930.99 702.86 Q 900.05 681.00 860.54 678.95 C 843.58 678.06 824.47 681.39 812.39 692.67 Q 797.28 706.77 798.40 728.23 Q 799.56 750.74 818.55 764.71 C 829.13 772.50 839.72 774.79 852.87 778.44 Q 893.03 789.58 918.43 820.09 C 934.60 839.51 944.30 862.70 946.38 887.87 A 0.34 0.34 0.0 0 0 946.99 888.06"/>
+          <path d="M 674.62 782.47 C 674.61 805.17 706.46 810.27 722.92 810.27 C 739.37 810.28 771.22 805.21 771.23 782.51 C 771.24 759.82 739.39 754.72 722.94 754.71 C 706.48 754.70 674.63 759.78 674.62 782.47"/>
+          <path d="M 723.63 868.95 Q 765.98 868.96 805.57 845.61 C 808.98 843.60 811.11 841.39 810.76 837.57 Q 810.29 832.39 805.74 830.72 Q 801.61 829.20 798.95 830.90 C 776.27 845.33 750.59 852.79 723.63 852.78 C 696.68 852.77 671.00 845.30 648.33 830.86 Q 645.67 829.16 641.54 830.68 Q 636.99 832.35 636.51 837.53 C 636.16 841.35 638.29 843.56 641.70 845.57 Q 681.28 868.94 723.63 868.95"/>
+          <path d="M 546.75 729.98 C 542.30 732.81 541.08 737.72 546.14 740.68 C 554.89 745.80 569.01 746.30 579.18 745.69 C 587.92 745.16 607.05 741.56 608.75 730.73 C 609.98 722.89 601.17 719.37 595.18 718.88 C 583.21 717.90 571.19 720.05 559.88 723.94 Q 551.96 726.66 546.75 729.98"/>
+          <path d="M 901.11 729.93 Q 895.90 726.62 887.98 723.91 C 876.67 720.04 864.65 717.91 852.69 718.90 C 846.70 719.40 837.90 722.93 839.14 730.77 C 840.85 741.59 859.98 745.16 868.72 745.68 C 878.88 746.27 892.99 745.76 901.73 740.63 C 906.79 737.66 905.56 732.75 901.11 729.93"/>
+        </g>
+      </g>
+    </svg>
     <h1 class="hero-title">Sloth Agent</h1>
     <p class="hero-subtitle">
       <strong>专替牛马扛累活</strong><br>
@@ -879,142 +176,79 @@
   </section>
 
   <!-- Architecture Diagram -->
-  <div class="arch-section">
-    <svg class="arch-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sloth Agent System Architecture">
+  <section class="section fade-in">
+    <div class="section-label">Architecture</div>
+    <div class="heading-group">
+      <h2 class="section-heading">系统架构全景</h2>
+      <p class="heading-dialect"><span class="dialect-tag">全貌</span>一条流水线、一个内核、三层基础设施</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sloth Agent System Architecture">
       <defs>
-        <!-- Grid pattern -->
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
-        </pattern>
-
-        <!-- Glow filters -->
-        <filter id="glow-purple" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <filter id="glow-amber" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="5" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-
-        <!-- Arrow markers -->
-        <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/>
-        </marker>
-        <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/>
-        </marker>
-        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
-        </marker>
-        <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#F59E0B"/>
-        </marker>
-
-        <!-- Gradients -->
-        <linearGradient id="pipe-line" x1="0" x2="1">
-          <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.5"/>
-          <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.5"/>
-        </linearGradient>
-        <linearGradient id="runner-glow" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.15"/>
-          <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
-        </linearGradient>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern>
+        <filter id="glow-purple"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-cyan"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-green"><feGaussianBlur stdDeviation="6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-amber"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/></marker>
+        <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/></marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
+        <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#F59E0B"/></marker>
+        <linearGradient id="pipe-line" x1="0" x2="1"><stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.5"/><stop offset="100%" stop-color="#8B5CF6" stop-opacity="0.5"/></linearGradient>
+        <linearGradient id="runner-glow" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.15"/><stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/></linearGradient>
       </defs>
+      <rect width="1000" height="420" fill="#0B0F19"/><rect width="1000" height="420" fill="url(#grid)"/>
 
-      <!-- Background -->
-      <rect width="1000" height="420" fill="#0B0F19"/>
-      <rect width="1000" height="420" fill="url(#grid)"/>
-
-      <!-- ====== PIPELINE ROW (y center = 140, node r = 50, gate w = 46) ====== -->
-
-      <!-- Builder (cyan circle, cx=150, r=50 → edges: L=100, R=200) -->
+      <!-- Pipeline Row -->
       <circle cx="150" cy="140" r="50" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="2.5" filter="url(#glow-cyan)"/>
       <text x="150" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#06B6D4">Builder</text>
-      <text x="150" y="155" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">编码 · 调试 · 测试</text>
-
-      <!-- Arrow Builder → Gate 1: from x=200 to x=235 -->
+      <text x="150" y="155" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">编码 · 调试 · 测试</text>
       <line x1="200" y1="140" x2="233" y2="140" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)"/>
-
-      <!-- Gate 1 (amber rect, x=235, w=46, h=40, rx=8 → edges: L=235, R=281) -->
       <rect x="235" y="120" width="46" height="40" rx="8" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2" filter="url(#glow-amber)"/>
       <text x="258" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#F59E0B">G1</text>
-
-      <!-- Arrow Gate 1 → Reviewer: from x=281 to x=380 -->
       <line x1="281" y1="140" x2="378" y2="140" stroke="#8B5CF6" stroke-width="2" marker-end="url(#arrow-purple)"/>
-
-      <!-- Reviewer (purple circle, cx=430, r=50 → edges: L=380, R=480) -->
       <circle cx="430" cy="140" r="50" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="2.5" filter="url(#glow-purple)"/>
       <text x="430" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#8B5CF6">Reviewer</text>
-      <text x="430" y="155" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">独立审查</text>
-
-      <!-- Arrow Reviewer → Gate 2: from x=480 to x=510 -->
+      <text x="430" y="155" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">独立审查</text>
       <line x1="480" y1="140" x2="508" y2="140" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)"/>
-
-      <!-- Gate 2 (amber rect, x=510, w=46, h=40, rx=8 → edges: L=510, R=556) -->
       <rect x="510" y="120" width="46" height="40" rx="8" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2" filter="url(#glow-amber)"/>
       <text x="533" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#F59E0B">G2</text>
-
-      <!-- Arrow Gate 2 → Deployer: from x=556 to x=660 -->
       <line x1="556" y1="140" x2="658" y2="140" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow-green)"/>
-
-      <!-- Deployer (green circle, cx=710, r=50 → edges: L=660, R=760) -->
       <circle cx="710" cy="140" r="50" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="2.5" filter="url(#glow-green)"/>
       <text x="710" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#22c55e">Deployer</text>
-      <text x="710" y="155" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">部署 · 验证</text>
-
-      <!-- Arrow Deployer → Gate 3: from x=760 to x=795 -->
+      <text x="710" y="155" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">部署 · 验证</text>
       <line x1="760" y1="140" x2="793" y2="140" stroke="#F59E0B" stroke-width="2" marker-end="url(#arrow-amber)"/>
-
-      <!-- Gate 3 (amber rect, x=795, w=46, h=40, rx=8 → edges: L=795, R=841) -->
       <rect x="795" y="120" width="46" height="40" rx="8" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2" filter="url(#glow-amber)"/>
       <text x="818" y="145" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#F59E0B">G3</text>
 
-      <!-- ====== RUNNER ROW (y=270, h=60, x=350, w=300, rx=16) ====== -->
-
-      <!-- Runner orchestrator -->
+      <!-- Runner Row -->
       <rect x="350" y="270" width="300" height="60" rx="16" fill="rgba(139,92,246,0.08)" stroke="#8B5CF6" stroke-width="2" filter="url(#glow-purple)"/>
       <rect x="350" y="270" width="300" height="60" rx="16" fill="url(#runner-glow)"/>
       <text x="500" y="296" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#A78BFA">Runner</text>
-      <text x="500" y="316" text-anchor="middle" font-family="Noto Sans SC, PingFang SC, Microsoft YaHei, sans-serif" font-size="11" fill="#94A3B8">prepare() · think() · resolve() · persist()</text>
-
-      <!-- Runner → Pipeline connections (dashed, up to y=190 which is pipeline bottom edge) -->
+      <text x="500" y="316" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">prepare() · think() · resolve() · persist()</text>
       <line x1="500" y1="270" x2="500" y2="190" stroke="url(#pipe-line)" stroke-width="1.5" stroke-dasharray="4,4"/>
       <line x1="420" y1="270" x2="430" y2="190" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="4,4"/>
       <line x1="580" y1="270" x2="570" y2="190" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="4,4"/>
       <line x1="360" y1="280" x2="300" y2="190" stroke="rgba(139,92,246,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
       <line x1="640" y1="280" x2="710" y2="190" stroke="rgba(139,92,246,0.15)" stroke-width="1" stroke-dasharray="4,4"/>
 
-      <!-- ====== INFRASTRUCTURE ROW (cy=390, r=22) ====== -->
-
+      <!-- Infrastructure Row -->
       <circle cx="400" cy="390" r="22" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="1.5"/>
       <text x="400" y="394" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#8B5CF6">Tools</text>
-
       <circle cx="500" cy="390" r="22" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="1.5"/>
       <text x="500" y="394" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#06B6D4">Memory</text>
-
       <circle cx="600" cy="390" r="22" fill="rgba(167,139,250,0.06)" stroke="#A78BFA" stroke-width="1.5"/>
       <text x="600" y="394" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="#A78BFA">Skills</text>
-
-      <!-- Infrastructure → Runner connections (from top of circles y=368 to bottom of runner y=330) -->
       <line x1="400" y1="368" x2="430" y2="330" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="3,3"/>
       <line x1="500" y1="368" x2="500" y2="330" stroke="rgba(139,92,246,0.25)" stroke-width="1.5" stroke-dasharray="3,3"/>
       <line x1="600" y1="368" x2="570" y2="330" stroke="rgba(139,92,246,0.2)" stroke-width="1.5" stroke-dasharray="3,3"/>
 
-      <!-- ====== SECTION LABELS ====== -->
-      <text x="30" y="30" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em" text-transform="uppercase">PIPELINE</text>
-      <text x="30" y="255" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em" text-transform="uppercase">ORCHESTRATOR</text>
-      <text x="30" y="355" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em" text-transform="uppercase">INFRASTRUCTURE</text>
+      <!-- Labels -->
+      <text x="30" y="30" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em">PIPELINE</text>
+      <text x="30" y="255" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em">ORCHESTRATOR</text>
+      <text x="30" y="355" font-family="JetBrains Mono, monospace" font-size="10" fill="rgba(139,92,246,0.5)" letter-spacing="0.2em">INFRASTRUCTURE</text>
     </svg>
-  </div>
+  </section>
 
   <!-- Problem Section -->
   <section class="section fade-in">
@@ -1023,45 +257,20 @@
       <h2 class="section-heading">不是模型不够强，是执行系统不够完整</h2>
       <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>孩子学习不好，那是孩子的问题吗？那是老师的问题！</p>
     </div>
-    <p class="section-desc">
-      许多 AI coding workflows 已经能写出看起来不错的代码，但它们在长链路任务上仍然容易碎裂：上下文膨胀、工具结果不可追踪、
-      审查和部署沦为手工补丁、错误恢复依赖"再试一次"。对真正的开发流程来说，这些都不是边角问题，而是系统边界本身。
-    </p>
-
+    <p class="section-desc">许多 AI coding workflows 已经能写出看起来不错的代码，但它们在长链路任务上仍然容易碎裂：上下文膨胀、工具结果不可追踪、审查和部署沦为手工补丁、错误恢复依赖"再试一次"。对真正的开发流程来说，这些都不是边角问题，而是系统边界本身。</p>
     <div class="grid-3">
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M21 12a9 9 0 1 1-6.2-8.6"/>
-            <path d="M21 3v5h-5"/>
-            <line x1="4" y1="4" x2="20" y2="20"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/><path d="M21 3v5h-5"/><line x1="4" y1="4" x2="20" y2="20"/></svg></div>
         <h3>能生成，不能稳定推进</h3>
         <p>模型可以提出方案，却缺少一个可靠的执行内核来推进任务状态、处理中断、串联工具调用和质量门控。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <circle cx="7" cy="7" r="2.5"/>
-            <circle cx="17" cy="5" r="2.5"/>
-            <circle cx="12" cy="18" r="2.5"/>
-            <line x1="9" y1="8.5" x2="11" y2="16"/>
-            <line x1="15" y1="7" x2="13" y2="16"/>
-            <line x1="9.5" y1="7" x2="14.5" y2="5.5"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="5" r="2.5"/><circle cx="12" cy="18" r="2.5"/><line x1="9" y1="8.5" x2="11" y2="16"/><line x1="15" y1="7" x2="13" y2="16"/><line x1="9.5" y1="7" x2="14.5" y2="5.5"/></svg></div>
         <h3>能调用工具，不能解释系统</h3>
         <p>文件读写、命令运行、补丁编辑、测试验证常常是分散的能力，缺少统一的审计视图和恢复语义。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
-            <line x1="12" y1="8" x2="12" y2="16"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="8" x2="12" y2="16"/></svg></div>
         <h3>能写代码，不能承担交付责任</h3>
         <p>没有结构化交接、自动 gate 和回滚路径时，Agent 仍然停留在"副驾驶"而非"执行系统"。</p>
       </div>
@@ -1075,18 +284,9 @@
       <h2 class="section-heading">一条可靠的执行回路，胜过十个 Agent 同时登台</h2>
       <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>光靠人多不好使，得有章法！</p>
     </div>
-    <p class="section-desc">
-      Sloth Agent 的 v1.0 不从"8 个 Agent 同时登场"开始，而是刻意收敛到一条更可控的主线：
-      输入一份已完成的 plan，由 Builder 负责解析、编码、调试和单元测试，再交给 Reviewer 做独立审查，最后由 Deployer 执行部署与验证。
-    </p>
-
+    <p class="section-desc">Sloth Agent 的 v1.0 不从"8 个 Agent 同时登场"开始，而是刻意收敛到一条更可控的主线：输入一份已完成的 plan，由 Builder 负责解析、编码、调试和单元测试，再交给 Reviewer 做独立审查，最后由 Deployer 执行部署与验证。</p>
     <div class="terminal">
-      <div class="terminal-bar">
-        <span class="terminal-dot red"></span>
-        <span class="terminal-dot yellow"></span>
-        <span class="terminal-dot green"></span>
-        <span class="terminal-title">sloth-agent &mdash; execution pipeline</span>
-      </div>
+      <div class="terminal-bar"><span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span><span class="terminal-title">sloth-agent &mdash; execution pipeline</span></div>
       <div class="terminal-grid">
         <div class="terminal-body"><span class="t-amber">$</span> <span class="t-white">plan</span>
   <span class="t-muted">&rarr;</span> <span class="t-cyan">Builder</span>
@@ -1107,54 +307,28 @@
       <span class="t-muted">└</span> <span class="t-green">observe()</span></div>
       </div>
     </div>
-
-    <div class="flow-section">
-      <div class="flow-line"></div>
-      <div class="flow-grid">
-        <div class="flow-node">
-          <div class="flow-step-header">
-            <div class="flow-dot-ring"><span>01</span></div>
-            <div class="flow-step-name">Prepare</div>
-          </div>
-          <div class="flow-step-desc">组装当前 owner、上下文、工具权限和状态快照。</div>
-        </div>
-        <div class="flow-node">
-          <div class="flow-step-header">
-            <div class="flow-dot-ring"><span>02</span></div>
-            <div class="flow-step-name">Think</div>
-          </div>
-          <div class="flow-step-desc">模型生成下一步动作，而不是直接把整条任务链压成一次回答。</div>
-        </div>
-        <div class="flow-node">
-          <div class="flow-step-header">
-            <div class="flow-dot-ring"><span>03</span></div>
-            <div class="flow-step-name">Resolve</div>
-          </div>
-          <div class="flow-step-desc">把结果归类为 tool、handoff、retry、interrupt 或 final output。</div>
-        </div>
-        <div class="flow-node">
-          <div class="flow-step-header">
-            <div class="flow-dot-ring"><span>04</span></div>
-            <div class="flow-step-name">Persist &amp; Observe</div>
-          </div>
-          <div class="flow-step-desc">写回 run state、checkpoint、trace 与 gate 结果，保证可恢复和可审计。</div>
-        </div>
+    <div class="flow-grid">
+      <div class="flow-node">
+        <div class="flow-step-header"><div class="flow-dot-ring"><span>01</span></div><div class="flow-step-name">Prepare</div></div>
+        <div class="flow-step-desc">组装当前 owner、上下文、工具权限和状态快照。</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-step-header"><div class="flow-dot-ring"><span>02</span></div><div class="flow-step-name">Think</div></div>
+        <div class="flow-step-desc">模型生成下一步动作，而不是直接把整条任务链压成一次回答。</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-step-header"><div class="flow-dot-ring"><span>03</span></div><div class="flow-step-name">Resolve</div></div>
+        <div class="flow-step-desc">把结果归类为 tool、handoff、retry、interrupt 或 final output。</div>
+      </div>
+      <div class="flow-node">
+        <div class="flow-step-header"><div class="flow-dot-ring"><span>04</span></div><div class="flow-step-name">Persist &amp; Observe</div></div>
+        <div class="flow-step-desc">写回 run state、checkpoint、trace 与 gate 结果，保证可恢复和可审计。</div>
       </div>
     </div>
-
     <div class="control-list">
-      <div class="control-item">
-        <strong>单一 Runner 内核</strong>
-        <p><code class="t-cyan" style="color:var(--cyan);">Product Orchestrator</code> 负责入口与恢复，<code style="color:var(--purple);">Runner</code> 才是唯一推进 run 的执行循环。</p>
-      </div>
-      <div class="control-item">
-        <strong>结构化 handoff</strong>
-        <p>Builder 和 Reviewer、Reviewer 和 Deployer 之间传递的是确定性产物，而不是脆弱摘要。</p>
-      </div>
-      <div class="control-item">
-        <strong>自动门控</strong>
-        <p>lint、type check、test、coverage、smoke test 都是系统的一部分，不是交付前的补充动作。</p>
-      </div>
+      <div class="control-item"><strong>单一 Runner 内核</strong><p><code style="color:var(--cyan);">Product Orchestrator</code> 负责入口与恢复，<code style="color:var(--purple);">Runner</code> 才是唯一推进 run 的执行循环。</p></div>
+      <div class="control-item"><strong>结构化 handoff</strong><p>Builder 和 Reviewer、Reviewer 和 Deployer 之间传递的是确定性产物，而不是脆弱摘要。</p></div>
+      <div class="control-item"><strong>自动门控</strong><p>lint、type check、test、coverage、smoke test 都是系统的一部分，不是交付前的补充动作。</p></div>
     </div>
   </section>
 
@@ -1164,7 +338,7 @@
       <div class="quote-mark">&ldquo;</div>
       <div class="quote-text">
         <p>真正的 Agent 系统，不该只回答"接下来做什么"，还必须能够回答"现在做到哪一步了、为什么停在这里、如何安全地继续下去"。</p>
-        <p>这也是 Sloth Agent 把运行时、状态、工具和门控视为同一个产品问题的原因。</p>
+        <p style="color:var(--muted); font-size:0.95rem; margin-top:10px;">这也是 Sloth Agent 把运行时、状态、工具和门控视为同一个产品问题的原因。</p>
       </div>
     </div>
   </div>
@@ -1176,75 +350,37 @@
       <h2 class="section-heading">让 Agent 落地的，不是更多提示词，而是完整的基础设施</h2>
       <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>不耍嘴皮子，只靠真本事！</p>
     </div>
-    <p class="section-desc">
-      在 Sloth Agent 里，Tools、Skills、Memory、Context Window、Checkpoints 和 HallucinationGuard 不是彼此独立的卖点。
-      它们共同构成 Agent 的可执行环境：模型能看到什么、能调用什么、调用结果怎样压缩、状态怎样恢复、错误怎样回退，全部需要统一定义。
-    </p>
-
+    <p class="section-desc">在 Sloth Agent 里，Tools、Skills、Memory、Context Window、Checkpoints 和 HallucinationGuard 不是彼此独立的卖点。它们共同构成 Agent 的可执行环境。</p>
     <div class="grid-3x2">
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <polyline points="14 6 8 12 14 18"/>
-            <polyline points="10 6 16 12 10 18"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><polyline points="14 6 8 12 14 18"/><polyline points="10 6 16 12 10 18"/></svg></div>
         <h3>Tools</h3>
         <p>以读写文件、运行命令、补丁编辑、搜索为核心能力，通过工具层执行动作并保留结构化结果，确保系统可审计、可回放。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <rect x="4" y="4" width="16" height="16" rx="2"/>
-            <line x1="8" y1="9" x2="16" y2="9"/>
-            <line x1="8" y1="13" x2="14" y2="13"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/></svg></div>
         <h3>Skills</h3>
-        <p>通过 <code style="color:var(--purple);">SKILL.md</code> 注入针对任务的高阶行为模板，让模型获得渐进式能力，而不是把所有规则一次性塞进主提示词。</p>
+        <p>通过 <code style="color:var(--purple);">SKILL.md</code> 注入针对任务的高阶行为模板，让模型获得渐进式能力。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <rect x="3" y="5" width="18" height="14" rx="2"/>
-            <line x1="7" y1="5" x2="7" y2="3"/>
-            <line x1="17" y1="5" x2="17" y2="3"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="5" x2="7" y2="3"/><line x1="17" y1="5" x2="17" y2="3"/><line x1="3" y1="12" x2="21" y2="12"/></svg></div>
         <h3>Memory</h3>
-        <p>以文件系统为第一真相源，优先保证简单、可读、可编辑，再向索引与语义层扩展，而不是一开始就把状态埋进黑盒服务。</p>
+        <p>以文件系统为第一真相源，优先保证简单、可读、可编辑，再向索引与语义层扩展。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="15" y2="12"/>
-            <line x1="3" y1="18" x2="10" y2="18"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="10" y2="18"/></svg></div>
         <h3>Context Control</h3>
-        <p>Builder 负责最重的上下文负载，因此需要明确的窗口分区、规则压缩和输出预留，避免长任务在最关键时刻失焦。</p>
+        <p>Builder 负责最重的上下文负载，因此需要明确的窗口分区、规则压缩和输出预留。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="9"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg></div>
         <h3>Checkpoints</h3>
-        <p>状态持久化不是为了做日志归档，而是为了让 Agent 在失败、中断、审批或环境变化后，仍然能够继续同一个 run。</p>
+        <p>状态持久化不是为了做日志归档，而是为了让 Agent 在失败、中断后仍然能够继续同一个 run。</p>
       </div>
       <div class="card">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <polyline points="9 12 11 14 15 10"/>
-          </svg>
-        </div>
+        <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
         <h3>Hallucination Guard</h3>
-        <p>路径白名单、命令黑名单、工具结果验证与运行时边界一起工作，把"模型猜测"尽可能限制在可见、可证、可拒绝的范围内。</p>
+        <p>路径白名单、命令黑名单、工具结果验证与运行时边界一起工作，把"模型猜测"限制在可证范围内。</p>
       </div>
     </div>
   </section>
@@ -1256,96 +392,48 @@
       <h2 class="section-heading">不是更像人，而是更值得托付</h2>
       <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>它是啥不重要，重要的是它得能出活！</p>
     </div>
-    <p class="section-desc">
-      生产可用性的核心，不是让 Agent 看起来"更聪明"，而是让团队能理解、校验、限制并恢复它的行为。Sloth Agent 的很多设计选择，
-      都是围绕这个控制面展开的。
-    </p>
-
     <div class="control-list">
-      <div class="control-item">
-        <strong>安全默认</strong>
-        <p>先假设 prompt injection、误操作和越权调用会发生，再通过白名单、黑名单、边界隔离和审计来缩小破坏面。</p>
-      </div>
-      <div class="control-item">
-        <strong>文件系统即真相</strong>
-        <p>运行状态、检查点、任务产物优先以普通文件存在，让人可以直接查看、修复和理解，而不是依赖不可见状态机。</p>
-      </div>
-      <div class="control-item">
-        <strong>阶段级模型路由</strong>
-        <p>编码、调试、审查并不一定适合同一个模型。Sloth Agent 直接把"不同阶段用不同模型"视为系统设计，而不是调参细节。</p>
-      </div>
-      <div class="control-item">
-        <strong>质量门控</strong>
-        <p>审查不是装饰，部署也不是最后补一刀。lint、coverage、smoke test 都被建模为执行流中的硬边界。</p>
-      </div>
-      <div class="control-item">
-        <strong>成本意识</strong>
-        <p>从上下文窗口到多 provider 路由，系统设计默认考虑 token 与工具成本，而不是把代价隐藏在"更强模型"的背后。</p>
-      </div>
-      <div class="control-item">
-        <strong>可恢复性</strong>
-        <p>同一个 run 可以因为 gate failure、tool approval、resume 或环境变化而暂停，但不应该因为这些事件被重新拼装成新任务。</p>
-      </div>
+      <div class="control-item"><strong>安全默认</strong><p>先假设 prompt injection、误操作和越权调用会发生，再通过白名单、黑名单、边界隔离和审计来缩小破坏面。</p></div>
+      <div class="control-item"><strong>文件系统即真相</strong><p>运行状态、检查点、任务产物优先以普通文件存在，让人可以直接查看、修复和理解。</p></div>
+      <div class="control-item"><strong>阶段级模型路由</strong><p>编码、调试、审查并不一定适合同一个模型。Sloth Agent 直接把"不同阶段用不同模型"视为系统设计。</p></div>
+      <div class="control-item"><strong>质量门控</strong><p>审查不是装饰，部署也不是最后补一刀。lint、coverage、smoke test 都被建模为执行流中的硬边界。</p></div>
+      <div class="control-item"><strong>成本意识</strong><p>从上下文窗口到多 provider 路由，系统设计默认考虑 token 与工具成本。</p></div>
+      <div class="control-item"><strong>可恢复性</strong><p>同一个 run 可以因为 gate failure、tool approval、resume 或环境变化而暂停，但不应该因为这些事件被重新拼装成新任务。</p></div>
     </div>
   </section>
 
   <!-- Roadmap -->
-  <section class="section fade-in roadmap-section">
+  <section class="section fade-in">
     <div class="section-label">Roadmap</div>
     <div class="heading-group">
       <h2 class="section-heading">从可用闭环开始，不从宏大愿景开始</h2>
       <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>还搁那画饼！饼还没吃够啊~</p>
     </div>
-
     <div class="roadmap-grid">
       <div class="roadmap-step">
         <div class="roadmap-connector"></div>
         <div class="roadmap-version">v1.0</div>
         <div class="roadmap-badge">Planned</div>
-        <ul>
-          <li>3-Agent 自主流水线</li>
-          <li>Tools + Memory + Skill Loading</li>
-          <li>自动门控与结构化交接</li>
-          <li>1-2 个模型提供方</li>
-        </ul>
+        <ul><li>3-Agent 自主流水线</li><li>Tools + Memory + Skill Loading</li><li>自动门控与结构化交接</li><li>1-2 个模型提供方</li></ul>
       </div>
       <div class="roadmap-step">
         <div class="roadmap-connector"></div>
         <div class="roadmap-version">v1.1</div>
         <div class="roadmap-badge">Planned</div>
-        <ul>
-          <li>Chat Mode 基础</li>
-          <li>多 Provider fallback</li>
-          <li>成本跟踪</li>
-          <li>更强的上下文管理</li>
-        </ul>
+        <ul><li>Chat Mode 基础</li><li>多 Provider fallback</li><li>成本跟踪</li><li>更强的上下文管理</li></ul>
       </div>
       <div class="roadmap-step">
         <div class="roadmap-connector"></div>
         <div class="roadmap-version">v1.2</div>
         <div class="roadmap-badge">Planned</div>
-        <ul>
-          <li>按需拆分 Planner / Debugger</li>
-          <li>基础 observability</li>
-          <li>更完善的恢复能力</li>
-          <li>checkpoint 增强</li>
-        </ul>
+        <ul><li>按需拆分 Planner / Debugger</li><li>基础 observability</li><li>更完善的恢复能力</li><li>checkpoint 增强</li></ul>
       </div>
       <div class="roadmap-step">
         <div class="roadmap-version">v2.0+</div>
         <div class="roadmap-badge long">Long-term</div>
-        <ul>
-          <li>8+1 Agent 完整架构</li>
-          <li>事件系统与消息总线</li>
-          <li>知识库与语义检索</li>
-          <li>Daemon、审批、并行协调</li>
-        </ul>
+        <ul><li>8+1 Agent 完整架构</li><li>事件系统与消息总线</li><li>知识库与语义检索</li><li>Daemon、审批、并行协调</li></ul>
       </div>
     </div>
-
-    <p style="color:var(--muted-dim); font-size:0.85rem; margin-top:20px; font-family:var(--font-mono);">
-      这条路线图强调一个非常明确的选择：先把最小的执行闭环做对，再逐步扩成完整的 Agent 平台。
-    </p>
   </section>
 
   <!-- Footer -->
@@ -1354,59 +442,17 @@
       <div class="section-label">Closing</div>
       <h2 class="footer-heading">Sloth Agent 想构建的，不是另一种"更会回答"的助手，而是一套更值得托付的软件执行系统。</h2>
       <p class="heading-dialect"><span class="dialect-tag">人话翻译</span>哎呀...还搁这儿墨迹呢，赶紧干活了！</p>
-
-      <div class="footer-body">
-        <div>
-          <p class="footer-text">
-            它从 Builder、Reviewer、Deployer 这条最朴素的链路出发，把运行时内核、工具系统、记忆结构、安全边界和恢复能力压进同一条设计主线里。
-            如果说下一代 Agent 产品的竞争，不再只是模型能力本身，而是谁能把 Agent 带入更长、更真实、更可控的工作链路，
-            那么 Sloth Agent 的答案，就是先把执行系统搭起来。
-          </p>
-          <div class="footer-actions">
-            <a class="footer-btn primary" href="../specs/00000000-architecture-overview.md">Read the canonical architecture</a>
-            <a class="footer-btn secondary" href="../../TODO.md">Track current build priorities</a>
-          </div>
-          <p class="footer-note">Source of truth: canonical architecture overview, dated 2026-04-16.</p>
-        </div>
-        <div>
-          <div class="footer-badge">
-            <div class="footer-badge-label">Execution Loop</div>
-            <div class="footer-badge-title">Plan &rarr; Build &rarr; Review &rarr; Deploy</div>
-            <div class="footer-badge-copy">不是一次回答的链式延长，而是一条带有门控、恢复与状态真相源的执行路径。</div>
-          </div>
-        </div>
-      </div>
+      <p class="footer-note">文章版本 1.1 &middot; 2026-04-16 &middot; 适用 Sloth Agent 产品介绍 &middot; 完整架构见 <code style="color:var(--purple);">docs/specs/architecture/spec.md</code></p>
     </div>
   </div>
 
   <script>
-    // Scroll progress
     const progress = document.getElementById('progress');
-    const updateProgress = () => {
-      const scrollTop = window.scrollY;
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
-      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')';
-    };
+    const updateProgress = () => { const scrollTop = window.scrollY; const maxScroll = document.documentElement.scrollHeight - window.innerHeight; const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0; progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')'; };
     updateProgress();
     window.addEventListener('scroll', updateProgress, { passive: true });
-    window.addEventListener('resize', updateProgress);
-
-    // IntersectionObserver for fade-in
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-          }
-        });
-      },
-      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
-    );
-
-    document.querySelectorAll('.fade-in').forEach((el) => {
-      observer.observe(el);
-    });
+    const observer = new IntersectionObserver((entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
   </script>
 </body>
 </html>

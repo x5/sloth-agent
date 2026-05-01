@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <title>Delta Spec 工作流 — 先改文档，再改代码</title>
+  <meta name="description" content="通俗易懂地解释 Sloth Agent 的 Delta Spec 开发工作流：为什么先改 Spec 再改代码、三份关键文档如何配合、真实案例与优缺点分析。" />
+  <style>
+    :root {
+      --bg: #0B0F19;
+      --card: #151B2B;
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139,92,246,0.12);
+      --purple-glow: rgba(139,92,246,0.25);
+      --cyan: #06B6D4;
+      --cyan-soft: rgba(6,182,212,0.12);
+      --green: #22c55e;
+      --green-soft: rgba(34,197,94,0.12);
+      --amber: #F59E0B;
+      --amber-soft: rgba(245,158,11,0.12);
+      --red: #EF4444;
+      --red-soft: rgba(239,68,68,0.12);
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --muted-dim: #64748B;
+      --border: rgba(255,255,255,0.06);
+      --border-accent: rgba(139,92,246,0.25);
+      --radius-card: 16px;
+      --radius-panel: 24px;
+      --shadow-base: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-hover: 0 8px 40px rgba(139,92,246,0.12);
+      --font-mono: "JetBrains Mono", "Noto Sans SC", monospace;
+      --font-heading: "JetBrains Mono", "Noto Sans SC", sans-serif;
+      --font-body: "Inter", "Noto Sans SC", sans-serif;
+      --font-sc: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+      --max-w: 1200px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font-body); line-height: 1.6;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%);
+      z-index: 0;
+    }
+    .progress-bar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa); transform-origin: left; transform: scaleX(0); z-index: 100; }
+    .topbar { position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(11,15,25,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); max-width: var(--max-w); margin: 0 auto; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.14em; color: var(--text); }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15); }
+    .topbar-date { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
+    .section { max-width: var(--max-w); margin: 0 auto; padding: 64px 24px; }
+    .section-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: var(--purple); margin-bottom: 12px; }
+    .section-heading { font-family: var(--font-heading); font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 700; line-height: 1.25; color: var(--text); margin: 0; }
+    .section-desc { color: var(--muted); font-size: 0.95rem; max-width: 72ch; line-height: 1.7; margin-top: 16px; }
+    .heading-group { display: flex; flex-direction: column; gap: 6px; }
+    .heading-dialect { font-family: var(--font-sc); font-size: clamp(0.88rem, 1.8vw, 1.05rem); font-weight: 500; color: var(--amber); line-height: 1.5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .dialect-tag { flex-shrink: 0; padding: 1px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; color: var(--amber); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); letter-spacing: 0.04em; white-space: nowrap; }
+    .hero { text-align: center; padding-top: 48px; }
+    .hero-icon { width: 96px; height: 96px; margin: 0 auto 24px; display: block; }
+    .hero-title { font-family: var(--font-heading); font-size: clamp(2.4rem, 6vw, 4.5rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--cyan) 50%, var(--purple) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 20px; }
+    .hero-subtitle { font-family: var(--font-sc); font-size: clamp(1rem, 2vw, 1.25rem); font-weight: 400; color: var(--muted); max-width: 52ch; margin: 0 auto 24px; line-height: 2; }
+    .hero-subtitle strong { color: var(--text); font-weight: 600; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
+    .pill.purple { border-color: var(--border-accent); color: var(--purple); }
+    .pill.cyan { border-color: rgba(6,182,212,0.25); color: var(--cyan); }
+    .pill.green { border-color: rgba(34,197,94,0.25); color: var(--green); }
+    .pill.amber { border-color: rgba(245,158,11,0.25); color: var(--amber); }
+    .diagram-svg { width: 100%; height: auto; margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); box-shadow: var(--shadow-base); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 32px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; display: grid; grid-template-columns: 1fr; align-content: start; gap: 14px; box-shadow: var(--shadow-base); transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+    .card:hover { transform: translateY(-3px); border-color: var(--border-accent); box-shadow: var(--shadow-hover); }
+    .card-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--purple-soft); border: 1px solid var(--border-accent); }
+    .card-icon svg { width: 20px; height: 20px; stroke: var(--purple); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .card-icon.cyan { background: var(--cyan-soft); border-color: rgba(6,182,212,0.25); }
+    .card-icon.cyan svg { stroke: var(--cyan); }
+    .card-icon.green { background: var(--green-soft); border-color: rgba(34,197,94,0.25); }
+    .card-icon.green svg { stroke: var(--green); }
+    .card-icon.amber { background: var(--amber-soft); border-color: rgba(245,158,11,0.25); }
+    .card-icon.amber svg { stroke: var(--amber); }
+    .card-icon.red { background: var(--red-soft); border-color: rgba(239,68,68,0.25); }
+    .card-icon.red svg { stroke: var(--red); }
+    .card h3 { font-family: var(--font-heading); font-size: 1rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .cmp-table-wrap { margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-base); }
+    .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .cmp-table thead th { background: rgba(139,92,246,0.08); font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600; color: var(--text); padding: 18px 20px; text-align: left; }
+    .cmp-table tbody td { padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.6; vertical-align: top; }
+    .cmp-table tbody td:first-child { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--purple); white-space: nowrap; width: 120px; }
+    .cmp-table tbody td:nth-child(2) { color: var(--text); }
+    .cmp-table tbody tr:hover td { background: rgba(139,92,246,0.04); }
+    .terminal { background: #0a0d14; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; margin-top: 32px; }
+    .terminal-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #F59E0B; }
+    .terminal-dot.green { background: #22c55e; }
+    .terminal-title { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); margin-left: 8px; }
+    .terminal-body { padding: 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+    .t-purple { color: #a78bfa; }
+    .t-cyan { color: var(--cyan); }
+    .t-green { color: var(--green); }
+    .t-amber { color: var(--amber); }
+    .t-red { color: var(--red); }
+    .t-muted { color: var(--muted-dim); }
+    .t-white { color: var(--text); }
+    .quote-panel { background: var(--card); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 32px; margin-top: 64px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
+    .quote-mark { font-family: var(--font-mono); font-size: 4rem; font-weight: 700; color: var(--purple); line-height: 0.8; }
+    .quote-text { font-family: var(--font-sc); font-size: 1.15rem; font-weight: 500; color: var(--text); line-height: 1.7; }
+    .analogy-panel { background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.04)); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 28px 32px; margin-top: 32px; }
+    .analogy-title { font-family: var(--font-sc); font-size: 1.05rem; font-weight: 700; color: var(--amber); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .analogy-body { font-family: var(--font-sc); font-size: 0.95rem; color: var(--muted); line-height: 1.8; }
+    .analogy-body strong { color: var(--text); }
+    /* Document card */
+    .doc-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-panel); overflow: hidden; box-shadow: var(--shadow-base); }
+    .doc-card.proposal { border-left: 3px solid var(--amber); }
+    .doc-card.delta { border-left: 3px solid var(--purple); }
+    .doc-card.tasks { border-left: 3px solid var(--green); }
+    .doc-header { display: flex; align-items: center; gap: 12px; padding: 20px 24px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); }
+    .doc-header .badge { padding: 3px 10px; border-radius: 999px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+    .doc-card.proposal .badge { background: var(--amber-soft); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+    .doc-card.delta .badge { background: var(--purple-soft); color: var(--purple); border: 1px solid var(--border-accent); }
+    .doc-card.tasks .badge { background: var(--green-soft); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+    .doc-header h3 { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600; color: var(--text); }
+    .doc-body { padding: 24px; font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.8; color: var(--muted); }
+    .doc-body .d-h1 { color: #a78bfa; }
+    .doc-body .d-h2 { color: var(--cyan); }
+    .doc-body .d-key { color: var(--amber); }
+    .doc-body .d-str { color: #34d399; }
+    .doc-body .d-meta { color: var(--muted-dim); }
+    .doc-body .d-added { color: var(--green); }
+    .doc-body .d-modified { color: var(--amber); }
+    .doc-body .d-removed { color: var(--red); }
+    .doc-body .d-check { color: var(--green); }
+    .doc-body .d-uncheck { color: var(--muted-dim); }
+    /* Pro/Con */
+    .pro-con-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .pro-card, .con-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; }
+    .pro-card { border-top: 3px solid var(--green); }
+    .con-card { border-top: 3px solid var(--red); }
+    .pro-con-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+    .pro-card .pro-con-title { color: var(--green); }
+    .con-card .pro-con-title { color: var(--red); }
+    .pro-con-list { list-style: none; display: grid; gap: 12px; }
+    .pro-con-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+    .pro-con-list li::before { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; width: 20px; text-align: center; }
+    .pro-card .pro-con-list li::before { content: "+"; color: var(--green); }
+    .con-card .pro-con-list li::before { content: "-"; color: var(--red); }
+    .pro-con-list li strong { color: var(--text); }
+    .anti-table-wrap { margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-base); }
+    .anti-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .anti-table thead th { background: rgba(239,68,68,0.06); font-family: var(--font-heading); font-size: 0.9rem; font-weight: 600; color: var(--text); padding: 16px 20px; text-align: left; border-bottom: 1px solid rgba(239,68,68,0.15); }
+    .anti-table tbody td { padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.6; vertical-align: top; }
+    .anti-table tbody td:first-child { color: var(--red); font-weight: 600; white-space: nowrap; }
+    .anti-table tbody td:last-child { color: var(--green); }
+    .anti-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+    .footer { max-width: var(--max-w); margin: 0 auto; padding: 0 24px 64px; }
+    .footer-panel { background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%); border: 1px solid var(--border); border-radius: var(--radius-panel); padding: 40px; display: grid; gap: 24px; box-shadow: var(--shadow-base); }
+    .footer-heading { font-family: var(--font-heading); font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 700; line-height: 1.25; color: var(--text); }
+    .footer-note { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); padding-top: 16px; border-top: 1px solid var(--border); }
+    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+    @media (max-width: 980px) { .grid-2, .grid-3, .grid-4, .pro-con-grid { grid-template-columns: 1fr; } .cmp-table-wrap, .anti-table-wrap { overflow-x: auto; } .cmp-table, .anti-table { min-width: 600px; } }
+    @media (max-width: 720px) { .section { padding: 48px 16px; } .topbar { flex-direction: column; gap: 8px; align-items: flex-start; } .footer-panel { padding: 24px; } .quote-panel { padding: 24px; } .doc-body { font-size: 0.7rem; padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="progress-bar" id="progress"></div>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span>SLOTH AGENT &middot; DELTA SPEC</div>
+    <div class="topbar-date">2026-05-02 &middot; Workflow Methodology</div>
+  </header>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="section hero">
+    <svg class="hero-icon" viewBox="100 80 880 840" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(512,512) scale(1.48,1.48) translate(-722,-657)">
+        <path fill="rgba(255,255,255,0.15)" d="M 444.18 743.32 C 444.98 741.15 445.15 738.02 445.64 735.91 Q 448.89 721.82 452.21 710.96 Q 458.39 690.73 469.00 671.08 Q 492.00 628.52 528.54 599.12 Q 564.42 570.26 609.43 563.66 Q 630.12 560.63 648.20 562.88 Q 694.15 568.62 723.38 604.28 A 0.82 0.81 44.6 0 0 724.64 604.28 C 746.18 577.51 777.86 562.85 812.02 562.05 C 856.69 561.00 897.63 578.20 930.22 608.29 C 969.28 644.37 996.00 692.99 1003.54 745.65 A 0.27 0.27 0.0 0 0 1004.07 745.64 Q 1006.92 720.60 1005.80 694.04 Q 1003.28 634.07 976.03 580.12 C 945.88 520.41 894.58 471.75 833.15 446.69 Q 781.67 425.69 725.74 425.56 C 657.69 425.40 592.40 447.82 541.19 491.93 C 474.03 549.78 437.12 633.62 442.22 722.73 Q 442.84 733.47 443.79 743.27 A 0.20 0.20 0.0 0 0 444.18 743.32 Z"/>
+        <path fill="rgba(255,255,255,0.15)" d="M 500.89 887.90 C 487.77 871.62 475.80 854.28 467.29 835.55 Q 455.36 809.29 462.20 781.17 C 469.81 749.88 490.99 721.17 516.96 702.85 Q 547.88 681.02 587.36 678.98 C 604.31 678.10 623.40 681.44 635.47 692.71 Q 650.56 706.81 649.43 728.25 Q 648.27 750.74 629.28 764.70 C 618.71 772.48 608.13 774.76 594.98 778.40 Q 554.85 789.52 529.46 819.99 C 513.29 839.39 503.59 862.56 501.50 887.71 A 0.34 0.34 0.0 0 1 500.89 887.90 Z"/>
+        <path fill="rgba(255,255,255,0.15)" d="M 946.99 888.06 A 0.34 0.34 0.0 0 1 946.38 887.87 C 944.30 862.70 934.60 839.51 918.43 820.09 Q 893.03 789.58 852.87 778.44 C 839.72 774.79 829.13 772.50 818.55 764.71 Q 799.56 750.74 798.40 728.23 Q 797.28 706.77 812.39 692.67 C 824.47 681.39 843.58 678.06 860.54 678.95 Q 900.05 681.00 930.99 702.86 C 956.97 721.21 978.15 749.95 985.76 781.27 Q 992.59 809.41 980.64 835.69 C 972.12 854.43 960.13 871.78 946.99 888.06 Z"/>
+        <path fill="#192d4c" d="M 444.18 743.32 A 0.20 0.20 0.0 0 1 443.79 743.27 Q 442.84 733.47 442.22 722.73 C 437.12 633.62 474.03 549.78 541.19 491.93 C 592.40 447.82 657.69 425.40 725.74 425.56 Q 781.67 425.69 833.15 446.69 C 894.58 471.75 945.88 520.41 976.03 580.12 Q 1003.28 634.07 1005.80 694.04 Q 1006.92 720.60 1004.07 745.64 A 0.27 0.27 0.0 0 1 1003.54 745.65 C 996.00 692.99 969.28 644.37 930.22 608.29 C 897.63 578.20 856.69 561.00 812.02 562.05 C 777.86 562.85 746.18 577.51 724.64 604.28 A 0.82 0.81 44.6 0 1 723.38 604.28 Q 694.15 568.62 648.20 562.88 Q 630.12 560.63 609.43 563.66 Q 564.42 570.26 528.54 599.12 Q 492.00 628.52 469.00 671.08 Q 458.39 690.73 452.21 710.96 Q 448.89 721.82 445.64 735.91 C 445.15 738.02 444.98 741.15 444.18 743.32 Z"/>
+        <path fill="#192d4c" d="M 500.89 887.90 C 487.77 871.62 475.80 854.28 467.29 835.55 Q 455.36 809.29 462.20 781.17 C 469.81 749.88 490.99 721.17 516.96 702.85 Q 547.88 681.02 587.36 678.98 C 604.31 678.10 623.40 681.44 635.47 692.71 Q 650.56 706.81 649.43 728.25 Q 648.27 750.74 629.28 764.70 C 618.71 772.48 608.13 774.76 594.98 778.40 Q 554.85 789.52 529.46 819.99 C 513.29 839.39 503.59 862.56 501.50 887.71 A 0.34 0.34 0.0 0 1 500.89 887.90 Z"/>
+        <path fill="#192d4c" d="M 946.99 888.06 A 0.34 0.34 0.0 0 1 946.38 887.87 C 944.30 862.70 934.60 839.51 918.43 820.09 Q 893.03 789.58 852.87 778.44 C 839.72 774.79 829.13 772.50 818.55 764.71 Q 799.56 750.74 798.40 728.23 Q 797.28 706.77 812.39 692.67 C 824.47 681.39 843.58 678.06 860.54 678.95 Q 900.05 681.00 930.99 702.86 C 956.97 721.21 978.15 749.95 985.76 781.27 Q 992.59 809.41 980.64 835.69 C 972.12 854.43 960.13 871.78 946.99 888.06 Z"/>
+        <path fill="#192d4c" d="M 722.94 754.71 C 739.39 754.72 771.24 759.82 771.23 782.51 C 771.22 805.21 739.37 810.28 722.92 810.27 C 706.46 810.27 674.61 805.17 674.62 782.47 C 674.63 759.78 706.48 754.70 722.94 754.71 Z"/>
+        <path fill="#192d4c" d="M 723.63 852.78 C 750.59 852.79 776.27 845.33 798.95 830.90 Q 801.61 829.20 805.74 830.72 Q 810.29 832.39 810.76 837.57 C 811.11 841.39 808.98 843.60 805.57 845.61 Q 765.98 868.96 723.63 868.95 Q 681.28 868.94 641.70 845.57 C 638.29 843.56 636.16 841.35 636.51 837.53 Q 636.99 832.35 641.54 830.68 Q 645.67 829.16 648.33 830.86 C 671.00 845.30 696.68 852.77 723.63 852.78 Z"/>
+        <path fill="#ffffff" d="M 546.14 740.68 C 541.08 737.72 542.30 732.81 546.75 729.98 Q 551.96 726.66 559.88 723.94 C 571.19 720.05 583.21 717.90 595.18 718.88 C 601.17 719.37 609.98 722.89 608.75 730.73 C 607.05 741.56 587.92 745.16 579.18 745.69 C 569.01 746.30 554.89 745.80 546.14 740.68 Z"/>
+        <path fill="#ffffff" d="M 901.11 729.93 C 905.56 732.75 906.79 737.66 901.73 740.63 C 892.99 745.76 878.88 746.27 868.72 745.68 C 859.98 745.16 840.85 741.59 839.14 730.77 C 837.90 722.93 846.70 719.40 852.69 718.90 C 864.65 717.91 876.67 720.04 887.98 723.91 Q 895.90 726.62 901.11 729.93 Z"/>
+        <g stroke="#8c96a6" stroke-width="2.80" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M 444.18 743.32 C 444.98 741.15 445.15 738.02 445.64 735.91 Q 448.89 721.82 452.21 710.96 Q 458.39 690.73 469.00 671.08 Q 492.00 628.52 528.54 599.12 Q 564.42 570.26 609.43 563.66 Q 630.12 560.63 648.20 562.88 Q 694.15 568.62 723.38 604.28 A 0.82 0.81 44.6 0 0 724.64 604.28 C 746.18 577.51 777.86 562.85 812.02 562.05 C 856.69 561.00 897.63 578.20 930.22 608.29 C 969.28 644.37 996.00 692.99 1003.54 745.65 A 0.27 0.27 0.0 0 0 1004.07 745.64 Q 1006.92 720.60 1005.80 694.04 Q 1003.28 634.07 976.03 580.12 C 945.88 520.41 894.58 471.75 833.15 446.69 Q 781.67 425.69 725.74 425.56 C 657.69 425.40 592.40 447.82 541.19 491.93 C 474.03 549.78 437.12 633.62 442.22 722.73 Q 442.84 733.47 443.79 743.27 A 0.20 0.20 0.0 0 0 444.18 743.32"/>
+          <path d="M 500.89 887.90 A 0.34 0.34 0.0 0 0 501.50 887.71 C 503.59 862.56 513.29 839.39 529.46 819.99 Q 554.85 789.52 594.98 778.40 C 608.13 774.76 618.71 772.48 629.28 764.70 Q 648.27 750.74 649.43 728.25 Q 650.56 706.81 635.47 692.71 C 623.40 681.44 604.31 678.10 587.36 678.98 Q 547.88 681.02 516.96 702.85 C 490.99 721.17 469.81 749.88 462.20 781.17 Q 455.36 809.29 467.29 835.55 C 475.80 854.28 487.77 871.62 500.89 887.90"/>
+          <path d="M 946.99 888.06 C 960.13 871.78 972.12 854.43 980.64 835.69 Q 992.59 809.41 985.76 781.27 C 978.15 749.95 956.97 721.21 930.99 702.86 Q 900.05 681.00 860.54 678.95 C 843.58 678.06 824.47 681.39 812.39 692.67 Q 797.28 706.77 798.40 728.23 Q 799.56 750.74 818.55 764.71 C 829.13 772.50 839.72 774.79 852.87 778.44 Q 893.03 789.58 918.43 820.09 C 934.60 839.51 944.30 862.70 946.38 887.87 A 0.34 0.34 0.0 0 0 946.99 888.06"/>
+          <path d="M 674.62 782.47 C 674.61 805.17 706.46 810.27 722.92 810.27 C 739.37 810.28 771.22 805.21 771.23 782.51 C 771.24 759.82 739.39 754.72 722.94 754.71 C 706.48 754.70 674.63 759.78 674.62 782.47"/>
+          <path d="M 723.63 868.95 Q 765.98 868.96 805.57 845.61 C 808.98 843.60 811.11 841.39 810.76 837.57 Q 810.29 832.39 805.74 830.72 Q 801.61 829.20 798.95 830.90 C 776.27 845.33 750.59 852.79 723.63 852.78 C 696.68 852.77 671.00 845.30 648.33 830.86 Q 645.67 829.16 641.54 830.68 Q 636.99 832.35 636.51 837.53 C 636.16 841.35 638.29 843.56 641.70 845.57 Q 681.28 868.94 723.63 868.95"/>
+          <path d="M 546.75 729.98 C 542.30 732.81 541.08 737.72 546.14 740.68 C 554.89 745.80 569.01 746.30 579.18 745.69 C 587.92 745.16 607.05 741.56 608.75 730.73 C 609.98 722.89 601.17 719.37 595.18 718.88 C 583.21 717.90 571.19 720.05 559.88 723.94 Q 551.96 726.66 546.75 729.98"/>
+          <path d="M 901.11 729.93 Q 895.90 726.62 887.98 723.91 C 876.67 720.04 864.65 717.91 852.69 718.90 C 846.70 719.40 837.90 722.93 839.14 730.77 C 840.85 741.59 859.98 745.16 868.72 745.68 C 878.88 746.27 892.99 745.76 901.73 740.63 C 906.79 737.66 905.56 732.75 901.11 729.93"/>
+        </g>
+      </g>
+    </svg>
+    <h1 class="hero-title">Delta Spec</h1>
+    <p class="hero-subtitle">
+      <strong>先改文档，再改代码</strong><br>
+      每次需求变更，不是直接动手写代码——<br>
+      而是先写一份<strong>变更说明书</strong>（Delta），再按单据施工
+    </p>
+    <div class="hero-pills">
+      <span class="pill cyan">Spec 是源头真相</span>
+      <span class="pill purple">改代码前先改 Spec</span>
+      <span class="pill green">一次变更 = 一个目录</span>
+      <span class="pill amber">完成即归档</span>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 1: WHY ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§1 Problem</div>
+    <div class="heading-group">
+      <h2 class="section-heading">为什么不能直接改代码？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">痛点</span>代码改了，文档没跟上；三个月后没人知道当时为什么这样改</p>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">🏗️ 建筑类比</div>
+      <div class="analogy-body">
+        想象你是一个建筑工地的工头。业主说"我要加一个阳台"。<br><br>
+        <strong>错误做法</strong>：直接让工人开始砌砖。三个月后物业来查图纸，发现图纸上没有这个阳台。业主要改回去了，你也不记得当时阳台的承重是怎么算的。<br><br>
+        <strong>正确做法</strong>：先在施工图纸上标注变更（画一个 Delta），业主签字确认，然后工人按图施工。图纸始终反映建筑的真实状态。<br><br>
+        Delta Spec 就是这个<strong>施工图纸的变更单</strong>。
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon red">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h3>没有 Delta 的痛</h3>
+        <p>代码改了三版，文档还是第一版。新人来了看不懂代码为什么这样写。回滚时发现需求文档和代码完全对不上。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <h3>Delta 带来什么</h3>
+        <p>每次变更都有迹可循：为什么改（proposal）、改了什么（delta）、怎么实现的（tasks）。代码和文档永远同步。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Spec = 唯一真相</h3>
+        <p>代码和文档冲突时，以 Spec 为准。Spec 不是"写完就扔"的文档，而是<strong>活的系统描述</strong>，跟着代码一起演进。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 2: CORE PRINCIPLES ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§2 Principles</div>
+    <div class="heading-group">
+      <h2 class="section-heading">三条铁律</h2>
+      <p class="heading-dialect"><span class="dialect-tag">记住</span>这三条规则是整个工作流的基础</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card" style="border-top: 3px solid var(--cyan);">
+        <h3 style="color:var(--cyan);">铁律一：Spec 是源头真相</h3>
+        <p><code>docs/specs/&lt;module&gt;/spec.md</code> 描述系统的<strong>当前真实状态</strong>，不是愿景、不是计划、不是愿望清单。它反映的是"系统现在是什么样"。</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--purple);">
+        <h3 style="color:var(--purple);">铁律二：改代码前先改 Spec</h3>
+        <p>任何需求变更，<strong>必须先写成 Delta</strong>，再动手改代码。不是"改完代码补文档"，而是"先写变更单，再按单施工"。</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--green);">
+        <h3 style="color:var(--green);">铁律三：一次变更 = 一个目录</h3>
+        <p>每次变更在 <code>docs/changes/</code> 下创建独立目录，包含 proposal、delta、tasks 三个文件。完成后整个目录归档。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 3: FLOW ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§3 Flow</div>
+    <div class="heading-group">
+      <h2 class="section-heading">六步标准流程</h2>
+      <p class="heading-dialect"><span class="dialect-tag">全景</span>从需求到归档，六步走完一个变更的完整生命周期</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Delta Spec Flow">
+      <defs>
+        <pattern id="fl-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/></pattern>
+        <filter id="fl-glow"><feGaussianBlur stdDeviation="5"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="fl-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/></marker>
+        <marker id="fl-arr-c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/></marker>
+        <marker id="fl-arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
+      </defs>
+      <rect width="1000" height="420" fill="#0B0F19"/><rect width="1000" height="420" fill="url(#fl-grid)"/>
+
+      <!-- Step 1 -->
+      <rect x="30" y="50" width="130" height="70" rx="14" fill="rgba(6,182,212,0.08)" stroke="#06B6D4" stroke-width="2"/>
+      <text x="95" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#06B6D4">① 读 Spec</text>
+      <text x="95" y="98" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">确定影响哪些模块</text>
+      <text x="95" y="112" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">阅读当前 spec.md</text>
+
+      <line x1="160" y1="85" x2="185" y2="85" stroke="#06B6D4" stroke-width="2" marker-end="url(#fl-arr-c)"/>
+
+      <!-- Step 2 -->
+      <rect x="190" y="35" width="150" height="100" rx="14" fill="rgba(139,92,246,0.08)" stroke="#8B5CF6" stroke-width="2"/>
+      <text x="265" y="60" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#8B5CF6">② 写 Delta</text>
+      <text x="265" y="78" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">创建变更目录</text>
+      <text x="265" y="95" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#F59E0B">proposal.md</text>
+      <text x="265" y="108" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8B5CF6">delta.md</text>
+      <text x="265" y="121" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#22c55e">tasks.md</text>
+
+      <line x1="340" y1="85" x2="365" y2="85" stroke="#8B5CF6" stroke-width="2" marker-end="url(#fl-arr)"/>
+
+      <!-- Step 3 -->
+      <rect x="370" y="50" width="130" height="70" rx="14" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="2"/>
+      <text x="435" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#22c55e">③ 按单施工</text>
+      <text x="435" y="98" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">按 tasks.md 逐项实现</text>
+      <text x="435" y="112" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">勾选制追踪进度</text>
+
+      <line x1="500" y1="85" x2="525" y2="85" stroke="#22c55e" stroke-width="2" marker-end="url(#fl-arr-g)"/>
+
+      <!-- Step 4 -->
+      <rect x="530" y="50" width="130" height="70" rx="14" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2"/>
+      <text x="595" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#F59E0B">④ 合并 Spec</text>
+      <text x="595" y="98" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">delta 条款 → spec.md</text>
+      <text x="595" y="112" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">ADDED/MODIFIED/REMOVED</text>
+
+      <line x1="660" y1="85" x2="685" y2="85" stroke="#F59E0B" stroke-width="2" marker-end="url(#fl-arr)"/>
+
+      <!-- Step 5 -->
+      <rect x="690" y="50" width="130" height="70" rx="14" fill="rgba(6,182,212,0.08)" stroke="#06B6D4" stroke-width="2"/>
+      <text x="755" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#06B6D4">⑤ 验证</text>
+      <text x="755" y="98" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">跑测试 + 检查清单</text>
+      <text x="755" y="112" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">uv run pytest</text>
+
+      <line x1="820" y1="85" x2="845" y2="85" stroke="#06B6D4" stroke-width="2" marker-end="url(#fl-arr-c)"/>
+
+      <!-- Step 6 -->
+      <rect x="850" y="50" width="120" height="70" rx="14" fill="rgba(148,163,184,0.06)" stroke="rgba(148,163,184,0.2)" stroke-width="2"/>
+      <text x="910" y="78" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#94A3B8">⑥ 归档</text>
+      <text x="910" y="98" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">changes → archive</text>
+      <text x="910" y="112" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">变更完成</text>
+
+      <!-- Bottom: lifecycle labels -->
+      <text x="95" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="rgba(6,182,212,0.5)" letter-spacing="0.15em">READ</text>
+      <text x="265" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="rgba(139,92,246,0.5)" letter-spacing="0.15em">PLAN</text>
+      <text x="435" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="rgba(34,197,94,0.5)" letter-spacing="0.15em">BUILD</text>
+      <text x="595" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="rgba(245,158,11,0.5)" letter-spacing="0.15em">MERGE</text>
+      <text x="755" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="rgba(6,182,212,0.5)" letter-spacing="0.15em">VERIFY</text>
+      <text x="910" y="175" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="rgba(148,163,184,0.5)" letter-spacing="0.15em">ARCHIVE</text>
+
+      <!-- File lifecycle visualization -->
+      <rect x="80" y="210" width="840" height="180" rx="14" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      <text x="500" y="238" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#94A3B8">文件生命周期</text>
+
+      <!-- changes/ directory -->
+      <rect x="110" y="255" width="320" height="110" rx="12" fill="rgba(139,92,246,0.05)" stroke="rgba(139,92,246,0.2)" stroke-width="1" stroke-dasharray="5,3"/>
+      <text x="130" y="275" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#8B5CF6">docs/changes/eval-framework-redesign/</text>
+      <rect x="130" y="285" width="130" height="28" rx="6" fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.2)" stroke-width="1"/>
+      <text x="195" y="304" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#F59E0B">proposal.md</text>
+      <rect x="270" y="285" width="100" height="28" rx="6" fill="rgba(139,92,246,0.08)" stroke="rgba(139,92,246,0.2)" stroke-width="1"/>
+      <text x="320" y="304" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#8B5CF6">delta.md</text>
+      <rect x="130" y="320" width="100" height="28" rx="6" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+      <text x="180" y="339" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#22c55e">tasks.md</text>
+
+      <!-- Arrow: changes → specs -->
+      <line x1="430" y1="310" x2="490" y2="310" stroke="#F59E0B" stroke-width="2" marker-end="url(#fl-arr)"/>
+      <text x="460" y="300" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#F59E0B">合并</text>
+
+      <!-- specs/ -->
+      <rect x="500" y="270" width="200" height="60" rx="12" fill="rgba(6,182,212,0.08)" stroke="#06B6D4" stroke-width="2"/>
+      <text x="600" y="298" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#06B6D4">docs/specs/eval/spec.md</text>
+      <text x="600" y="318" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#94A3B8">源头真相 · 持续更新</text>
+
+      <!-- Arrow: changes → archive -->
+      <line x1="350" y1="350" x2="350" y2="380" stroke="rgba(148,163,184,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="350" y="395" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">归档 ↓</text>
+
+      <!-- archive/ -->
+      <rect x="750" y="270" width="150" height="60" rx="12" fill="rgba(148,163,184,0.04)" stroke="rgba(148,163,184,0.12)" stroke-width="1"/>
+      <text x="825" y="298" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#64748B">docs/archive/</text>
+      <text x="825" y="318" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">历史快照 · 不再修改</text>
+
+      <line x1="700" y1="300" x2="745" y2="300" stroke="rgba(148,163,184,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="722" y="292" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#64748B">完成</text>
+    </svg>
+  </section>
+
+  <!-- ==================== SECTION 4: THREE DOCUMENTS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§4 Documents</div>
+    <div class="heading-group">
+      <h2 class="section-heading">三份关键文档</h2>
+      <p class="heading-dialect"><span class="dialect-tag">核心</span>proposal 说"为什么"，delta 说"改什么"，tasks 说"怎么做"</p>
+    </div>
+
+    <div class="grid-3" style="margin-top:32px;">
+      <!-- proposal.md -->
+      <div class="doc-card proposal">
+        <div class="doc-header">
+          <span class="badge">Proposal</span>
+          <h3>proposal.md</h3>
+        </div>
+        <div class="doc-body">
+<span class="d-meta"># 变更提案: Eval 框架重新设计</span>
+<span class="d-meta">&gt; 日期: 2026-05-02</span>
+<span class="d-meta">&gt; 影响模块: specs/eval/spec.md</span>
+
+<span class="d-h1">## 动机</span>
+<span class="d-meta">当前 eval 只有骨架，无法</span>
+<span class="d-meta">真正评测 Agent 能力。</span>
+<span class="d-meta">需要参考 GAIA 和 SWE-bench</span>
+<span class="d-meta">建立完整评测体系。</span>
+
+<span class="d-h1">## 范围</span>
+<span class="d-str">- 重新设计 eval runner</span>
+<span class="d-str">- 引入四维度评分模型</span>
+<span class="d-str">- 支持 L1/L2/L3 分级</span>
+<span class="d-key">- 不改数据库模型</span>
+<span class="d-key">- 不改现有 Gate 接口</span>
+        </div>
+      </div>
+
+      <!-- delta.md -->
+      <div class="doc-card delta">
+        <div class="doc-header">
+          <span class="badge">Delta</span>
+          <h3>delta.md</h3>
+        </div>
+        <div class="doc-body">
+<span class="d-meta"># Delta: Eval 框架重新设计</span>
+<span class="d-meta">&gt; 关联模块: specs/eval/spec.md</span>
+
+<span class="d-h1">## ADDED</span>
+<span class="d-added">+ REQ-EVAL-001: Runner 复用</span>
+<span class="d-added">  Sloth 流水线执行真实任务</span>
+<span class="d-added">+ REQ-EVAL-003: 四维度评分</span>
+<span class="d-added">  正确性/质量/效率/部署</span>
+
+<span class="d-h1">## MODIFIED</span>
+<span class="d-modified">~ REQ-旧-001: runner 从"只验证</span>
+<span class="d-modified">  文件存在"改为"执行流水线"</span>
+
+<span class="d-h1">## REMOVED</span>
+<span class="d-removed">- REQ-旧-003: 移除 smoke_test</span>
+<span class="d-removed">  功能合并到 Gate3</span>
+        </div>
+      </div>
+
+      <!-- tasks.md -->
+      <div class="doc-card tasks">
+        <div class="doc-header">
+          <span class="badge">Tasks</span>
+          <h3>tasks.md</h3>
+        </div>
+        <div class="doc-body">
+<span class="d-meta"># 实现任务</span>
+
+<span class="d-h2">## Phase 1: 基础结构</span>
+<span class="d-check">- [x] 创建 models.py</span>
+<span class="d-check">- [x] 迁移 tasks.yaml</span>
+<span class="d-uncheck">- [ ] 创建 results/ 目录</span>
+
+<span class="d-h2">## Phase 2: 核心引擎</span>
+<span class="d-uncheck">- [ ] 实现 scoring.py</span>
+<span class="d-uncheck">- [ ] 重写 runner.py</span>
+<span class="d-uncheck">- [ ] HookManager 指标采集</span>
+
+<span class="d-h2">## Phase 3: CLI</span>
+<span class="d-uncheck">- [ ] sloth eval run</span>
+<span class="d-uncheck">- [ ] sloth eval report</span>
+<span class="d-uncheck">- [ ] sloth eval compare</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">📋 三份文档的关系</div>
+      <div class="analogy-body">
+        <strong>proposal.md</strong> = 装修申请单（为什么装、装哪里、不装哪里）<br>
+        <strong>delta.md</strong> = 施工变更单（加什么、改什么、拆什么，用条款编号）<br>
+        <strong>tasks.md</strong> = 施工进度表（具体每一步做什么，做完打勾）<br><br>
+        三份文档分工明确：<strong>proposal 给决策者看，delta 给 Spec 维护者看，tasks 给施工者看</strong>。
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 5: REAL EXAMPLE ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§5 Real Example</div>
+    <div class="heading-group">
+      <h2 class="section-heading">真实案例：Brainstorm 多轮讨论</h2>
+      <p class="heading-dialect"><span class="dialect-tag">对照</span>看看真实的 Delta 长什么样——这不是模板，是实际用过的</p>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">docs/archive/brainstorm-fluid-discussion/ — 真实归档</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted">proposal.md</span>  <span class="t-muted">← 为什么改？</span>
+<span class="t-white">  "当前 Brainstorm 单轮架构，每个 Agent 各说一次即结束，</span>
+<span class="t-white">   无法产生真正的来回辩论。"</span>
+<span class="t-white">  改什么：重写为多轮循环 + 互动 Prompt + agent name 修复</span>
+<span class="t-white">  不改什么：SSE 协议格式、数据库模型、沙箱隔离</span>
+
+<span class="t-purple">delta.md</span>    <span class="t-muted">← 改了什么条款？</span>
+<span class="t-green">  ADDED:</span>
+<span class="t-green">    REQ-BRAINSTORM-PASS: Agent 可发送 "PASS" 跳过本轮</span>
+<span class="t-green">    REQ-BRAINSTORM-SSE-AGENT-PASS: 新增 agent_pass SSE 事件</span>
+<span class="t-green">    REQ-CHAT-STREAM-AUTOSCROLL: 流式内容自动滚动</span>
+<span class="t-amber">  MODIFIED:</span>
+<span class="t-amber">    REQ-BRAINSTORM-ENGINE-LOOP: 单轮 → 多轮循环（最多 8 轮）</span>
+<span class="t-amber">    REQ-BRAINSTORM-ENGINE-PROMPT: 加入互动指令</span>
+<span class="t-amber">    REQ-BRAINSTORM-HISTORY-NAMES: JOIN 取真实 agent name</span>
+<span class="t-red">  REMOVED:</span>
+<span class="t-red">    REQ-CHAT-QUEUE-MERGE: 已过时（上次已修复为逐条发送）</span>
+
+<span class="t-green">tasks.md</span>    <span class="t-muted">← 怎么实现？</span>
+<span class="t-green">  ✓ _load_history 改用 outerjoin</span>
+<span class="t-green">  ✓ agent_start/message_done 携带 agent_number</span>
+<span class="t-green">  ✓ run() 重写为 while 多轮循环</span>
+<span class="t-green">  ✓ PASS 检测 + agent_pass 事件</span>
+<span class="t-green">  ✓ 前端 store 新增 activeAgentNumber</span>
+<span class="t-green">  ✓ ChatArea 流式自动滚动 + processQueue await</span>
+<span class="t-muted">  ── 全部完成，已归档到 docs/archive/ ──</span></div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 6: WHEN TO USE PLAN ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§6 Scale</div>
+    <div class="heading-group">
+      <h2 class="section-heading">什么时候需要 Plan？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">决策树</span>小改动用 Delta 够了，大功能才需要 Plan</p>
+    </div>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr><th>变更规模</th><th>流程</th><th>示例</th></tr>
+        </thead>
+        <tbody>
+          <tr><td style="color:#22c55e;">小改动</td><td>Delta → tasks.md → 实现 → 归档</td><td>修复 bug、加一个小功能、改配置</td></tr>
+          <tr><td style="color:#06B6D4;">中改动</td><td>Delta → tasks.md → 实现 → 归档</td><td>跨 2-3 个模块的功能改进</td></tr>
+          <tr><td style="color:#8B5CF6;">大功能</td><td>Delta → <strong>Plan</strong> → tasks.md → 实现 → 归档</td><td>MVP 桌面应用（9 个 Iter）、新子系统</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">📐 什么时候画施工图</div>
+      <div class="analogy-body">
+        <strong>换个灯泡</strong>（小改动）：口头说一声就干了 → 只需要 Delta<br>
+        <strong>装修厨房</strong>（中改动）：需要施工单 → Delta + tasks 够了<br>
+        <strong>盖一栋楼</strong>（大功能）：需要完整施工图 → Delta + Plan + tasks<br><br>
+        Plan 保留在 <code>docs/plans/</code>，是独立的项目管理文档，适合跨多迭代的大功能追踪。小变更的 tasks.md 直接写在 Delta 目录里就够了。
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 7: MERGE RULES ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§7 Merge</div>
+    <div class="heading-group">
+      <h2 class="section-heading">Delta 如何合并到 Spec？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">关键步骤</span>完成实现后，把变更条款"写入"源头真相</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Merge Rules">
+      <defs>
+        <pattern id="mg-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/></pattern>
+      </defs>
+      <rect width="1000" height="280" fill="#0B0F19"/><rect width="1000" height="280" fill="url(#mg-grid)"/>
+
+      <!-- ADDED -->
+      <rect x="40" y="40" width="280" height="100" rx="14" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="2"/>
+      <text x="60" y="68" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#22c55e">ADDED</text>
+      <text x="60" y="90" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">新增条款 → <strong style="color:#22c55e">追加</strong>到 spec 对应章节</text>
+      <text x="60" y="110" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">在"已实现"节末尾添加新条目</text>
+      <text x="60" y="128" font-family="JetBrains Mono, monospace" font-size="10" fill="#22c55e">spec.md 末尾追加 →</text>
+
+      <!-- MODIFIED -->
+      <rect x="360" y="40" width="280" height="100" rx="14" fill="rgba(245,158,11,0.06)" stroke="#F59E0B" stroke-width="2"/>
+      <text x="380" y="68" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#F59E0B">MODIFIED</text>
+      <text x="380" y="90" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">修改条款 → <strong style="color:#F59E0B">替换</strong> spec 中对应内容</text>
+      <text x="380" y="110" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">找到原条款，用新内容覆盖</text>
+      <text x="380" y="128" font-family="JetBrains Mono, monospace" font-size="10" fill="#F59E0B">原条款 → 新条款</text>
+
+      <!-- REMOVED -->
+      <rect x="680" y="40" width="280" height="100" rx="14" fill="rgba(239,68,68,0.06)" stroke="#EF4444" stroke-width="2"/>
+      <text x="700" y="68" font-family="JetBrains Mono, monospace" font-size="14" font-weight="700" fill="#EF4444">REMOVED</text>
+      <text x="700" y="90" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">删除条款 → 从 spec 中<strong style="color:#EF4444">移除</strong></text>
+      <text x="700" y="110" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">找到原条款，整段删除</text>
+      <text x="700" y="128" font-family="JetBrains Mono, monospace" font-size="10" fill="#EF4444">原条款 → 删除</text>
+
+      <!-- Example -->
+      <rect x="100" y="175" width="800" height="80" rx="12" fill="rgba(139,92,246,0.04)" stroke="rgba(139,92,246,0.15)" stroke-width="1"/>
+      <text x="500" y="200" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#8B5CF6">实际操作示例</text>
+      <text x="130" y="222" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#22c55e">ADDED REQ-EVAL-003</text>
+      <text x="310" y="222" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">→ 在 spec.md 的"核心设计"节末尾追加评分模型描述</text>
+      <text x="130" y="242" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#F59E0B">MODIFIED REQ-旧-001</text>
+      <text x="310" y="242" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#94A3B8">→ 找到 spec.md 中 runner 描述，替换为新内容</text>
+    </svg>
+  </section>
+
+  <!-- ==================== SECTION 8: PROS & CONS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§8 Trade-offs</div>
+    <div class="heading-group">
+      <h2 class="section-heading">优缺点分析</h2>
+      <p class="heading-dialect"><span class="dialect-tag">诚实</span>没有银弹——Delta Spec 有明显优势，也有明确代价</p>
+    </div>
+
+    <div class="pro-con-grid">
+      <div class="pro-card">
+        <div class="pro-con-title">优势</div>
+        <ul class="pro-con-list">
+          <li><strong>文档永远同步</strong> — 代码改了文档必须跟着改，不会出现"文档过时"的问题</li>
+          <li><strong>变更可追溯</strong> — 每次变更有 proposal（为什么）、delta（改什么）、tasks（怎么做），三个月后还能查到</li>
+          <li><strong>需求先于实现</strong> — 强制先想清楚"改什么"再动手，减少返工</li>
+          <li><strong>新人友好</strong> — 读 spec.md 就能了解系统当前状态，不用翻 git log</li>
+          <li><strong>回滚有据</strong> — archive 里保存了每次变更的完整快照，回滚时知道改了什么</li>
+          <li><strong>AI 友好</strong> — 结构化的 delta 格式让 AI Agent 也能理解和执行变更流程</li>
+        </ul>
+      </div>
+      <div class="con-card">
+        <div class="pro-con-title">代价</div>
+        <ul class="pro-con-list">
+          <li><strong>前期开销</strong> — 改一行代码也要先写 proposal + delta + tasks，小改动感觉繁琐</li>
+          <li><strong>维护负担</strong> — Spec 需要持续维护，如果不认真更新反而成为误导</li>
+          <li><strong>学习曲线</strong> — 团队需要理解 ADDED/MODIFIED/REMOVED 格式和合并规则</li>
+          <li><strong>不适合快速原型</strong> — 探索阶段代码变化太快，Delta 跟不上节奏</li>
+          <li><strong>Spec 膨胀</strong> — 长期累积后 spec.md 可能变得很长，需要定期精简</li>
+          <li><strong>合并冲突</strong> — 多人同时修改同一模块的 spec 可能产生文档合并冲突</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 9: ANTI-PATTERNS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§9 Pitfalls</div>
+    <div class="heading-group">
+      <h2 class="section-heading">常见反模式</h2>
+      <p class="heading-dialect"><span class="dialect-tag">避坑</span>知道不该做什么，和知道该做什么一样重要</p>
+    </div>
+
+    <div class="anti-table-wrap">
+      <table class="anti-table">
+        <thead>
+          <tr><th style="width:220px">❌ 反模式</th><th>为什么不好</th><th style="width:220px">✅ 正确做法</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>改完代码再补 Delta</td>
+            <td>Delta 变成了"事后文档"，需求和实现可能已经对不上了</td>
+            <td>先写 Delta，再改代码</td>
+          </tr>
+          <tr>
+            <td>Delta 里写实现细节</td>
+            <td>Delta 描述"改什么需求"，不是"怎么实现"。实现细节属于 tasks.md</td>
+            <td>Delta 只写需求条款，tasks 写实现步骤</td>
+          </tr>
+          <tr>
+            <td>跳过 proposal 直接写 delta</td>
+            <td>没有动机和范围的 delta 是无根之木，读者不知道为什么这样改</td>
+            <td>三份文档都要写</td>
+          </tr>
+          <tr>
+            <td>完成不归档</td>
+            <td>changes/ 目录堆积未完成的变更，无法区分进行中和已完成</td>
+            <td>完成后立即移到 archive/</td>
+          </tr>
+          <tr>
+            <td>Spec 不更新</td>
+            <td>Delta 写了但没合并到 spec，spec 和代码脱节</td>
+            <td>实现完成后立即合并 delta 到 spec</td>
+          </tr>
+          <tr>
+            <td>跨 Plan 搬运内容</td>
+            <td>维护两份同样的内容必有一份过期，产生矛盾</td>
+            <td>引用 Spec 章节，不跨 Plan 引用</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 10: FILE STRUCTURE ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§10 Structure</div>
+    <div class="heading-group">
+      <h2 class="section-heading">文档目录结构</h2>
+      <p class="heading-dialect"><span class="dialect-tag">全貌</span>Spec 是圆心，Delta 是过程，Archive 是历史</p>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">docs/ 完整目录结构</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted">docs/</span>
+<span class="t-muted">├──</span> <span class="t-cyan">specs/</span>                <span class="t-muted"># 源头真相 — 系统的当前状态</span>
+<span class="t-muted">│   ├──</span> <span class="t-cyan">architecture/spec.md</span>
+<span class="t-muted">│   ├──</span> <span class="t-cyan">eval/spec.md</span>
+<span class="t-muted">│   ├──</span> <span class="t-cyan">brainstorm/spec.md</span>
+<span class="t-muted">│   └──</span> <span class="t-cyan">...22 个模块</span>
+<span class="t-muted">│</span>
+<span class="t-muted">├──</span> <span class="t-amber">changes/</span>              <span class="t-muted"># 进行中的 Delta 变更</span>
+<span class="t-muted">│   ├──</span> <span class="t-amber">README.md</span>           <span class="t-muted"># 格式说明</span>
+<span class="t-muted">│   └──</span> <span class="t-amber">eval-framework-redesign/</span>
+<span class="t-muted">│       ├──</span> <span class="t-amber">proposal.md</span>   <span class="t-muted"># 为什么</span>
+<span class="t-muted">│       ├──</span> <span class="t-purple">delta.md</span>      <span class="t-muted"># 改什么</span>
+<span class="t-muted">│       └──</span> <span class="t-green">tasks.md</span>      <span class="t-muted"># 怎么做</span>
+<span class="t-muted">│</span>
+<span class="t-muted">├──</span> <span class="t-muted">archive/</span>              <span class="t-muted"># 历史归档 — 完成的变更</span>
+<span class="t-muted">│   ├──</span> <span class="t-muted">initial-specs/</span>     <span class="t-muted"># 初始 Spec 快照</span>
+<span class="t-muted">│   ├──</span> <span class="t-muted">brainstorm-fluid-discussion/</span>
+<span class="t-muted">│   └──</span> <span class="t-muted">message-queue/</span>
+<span class="t-muted">│</span>
+<span class="t-muted">├──</span> <span class="t-purple">plans/</span>               <span class="t-muted"># 大功能的实施计划（跨多迭代）</span>
+<span class="t-muted">├──</span> <span class="t-green">qa/</span>                  <span class="t-muted"># 验证清单</span>
+<span class="t-muted">├──</span> <span class="t-muted">design/</span>              <span class="t-muted"># 设计文档</span>
+<span class="t-muted">└──</span> <span class="t-amber">articles/</span>            <span class="t-muted"># 方法论文章（本文档）</span></div>
+    </div>
+  </section>
+
+  <!-- Quote -->
+  <div class="section fade-in">
+    <div class="quote-panel">
+      <div class="quote-mark">&ldquo;</div>
+      <div class="quote-text">
+        <p>Spec 是源头，代码是 Spec 的实现。如果代码和 Spec 不一致，是代码错了，不是 Spec 错了。</p>
+        <p style="color:var(--muted); font-size:0.95rem; margin-top:10px;">—— Delta Spec 工作流的第一性原理</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer fade-in">
+    <div class="footer-panel">
+      <div class="section-label">Closing</div>
+      <h2 class="footer-heading">好的变更管理，不是写更多文档，而是让每一份文档都有存在的理由。</h2>
+      <p class="heading-dialect"><span class="dialect-tag">记住</span>proposal 说为什么，delta 说改什么，tasks 说怎么做——三份文档，一个都不能少</p>
+      <p class="footer-note">
+        文章版本 1.0 &middot; 2026-05-02 &middot; 适用 Sloth Agent 及所有采用 Delta Spec 驱动的项目 &middot;
+        完整工作流见 <code style="color:var(--purple);">CLAUDE.md</code> "开发工作流（Delta Spec）"节
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const progress = document.getElementById('progress');
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')';
+    };
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    const observer = new IntersectionObserver(
+      (entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
