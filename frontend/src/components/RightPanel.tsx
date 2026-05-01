@@ -67,19 +67,24 @@ export default function RightPanel() {
   }, [teamMembers, templatePool]);
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [addSearchQuery, setAddSearchQuery] = useState("");
   const addMenuRef = useRef<HTMLDivElement>(null);
+
+  const [modelDropdownId, setModelDropdownId] = useState<string | null>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
         setAddMenuOpen(false);
       }
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownId(null);
+      }
     };
-    if (addMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [addMenuOpen]);
+  }, []);
 
   // Brainstorm search state
   const [bsSearchQuery, setBsSearchQuery] = useState("");
@@ -118,7 +123,7 @@ export default function RightPanel() {
       <div className="rightpanel">
         <div className="rightpanel__header">
           <span className="rightpanel__title">Status</span>
-          <button className="rightpanel__close-btn" onClick={closeCol4} title="Close">
+          <button className="rightpanel__close-btn" onClick={closeCol4} data-tooltip-bottom="Close">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -158,7 +163,7 @@ export default function RightPanel() {
           </div>
         )}
         {!showTabs && <span className="rightpanel__title" />}
-        <button className="rightpanel__close-btn" onClick={closeCol4} title="Close">
+        <button className="rightpanel__close-btn" onClick={closeCol4} data-tooltip-bottom="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
@@ -183,49 +188,79 @@ export default function RightPanel() {
                   <p className="rightpanel__placeholder">No agents in team yet</p>
                 )}
 
-                {teamMembers.map((member) => {
+                {teamMembers.map((member, index) => {
                   const color = ROLE_COLOR[member.role] ?? "#94A3B8";
                   const isLead = member.role === "lead";
                   const defaultCfg = configs.find((c) => c.is_default);
                   const effectiveModel = member.model || (isLead && defaultCfg ? `${defaultCfg.provider} · ${defaultCfg.model}` : "");
+                  const isDropdownOpen = modelDropdownId === member.id;
+                  const currentLabel = effectiveModel || "Select model";
+                  const num = index + 1;
 
                   return (
                     <div key={member.id} className="rp-agent-card">
                       <div className="rp-agent-card__top">
                         <div
                           className="rp-agent-card__avatar"
-                          style={{ background: `${color}22`, borderColor: `${color}44` }}
+                          style={{ background: `${color}22` }}
                         >
-                          <span style={{ color }}>{member.name.slice(0, 1).toUpperCase()}</span>
+                          <span style={{ color }}>{num}</span>
                         </div>
                         <div className="rp-agent-card__info">
                           <div className="rp-agent-card__name">{member.name}</div>
                           <div className="rp-agent-card__role">{member.role}</div>
                         </div>
-                        <span className={`rp-status-dot ${member.status === "working" ? "rp-status-dot--active" : ""}`} />
+                        <span className={`rp-status-badge${member.status === "working" ? " rp-status-badge--working" : ""}`}>
+                          <span className="rp-status-badge__dot" />
+                          {member.status === "working" ? "Working" : "Idle"}
+                        </span>
                       </div>
 
                       <div className="rp-agent-card__controls">
-                        <select
-                          className="rp-model-select"
-                          value={effectiveModel}
-                          onChange={(e) => {
-                            if (e.target.value) updateModel(member.id, e.target.value);
-                          }}
-                          title="Select model"
-                        >
-                          {!effectiveModel && <option value="" disabled>No model</option>}
-                          {configs.map((c) => {
-                            const value = `${c.provider} · ${c.model}`;
-                            return <option key={c.id} value={value}>{c.provider} · {c.model}</option>;
-                          })}
-                        </select>
+                        <div className="rp-model-dropdown" ref={isDropdownOpen ? modelDropdownRef : undefined}>
+                          <button
+                            className={`rp-model-trigger${!effectiveModel ? " rp-model-trigger--empty" : ""}`}
+                            onClick={() => setModelDropdownId(isDropdownOpen ? null : member.id)}
+                            data-tooltip="Select model"
+                          >
+                            <span className="rp-model-trigger__label">{currentLabel}</span>
+                            <svg className={`rp-model-trigger__chevron${isDropdownOpen ? " rp-model-trigger__chevron--open" : ""}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
+                          {isDropdownOpen && (
+                            <div className="rp-model-popup">
+                              {configs.map((c) => {
+                                const value = `${c.provider} · ${c.model}`;
+                                const isSelected = value === effectiveModel;
+                                return (
+                                  <div
+                                    key={c.id}
+                                    className={`rp-model-option${isSelected ? " rp-model-option--selected" : ""}`}
+                                    onClick={() => {
+                                      updateModel(member.id, value);
+                                      setModelDropdownId(null);
+                                    }}
+                                  >
+                                    <span className="rp-model-option__provider">{c.provider}</span>
+                                    <span className="rp-model-option__model">{c.model}</span>
+                                    {isSelected && (
+                                      <svg className="rp-model-option__check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
 
                         {!isLead && (
                           <button
                             className="rp-remove-btn"
                             onClick={() => removeFromTeam(member.inspiration_id, member.id)}
-                            title="Remove from team"
+                            data-tooltip="Remove from team"
                           >
                             Remove
                           </button>
@@ -237,40 +272,75 @@ export default function RightPanel() {
 
                 {activeInspirationId && availableTemplates.length > 0 && (
                   <div className="rp-divider">
-                    <span>Agents</span>
                     <div className="rp-add-dropdown" ref={addMenuRef}>
                       <button
-                        className="rp-add-trigger"
-                        onClick={() => setAddMenuOpen((v) => !v)}
+                        className="rp-icon-add-btn"
+                        onClick={() => {
+                          setAddMenuOpen((v) => !v);
+                          setAddSearchQuery("");
+                        }}
+                        data-tooltip="Add agent to team"
                       >
-                        + Add
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
                       </button>
                       {addMenuOpen && (
                         <div className="rp-add-menu">
-                          {availableTemplates.map((t) => {
-                            const color = ROLE_COLOR[t.role] ?? "#94A3B8";
-                            return (
-                              <div
-                                key={t.id}
-                                className="rp-add-menu-item"
-                                onClick={() => {
-                                  if (activeInspirationId) addToTeam(activeInspirationId, t.id);
-                                  setAddMenuOpen(false);
-                                }}
-                              >
-                                <div
-                                  className="rp-agent-card__avatar rp-add-menu-avatar"
-                                  style={{ background: `${color}22`, borderColor: `${color}44` }}
-                                >
-                                  <span style={{ color }}>{t.name.slice(0, 1).toUpperCase()}</span>
-                                </div>
-                                <div className="rp-add-menu-info">
-                                  <div className="rp-add-menu-name">{t.name}</div>
-                                  <div className="rp-add-menu-role">{t.role}</div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                          <div className="rp-add-menu__search">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="11" cy="11" r="8" />
+                              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input
+                              className="rp-add-menu__search-input"
+                              type="text"
+                              placeholder="Search agents..."
+                              value={addSearchQuery}
+                              onChange={(e) => setAddSearchQuery(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
+                          <div className="rp-add-menu__list">
+                            {availableTemplates
+                              .filter((t) => {
+                                if (!addSearchQuery.trim()) return true;
+                                const q = addSearchQuery.toLowerCase();
+                                return t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q);
+                              })
+                              .map((t) => {
+                                const color = ROLE_COLOR[t.role] ?? "#94A3B8";
+                                return (
+                                  <div
+                                    key={t.id}
+                                    className="rp-add-menu-item"
+                                    onClick={() => {
+                                      if (activeInspirationId) addToTeam(activeInspirationId, t.id);
+                                      setAddMenuOpen(false);
+                                      setAddSearchQuery("");
+                                    }}
+                                  >
+                                    <div
+                                      className="rp-agent-card__avatar rp-add-menu-avatar"
+                                      style={{ background: `${color}22` }}
+                                    >
+                                      <span style={{ color }}>{t.name.slice(0, 1).toUpperCase()}</span>
+                                    </div>
+                                    <div className="rp-add-menu-info">
+                                      <div className="rp-add-menu-name">{t.name}</div>
+                                      <div className="rp-add-menu-role">{t.role}</div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            {availableTemplates.filter((t) => {
+                              const q = addSearchQuery.toLowerCase();
+                              return t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q);
+                            }).length === 0 && (
+                              <div className="rp-add-menu__empty">No matching agents</div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -360,7 +430,7 @@ export default function RightPanel() {
                               role="switch"
                               aria-checked={session.status === "active"}
                               aria-label={session.status === "active" ? "Deactivate session" : "Activate session"}
-                              title={session.status === "active" ? "Deactivate session" : "Activate session"}
+                              data-tooltip={session.status === "active" ? "Deactivate session" : "Activate session"}
                               onClick={() => {
                                 if (session.status === "active") {
                                   brainstormEndSession(session.id);

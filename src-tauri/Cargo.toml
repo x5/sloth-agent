@@ -1,6 +1,6 @@
 [package]
 name = "sloth-agent"
-version = "0.1.0"
+version = "0.5.3"
 description = "Sloth Agent Desktop App"
 authors = ["x5"]
 edition = "2021"

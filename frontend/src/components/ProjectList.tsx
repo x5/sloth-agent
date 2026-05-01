@@ -51,7 +51,7 @@ export default function ProjectList() {
           <h1 className="projectlist__title">Inspiration</h1>
           <button
             className="projectlist__add-btn"
-            title="New Inspiration"
+            data-tooltip="New Inspiration"
             onClick={handleCreate}
           >
             <svg
@@ -67,7 +67,7 @@ export default function ProjectList() {
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
-          <div className="projectlist__collapsed-icon" title="Inspiration">
+          <div className="projectlist__collapsed-icon" data-tooltip="Inspiration">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ea7b0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2a7 7 0 0 0-7 7c0 2.4 1.2 4.5 3 5.7V18h8v-3.3c1.8-1.3 3-3.4 3-5.7a7 7 0 0 0-7-7z" />
               <line x1="9" y1="18" x2="15" y2="18" />
@@ -145,7 +145,7 @@ export default function ProjectList() {
                   </div>
                   <button
                     className="projectlist__item-delete"
-                    title="Delete inspiration"
+                    data-tooltip="Delete inspiration"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeleteTarget({ id: p.id, name: p.name });
@@ -167,7 +167,7 @@ export default function ProjectList() {
       <div className="projectlist__footer">
         <button
           className="projectlist__collapse-btn"
-          title={col2Collapsed ? "Expand" : "Collapse"}
+          data-tooltip={col2Collapsed ? "Expand" : "Collapse"}
           onClick={toggleCol2}
         >
           <svg

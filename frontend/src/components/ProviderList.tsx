@@ -54,7 +54,7 @@ export default function ProviderList() {
                 <div className="llm-provider-card__row">
                   <div className="llm-provider-card__name">{c.provider}</div>
                   {c.is_default && (
-                    <span className="llm-provider-card__dot" title="Default provider" />
+                    <span className="llm-provider-card__dot" data-tooltip="Default provider" />
                   )}
                 </div>
                 <div className="llm-provider-card__model">{c.model}</div>
@@ -147,7 +147,7 @@ function ProviderAddForm() {
 
   if (!show) {
     return (
-      <button className="llm-provider-add-btn" onClick={() => setShow(true)} title="Add Provider">
+      <button className="llm-provider-add-btn" onClick={() => setShow(true)} data-tooltip="Add Provider">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />

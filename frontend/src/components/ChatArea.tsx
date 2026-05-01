@@ -32,6 +32,11 @@ function sessionNum(sessions: { id: string }[], sessionId: string): number {
   return sessions.length - idx;
 }
 
+const ROLE_COLOR: Record<string, string> = {
+  lead: "#8B5CF6",
+  fortune: "#06B6D4",
+};
+
 export default function ChatArea() {
   const inspirations = useInspirationStore((s) => s.inspirations);
   const activeId = useInspirationStore((s) => s.activeId);
@@ -43,6 +48,14 @@ export default function ChatArea() {
   const teamMembers = useAgentStore((s) => s.teamMembers);
   const fetchTeam = useAgentStore((s) => s.fetchTeam);
   const workingCount = teamMembers.filter((m) => m.status === "working").length;
+
+  const agentColorMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    teamMembers.forEach((m, i) => {
+      map[i + 1] = ROLE_COLOR[m.role] ?? "#94A3B8";
+    });
+    return map;
+  }, [teamMembers]);
 
   useEffect(() => {
     if (activeId) {
@@ -215,7 +228,7 @@ export default function ChatArea() {
               <h2 className="chatarea__project-name">{activeInspiration.name}</h2>
               <span
                 className="chatarea__status"
-                title={workingCount > 0
+                data-tooltip-bottom={workingCount > 0
                   ? `${workingCount} AGENT${workingCount > 1 ? "S" : ""} WORKING`
                   : `${teamMembers.length} AGENT${teamMembers.length !== 1 ? "S" : ""} IDLE`}
               >
@@ -233,7 +246,7 @@ export default function ChatArea() {
               {brainstormMode && brainstormActiveId && (() => {
                 const sessionIndex = sessionNum(brainstormSessions, brainstormActiveId);
                 return (
-                  <span className="chatarea__brainstorm-badge" title="Brainstorm Mode Active">
+                  <span className="chatarea__brainstorm-badge" data-tooltip-bottom="Brainstorm Mode Active">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                     </svg>
@@ -249,7 +262,7 @@ export default function ChatArea() {
           )}
         </div>
         <div className="chatarea__topbar-actions">
-          <button className={`chatarea__icon-btn${col4Content === "team" ? " chatarea__icon-btn--active" : ""}`} title="Team" onClick={() => openCol4("team")} disabled={!activeInspiration}>
+          <button className={`chatarea__icon-btn${col4Content === "team" ? " chatarea__icon-btn--active" : ""}`} data-tooltip-bottom="Team" onClick={() => openCol4("team")} disabled={!activeInspiration}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="8" r="4" />
               <path d="M1 20v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" />
@@ -257,12 +270,12 @@ export default function ChatArea() {
               <path d="M22 20v-2a3 3 0 0 0-2-2.8" />
             </svg>
           </button>
-          <button className={`chatarea__icon-btn${col4Content === "status" ? " chatarea__icon-btn--active" : ""}`} title="Status" onClick={() => openCol4("status")} disabled>
+          <button className={`chatarea__icon-btn${col4Content === "status" ? " chatarea__icon-btn--active" : ""}`} data-tooltip-bottom="Status" onClick={() => openCol4("status")} disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </button>
-          <button className="chatarea__icon-btn" title="More Options" disabled>
+          <button className="chatarea__icon-btn" data-tooltip-bottom="More Options" disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
             </svg>
@@ -287,7 +300,7 @@ export default function ChatArea() {
           </div>
         ) : (
           <div className="chatarea__messages">
-            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} />
+            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} />
             {sending && <ThinkingBubble />}
           </div>
         )}
@@ -323,12 +336,12 @@ export default function ChatArea() {
           />
           <div className="chatarea__input-actions">
             <div className="chatarea__input-tools">
-              <button className="chatarea__tool-btn" title="Attach File" disabled>
+              <button className="chatarea__tool-btn" data-tooltip="Attach File" disabled>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
                 </svg>
               </button>
-              <button className="chatarea__tool-btn" title="Mention Agent" disabled>
+              <button className="chatarea__tool-btn" data-tooltip="Mention Agent" disabled>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
@@ -336,7 +349,7 @@ export default function ChatArea() {
               </button>
               <button
                 className={`chatarea__tool-btn${brainstormMode ? " chatarea__tool-btn--active" : ""}`}
-                title={brainstormMode ? "End Brainstorm" : "Start Brainstorm"}
+                data-tooltip={brainstormMode ? "End Brainstorm" : "Start Brainstorm"}
                 onClick={handleToggleBrainstorm}
                 disabled={!activeInspiration || sending}
               >
@@ -409,10 +422,12 @@ function DisplayItems({
   messages,
   dividers,
   formatMessageTime,
+  agentColorMap,
 }: {
   messages: Message[];
   dividers: DividerItem[];
   formatMessageTime: (iso: string) => string;
+  agentColorMap: Record<number, string>;
 }) {
   const items = useMemo<DisplayItem[]>(() => {
     const sorted = [...dividers].sort((a, b) => a.ts.localeCompare(b.ts));
@@ -453,7 +468,7 @@ function DisplayItems({
                   <line x1="15" y1="6" x2="15" y2="4" />
                   <line x1="12" y1="6" x2="12" y2="3" />
                 </svg>
-                <span className="chat-message__avatar-num">{m.agent_number ?? "?"}</span>
+                <span className="chat-message__avatar-num" style={m.agent_number && agentColorMap[m.agent_number] ? { color: agentColorMap[m.agent_number], borderColor: `${agentColorMap[m.agent_number]}44`, background: `${agentColorMap[m.agent_number]}12` } : undefined}>{m.agent_number ?? "?"}</span>
               </div>
             )}
             <div className="chat-message__bubble">

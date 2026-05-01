@@ -21,7 +21,7 @@ export default function SideNavBar() {
       <div className="sidenav__nav">
         <button
           className={`sidenav__btn${activeNav === "inspirations" ? " sidenav__btn--active" : ""}`}
-          title="Inspiration"
+          data-tooltip-right="Inspiration"
           onClick={() => handleNav("inspirations")}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -32,7 +32,7 @@ export default function SideNavBar() {
         </button>
         <button
           className={`sidenav__btn${activeNav === "agents" ? " sidenav__btn--active" : ""}`}
-          title="Agents"
+          data-tooltip-right="Agents"
           onClick={() => handleNav("agents")}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -46,7 +46,7 @@ export default function SideNavBar() {
         </button>
         <button
           className={`sidenav__btn${activeNav === "settings" ? " sidenav__btn--active" : ""}`}
-          title="Settings"
+          data-tooltip-right="Settings"
           onClick={() => handleNav("settings")}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

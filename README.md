@@ -17,7 +17,7 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **最新版本 v0.5.2** — Iter-2 验证修复：Provider 预设系统 + Autocomplete + 连接测试 + 设计一致性打磨。
+> **最新版本 v0.5.3** — Brainstorm 状态逻辑修复 + Team Sidebar 重设计 + 自定义 Tooltip + UI 统一。
 > [查看 Release](https://github.com/x5/sloth-agent/releases) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
@@ -145,6 +145,7 @@ sloth chat
 | v0.5.0 | + 桌面 MVP Iter-1 | 4 列布局 + SQLite + Inspiration CRUD + QA 验证管线 |
 | v0.5.1 | + 桌面 MVP Iter-2 | Warm Minimalism 设计系统 + Agent 消息 + 聊天 UX 打磨 |
 | v0.5.2 | Iter-2 验证修复 | Provider 预设 + Autocomplete + 连接测试 + N+1 优化 |
+| v0.5.3 | Iter-3 Fix | Brainstorm 状态逻辑 + Team Sidebar 重设计 + UI 统一 |
 | v0.5.x | + Agent 管理完善 | Agent Pool 扩展 + 多 Agent 协作（开发中） |
 | v0.8 | + 昼夜循环 | Persistent Daemon 常驻，夜间分析→日间执行 |
 | v1.0 | 完整架构 | 8+ Agent + 多场景编排 |
@@ -396,7 +397,7 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-### 桌面应用 (v0.5.2+)
+### 桌面应用 (v0.5.3+)
 
 Sloth Agent 现已支持桌面应用形态，提供原生 GUI 交互体验：
 
@@ -470,6 +471,7 @@ cd ..
 | Iter-1 | v0.5.0 | 4 列布局 + Inspiration CRUD + QA 验证 |
 | Iter-2 | v0.5.1 | 聊天 + Agent 消息 + 设计系统 + UX 打磨 |
 | Iter-2 Fix | v0.5.2 | Provider 预设 + Autocomplete + 连接测试 + 设计一致性 |
+| Iter-3 Fix | v0.5.3 | Brainstorm 状态逻辑 + Team Sidebar 重设计 + UI 统一 |
 | Iter-3 | v0.5.x | Agent Pool 管理面板 + 多 Agent 协作 |
 
 **相关文档：**
@@ -479,5 +481,5 @@ cd ..
 
 ---
 
-*Sloth Agent v0.5.2*
-*最后更新: 2026-04-27*
+*Sloth Agent v0.5.3*
+*最后更新: 2026-05-01*
