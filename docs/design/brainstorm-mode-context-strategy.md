@@ -210,7 +210,7 @@ def build_brainstorm_context(history, current_round, agent):
 |------|--------|------|
 | `cooldown_seconds` | 5s | 有新发言后等待的冷却时间 |
 | `confirmation_seconds` | 3s | 冷却到期后的确认期，防止正好有 Agent 在打字 |
-| `max_messages` | 500 | 本轮绝对上限 |
+| `max_messages` | 1000 | 本轮绝对上限 |
 | `intent_timeout` | 3s | 意图收集阶段，超时未回复视为 PASS |
 
 ### 收敛
@@ -349,7 +349,7 @@ POST /api/inspirations/{id}/brainstorm
     "content": "用户消息",
     "parent_message_id": null,    // 可选, 回复特定消息时传入
     "cooldown_seconds": 5,        // 可选, 冷却时间, 默认 5s
-    "max_messages": 500           // 可选, 最大消息数, 默认 500
+    "max_messages": 1000          // 可选, 最大消息数, 默认 1000
   }
   Response: SSE 流式
     事件类型:

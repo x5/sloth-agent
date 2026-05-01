@@ -1057,7 +1057,7 @@ interface AgentStore {
 - Alembic 迁移文件 — `alembic/versions/xxxx_brainstorm_sessions.py`
 
 **实现要点：**
-- BrainstormSession 字段: id, inspiration_id, title, status("active"|"cooling_down"|"ended"|"summarized"), sandbox_path, max_messages(500), cooldown_seconds(5), message_count(0), summary(None), started_by(None), notification_sent(False), created_at, ended_at
+- BrainstormSession 字段: id, inspiration_id, title, status("active"|"cooling_down"|"ended"|"summarized"), sandbox_path, max_messages(1000), cooldown_seconds(5), message_count(0), summary(None), started_by(None), notification_sent(False), created_at, ended_at
 - BrainstormFile 字段: id, session_id(FK), file_path, content, created_by(FK→inspiration_agents), file_type("code"|"doc"|"test"|"config"|"other"), created_at
 - status 字段 default="active"，message_count default=0
 - 迁移文件含 upgrade() 和 downgrade()
@@ -1232,7 +1232,7 @@ class DecisionStrategy(ABC):
    - COOLING_DOWN → (3s 确认) → CONFIRMING
    - CONFIRMING → (3s) → ENDED
    - 新发言/agent_typing → 重置到 RUNNING
-   - 达到 max_messages(500) → 硬截断 → ENDED
+   - 达到 max_messages(1000) → 硬截断 → ENDED
    - 用户发新消息 → round_aborted → ENDED
 
 4. **错误处理：**
@@ -1270,7 +1270,7 @@ cooldown_start:   {seconds: 5}
 cooldown_reset:   {triggered_by: agent_id}
 cooldown_confirm: {seconds: 3}
 discussion_end:   {summary: null, message_count}  # summary 在 Iter-5 为 null
-max_reached:      {limit: 500}
+max_reached:      {limit: 1000}
 round_aborted:    {reason}
 error:            {error}
 ```

@@ -81,7 +81,7 @@ class BrainstormSession(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
     sandbox_path: Mapped[str] = mapped_column(String(500), nullable=False)
-    max_messages: Mapped[int] = mapped_column(Integer, default=500)
+    max_messages: Mapped[int] = mapped_column(Integer, default=1000)
     cooldown_seconds: Mapped[int] = mapped_column(Integer, default=5)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
