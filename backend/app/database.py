@@ -28,6 +28,14 @@ async def _migrate_db():
             await conn.execute(text("ALTER TABLE messages ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'"))
         if "brainstorm_session_id" not in cols:
             await conn.execute(text("ALTER TABLE messages ADD COLUMN brainstorm_session_id TEXT"))
+        if "parent_message_id" not in cols:
+            await conn.execute(text("ALTER TABLE messages ADD COLUMN parent_message_id TEXT"))
+        if "round" not in cols:
+            await conn.execute(text("ALTER TABLE messages ADD COLUMN round INTEGER NOT NULL DEFAULT 1"))
+        if "intent" not in cols:
+            await conn.execute(text("ALTER TABLE messages ADD COLUMN intent TEXT"))
+        if "truncated" not in cols:
+            await conn.execute(text("ALTER TABLE messages ADD COLUMN truncated INTEGER NOT NULL DEFAULT 0"))
 
 
 async def init_db():

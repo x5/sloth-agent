@@ -994,6 +994,21 @@ body {
   40% { opacity: 1; transform: translateY(-6px) scale(1.1); }
 }
 
+/* Streaming cursor */
+.brainstorm-cursor {
+  display: inline-block;
+  width: 2px;
+  margin-left: 1px;
+  opacity: 1;
+  animation: cursorBlink 0.8s step-end infinite;
+  vertical-align: text-bottom;
+  font-size: 0.9em;
+}
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 /* Input */
 
 .chatarea__input {
@@ -3674,4 +3689,47 @@ body {
 .rightpanel__tab--active {
   background: var(--color-accent-bg-light);
   color: var(--color-accent);
+}
+
+/* ========================================
+   Message Queue Badge
+   ======================================== */
+
+.chatarea__queue-badge {
+  padding: 4px 12px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  background: rgba(124, 58, 237, 0.08);
+  color: #7c3aed;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ========================================
+   Brainstorm Streaming — removed (matches chat: no typewriter effect)
+   ======================================== */
+
+/* ========================================
+   Brainstorm Stop Button
+   ======================================== */
+
+.chatarea__stop-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: #ef4444;
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chatarea__stop-btn:hover {
+  background: #dc2626;
 }

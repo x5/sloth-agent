@@ -1,12 +1,98 @@
 import { create } from "zustand";
 import * as api from "../api/client";
-import type { BrainstormSession } from "../api/client";
+import type { BrainstormSession, Message } from "../api/client";
+
+const BACKEND = "http://127.0.0.1:8080";
+
+type SetState = (partial: Partial<BrainstormState> | ((s: BrainstormState) => Partial<BrainstormState>)) => void;
+type GetState = () => BrainstormState;
+
+// Active abort controller for the current discussion
+let _abortController: AbortController | null = null;
+
+function _handleSSEEvent(event: string, data: Record<string, unknown>, set: SetState, get: GetState) {
+  switch (event) {
+    case "agent_start": {
+      set({
+        activeAgentId: data.agent_id as string,
+        activeAgentName: data.agent_name as string,
+        activeAgentNumber: (data.agent_number as number) ?? null,
+        streamingContent: "",
+      });
+      break;
+    }
+    case "agent_token": {
+      const token = data.token as string;
+      set((s) => ({
+        activeAgentId: data.agent_id as string,
+        activeAgentName: data.agent_name as string,
+        streamingContent: (s.streamingContent || "") + token,
+      }));
+      break;
+    }
+    case "message_done": {
+      const agentId = data.agent_id as string;
+      const fullContent = data.full_content as string;
+      const messageId = data.message_id as string;
+      const agentName = data.agent_name as string | null;
+      const agentNumber = (data.agent_number as number) ?? null;
+
+      const msg: Message = {
+        id: messageId,
+        inspiration_id: get().activeId || "",
+        agent_id: agentId,
+        role: "agent",
+        content: fullContent,
+        created_at: new Date().toISOString(),
+        agent_name: agentName,
+        agent_number: agentNumber,
+        agent_model: null,
+        mode: "brainstorm",
+        brainstorm_session_id: get().activeId,
+        parent_message_id: (data.parent_message_id as string) || null,
+        round: (data.round as number) || 1,
+        intent: null,
+        truncated: false,
+      };
+
+      set((s) => ({
+        discussionMessages: [...s.discussionMessages, msg],
+        activeAgentId: null,
+        activeAgentName: null,
+        activeAgentNumber: null,
+        streamingContent: "",
+      }));
+      break;
+    }
+    case "discussion_end": {
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      break;
+    }
+    case "agent_pass": {
+      // Agent decided it has nothing new to add — clear the streaming bubble
+      set({ activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      break;
+    }
+    case "error": {
+      console.error("SSE error:", data.error);
+      break;
+    }
+  }
+}
 
 interface BrainstormState {
   sessions: BrainstormSession[];
   activeId: string | null;
   brainstormMode: boolean;
   loading: boolean;
+
+  // Discussion state
+  discussionActive: boolean;
+  activeAgentId: string | null;
+  activeAgentName: string | null;
+  activeAgentNumber: number | null;
+  discussionMessages: Message[];
+  streamingContent: string;
 
   // High-level actions (components should use these)
   fetchAll: (inspirationId: string) => Promise<void>;
@@ -18,6 +104,10 @@ interface BrainstormState {
   // View-only (for sidebar search, no status/mode change)
   setActive: (id: string | null) => void;
 
+  // SSE discussion
+  startDiscussion: (sessionId: string, content: string, replyToMessageId?: string) => Promise<void>;
+  stopDiscussion: () => void;
+
   // Internal (used by startBrainstorm)
   refreshSession: (sessionId: string) => Promise<void>;
 }
@@ -27,6 +117,14 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
   activeId: null,
   brainstormMode: false,
   loading: false,
+
+  // Discussion state
+  discussionActive: false,
+  activeAgentId: null,
+  activeAgentName: null,
+  activeAgentNumber: null,
+  discussionMessages: [],
+  streamingContent: "",
 
   fetchAll: async (inspirationId: string) => {
     set({ loading: true });
@@ -54,7 +152,12 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
   },
 
   stopBrainstorm: () => {
-    set({ brainstormMode: false, activeId: null });
+    // Abort any active discussion first
+    if (_abortController) {
+      _abortController.abort();
+      _abortController = null;
+    }
+    set({ brainstormMode: false, activeId: null, discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
   },
 
   activateSession: async (sessionId: string) => {
@@ -92,5 +195,88 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
     set((s) => ({
       sessions: s.sessions.map((ses) => ses.id === sessionId ? updated : ses),
     }));
+  },
+
+  startDiscussion: async (sessionId: string, content: string, replyToMessageId?: string) => {
+    // Abort any existing discussion
+    if (_abortController) {
+      _abortController.abort();
+    }
+    _abortController = new AbortController();
+
+    set({ discussionActive: true, discussionMessages: [] });
+
+    try {
+      const res = await fetch(`${BACKEND}/api/brainstorm-sessions/${sessionId}/discuss`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, reply_to_message_id: replyToMessageId || null }),
+        signal: _abortController.signal,
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || `SSE failed (${res.status})`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ") && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              _handleSSEEvent(currentEvent, data, set, get);
+            } catch {
+              // skip malformed JSON
+            }
+            currentEvent = "";
+          }
+        }
+      }
+    } catch (e) {
+      if ((e as Error).name === "AbortError") {
+        // User aborted — not an error
+      } else {
+        console.error("Discussion error:", e);
+      }
+    } finally {
+      _abortController = null;
+      set({ discussionActive: false });
+      // Refresh session to get updated message_count
+      const { activeId } = get();
+      if (activeId) {
+        get().refreshSession(activeId);
+      }
+    }
+  },
+
+  stopDiscussion: () => {
+    if (_abortController) {
+      _abortController.abort();
+      _abortController = null;
+    }
+    // Also tell the backend to abort
+    const { activeId } = get();
+    if (activeId) {
+      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/discuss`, {
+        method: "DELETE",
+      }).catch(() => {});
+    }
+    set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
   },
 }));

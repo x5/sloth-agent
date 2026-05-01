@@ -4,8 +4,10 @@ import { useUIStore } from "../stores/uiStore";
 import { useAgentStore } from "../stores/agentStore";
 import { useBrainstormStore } from "../stores/brainstormStore";
 import * as api from "../api/client";
+import { streamChatMessage } from "../api/client";
 import type { Message } from "../api/client";
 import { formatTime as formatMessageTime } from "../utils/time";
+import BrainstormStreamBubble from "./BrainstormStreamBubble";
 
 interface DividerItem {
   id: string;
@@ -70,6 +72,14 @@ export default function ChatArea() {
   const brainstormActiveId = useBrainstormStore((s) => s.activeId);
   const brainstormStart = useBrainstormStore((s) => s.startBrainstorm);
   const brainstormStop = useBrainstormStore((s) => s.stopBrainstorm);
+  const brainstormDiscuss = useBrainstormStore((s) => s.startDiscussion);
+  const brainstormStopDiscuss = useBrainstormStore((s) => s.stopDiscussion);
+  const discussionActive = useBrainstormStore((s) => s.discussionActive);
+  const activeAgentId = useBrainstormStore((s) => s.activeAgentId);
+  const activeAgentName = useBrainstormStore((s) => s.activeAgentName);
+  const activeAgentNumber = useBrainstormStore((s) => s.activeAgentNumber);
+  const discussionMessages = useBrainstormStore((s) => s.discussionMessages);
+  const streamingContent = useBrainstormStore((s) => s.streamingContent);
 
   useEffect(() => {
     if (activeId) {
@@ -82,6 +92,14 @@ export default function ChatArea() {
   const [sending, setSending] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Chat streaming state
+  const [chatStreamText, setChatStreamText] = useState("");
+  const chatAbortRef = useRef<AbortController | null>(null);
+
+  // Message queue — ref to avoid closure stale issues; stores individual messages (not merged)
+  const queueRef = useRef<string[]>([]);
+  const [queueLen, setQueueLen] = useState(0);
 
   // Brainstorm dividers (local state)
   const [dividers, setDividers] = useState<DividerItem[]>([]);
@@ -110,6 +128,7 @@ export default function ChatArea() {
   useEffect(() => {
     loadMessages();
     setInput("");
+    prevDiscussionCountRef.current = 0;
   }, [loadMessages]);
 
   useEffect(() => {
@@ -122,12 +141,46 @@ export default function ChatArea() {
     }
   }, [messages]);
 
+  // Auto-scroll when streaming token content changes (brainstorm or chat)
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    if (scrollHeight - scrollTop - clientHeight < 300) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [streamingContent, chatStreamText]);  const prevDiscussionCountRef = useRef(0);
+  useEffect(() => {
+    const prev = prevDiscussionCountRef.current;
+    const curr = discussionMessages.length;
+    if (curr > prev) {
+      const newMsgs = discussionMessages.slice(prev);
+      setMessages((m) => [...m, ...newMsgs]);
+    }
+    prevDiscussionCountRef.current = curr;
+  }, [discussionMessages]);
+
   // Push dividers when active brainstorm session changes
   const prevSessionRef = useRef<string | null>(null);
+  const prevModeRef = useRef(false);
   useEffect(() => {
     const prev = prevSessionRef.current;
-    if (prev === brainstormActiveId) return;
+    const wasMode = prevModeRef.current;
+    if (prev === brainstormActiveId && wasMode === brainstormMode) return;
     prevSessionRef.current = brainstormActiveId;
+    prevModeRef.current = brainstormMode;
+
+    // Brainstorm turned OFF — push "Ended" divider for previous session
+    if (wasMode && !brainstormMode && prev) {
+      const oldNum = sessionNum(brainstormSessions, prev);
+      setDividers((d) => [...d, {
+        id: `div-end-${Date.now()}`,
+        type: "divider",
+        variant: "end",
+        label: `Brainstorm #${oldNum} Ended`,
+        ts: new Date().toISOString(),
+      }]);
+      return;
+    }
 
     if (!brainstormMode) return;
     if (!brainstormActiveId) return;
@@ -140,7 +193,7 @@ export default function ChatArea() {
         id: `div-switch-${Date.now()}`,
         type: "divider",
         variant: "transition",
-        label: `Session #${oldNum} → Session #${newNum}`,
+        label: `Brainstorm #${oldNum} → Brainstorm #${newNum}`,
         ts: new Date().toISOString(),
       });
     }
@@ -148,67 +201,174 @@ export default function ChatArea() {
       id: `div-start-${Date.now() + 1}`,
       type: "divider",
       variant: "start",
-      label: `Session #${newNum} Started`,
+      label: `Brainstorm #${newNum} Started`,
       ts: new Date().toISOString(),
     });
     setDividers((d) => [...d, ...newDividers]);
   }, [brainstormActiveId, brainstormMode, brainstormSessions]);
 
   const handleToggleBrainstorm = useCallback(async () => {
-    if (!activeId || sending) return;
+    if (!activeId) return;
     if (!brainstormMode) {
       await brainstormStart(activeId);
     } else {
       brainstormStop();
     }
-  }, [activeId, sending, brainstormMode, brainstormStart, brainstormStop]);
+  }, [activeId, brainstormMode, brainstormStart, brainstormStop]);
+
+  // ---- Message queue: batch all queued messages into one request ----
+
+  const makeHumanMsg = useCallback((content: string): Message => ({
+    id: "temp-" + Date.now(),
+    inspiration_id: activeId || "",
+    agent_id: null,
+    role: "human",
+    content,
+    created_at: new Date().toISOString(),
+    agent_name: null,
+    agent_number: null,
+    agent_model: null,
+    mode: brainstormMode ? "brainstorm" : "chat",
+    brainstorm_session_id: brainstormMode ? brainstormActiveId : null,
+    parent_message_id: null,
+    round: 1,
+    intent: null,
+    truncated: false,
+  }), [activeId, brainstormMode, brainstormActiveId]);
+
+  const makeErrMsg = useCallback((content: string): Message => ({
+    id: "err-" + Date.now(),
+    inspiration_id: activeId || "",
+    agent_id: null,
+    role: "agent",
+    content,
+    created_at: new Date().toISOString(),
+    agent_name: null,
+    agent_number: null,
+    agent_model: null,
+    mode: brainstormMode ? "brainstorm" : "chat",
+    brainstorm_session_id: brainstormMode ? brainstormActiveId : null,
+    parent_message_id: null,
+    round: 1,
+    intent: null,
+    truncated: false,
+  }), [activeId, brainstormMode, brainstormActiveId]);
+
+  // ---- Helpers: abort any in-flight brainstorm and wait until idle ----
+
+  const waitForDiscussionIdle = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!useBrainstormStore.getState().discussionActive) { resolve(); return; }
+      useBrainstormStore.getState().stopDiscussion();
+      const unsub = useBrainstormStore.subscribe((s) => {
+        if (!s.discussionActive) { unsub(); resolve(); }
+      });
+      // Safety fallback: 2s max wait
+      setTimeout(() => { unsub(); resolve(); }, 2000);
+    });
+  }, []);
+
+  // ---- Shared send logic for a single message ----
+
+  const sendOne = useCallback(async (content: string) => {
+    if (!activeId) return;
+
+    if (brainstormMode && brainstormActiveId) {
+      // Wait until any active discussion is fully stopped
+      if (discussionActive) {
+        await waitForDiscussionIdle();
+      }
+      prevDiscussionCountRef.current = discussionMessages.length;
+      setMessages((prev) => [...prev, makeHumanMsg(content)]);
+      setSending(true);
+      try {
+        await brainstormDiscuss(brainstormActiveId, content);
+        // Messages were appended in real-time via the discussionMessages useEffect.
+        // Clear the streaming buffer — no need to reload from DB.
+        useBrainstormStore.setState({ discussionMessages: [] });
+        prevDiscussionCountRef.current = 0;
+      } catch (e) {
+        setMessages((prev) => [...prev, makeErrMsg("Discussion error: " + String(e))]);
+      } finally {
+        setSending(false);
+      }
+    } else {
+      // Chat mode: SSE streaming
+      setMessages((prev) => [...prev, makeHumanMsg(content)]);
+      setChatStreamText("");
+      setSending(true);
+      const abort = new AbortController();
+      chatAbortRef.current = abort;
+      let accumulated = "";
+      try {
+        for await (const chunk of streamChatMessage(activeId, content, { mode: "chat" }, abort.signal)) {
+          if (chunk.done) break;
+          if (chunk.error) throw new Error(chunk.error);
+          if (chunk.token) {
+            accumulated += chunk.token;
+            setChatStreamText(accumulated);
+          }
+        }
+        // Commit final message to messages array
+        if (accumulated) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "stream-" + Date.now(),
+              inspiration_id: activeId,
+              agent_id: null,
+              role: "agent",
+              content: accumulated,
+              created_at: new Date().toISOString(),
+              agent_name: null,
+              agent_number: null,
+              agent_model: null,
+              mode: "chat",
+              brainstorm_session_id: null,
+              parent_message_id: null,
+              round: 1,
+              intent: null,
+              truncated: false,
+            },
+          ]);
+        }
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          setMessages((prev) => [...prev, makeErrMsg("Error: " + String(e))]);
+        }
+      } finally {
+        chatAbortRef.current = null;
+        setChatStreamText("");
+        setSending(false);
+      }
+    }
+  }, [activeId, brainstormMode, brainstormActiveId, discussionActive, discussionMessages.length,
+      brainstormDiscuss, waitForDiscussionIdle, makeHumanMsg, makeErrMsg]);
+
+  // ---- Process queue: drain one message at a time ----
+
+  const processQueue = useCallback(async () => {
+    if (queueRef.current.length === 0) return;
+    const next = queueRef.current.shift()!;
+    setQueueLen(queueRef.current.length);
+    await sendOne(next);
+    await processQueue(); // await to propagate errors and ensure serial drain
+  }, [sendOne]);
 
   const handleSend = async () => {
     const content = input.trim();
-    if (!content || !activeId || sending) return;
-
+    if (!content || !activeId) return;
     setInput("");
-    setSending(true);
 
-    const mode = brainstormMode ? "brainstorm" : "chat";
-    const sessionId = brainstormMode ? brainstormActiveId : null;
-
-    const tempHuman: Message = {
-      id: "temp-" + Date.now(),
-      inspiration_id: activeId,
-      agent_id: null,
-      role: "human",
-      content,
-      created_at: new Date().toISOString(),
-      agent_name: null,
-      agent_number: null,
-      agent_model: null,
-      mode,
-      brainstorm_session_id: sessionId,
-    };
-    setMessages((prev) => [...prev, tempHuman]);
-
-    try {
-      const reply = await api.sendChatMessage(activeId, content, { mode, brainstormSessionId: sessionId ?? undefined });
-      setMessages((prev) => [...prev, reply]);
-    } catch (e) {
-      const errMsg: Message = {
-        id: "err-" + Date.now(),
-        inspiration_id: activeId,
-        agent_id: null,
-        role: "agent",
-        content: "Error: " + String(e),
-        created_at: new Date().toISOString(),
-        agent_name: null,
-        agent_number: null,
-        agent_model: null,
-        mode,
-        brainstorm_session_id: sessionId,
-      };
-      setMessages((prev) => [...prev, errMsg]);
-    } finally {
-      setSending(false);
+    // System busy → enqueue individually (no merging)
+    if (sending) {
+      queueRef.current.push(content);
+      setQueueLen(queueRef.current.length);
+      return;
     }
+
+    await sendOne(content);
+    await processQueue();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -301,7 +461,40 @@ export default function ChatArea() {
         ) : (
           <div className="chatarea__messages">
             <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} />
-            {sending && <ThinkingBubble />}
+            {/* Brainstorm: show real-time token stream for active agent */}
+            {discussionActive && activeAgentId && (() => {
+              const agentColor = activeAgentNumber ? (agentColorMap[activeAgentNumber] ?? "#94A3B8") : "#94A3B8";
+              return (
+                <BrainstormStreamBubble
+                  agentName={activeAgentName || "Agent"}
+                  agentNumber={activeAgentNumber}
+                  agentColor={agentColor}
+                  streamingContent={streamingContent}
+                />
+              );
+            })()}
+            {/* Chat mode: show streaming bubble while LLM is typing */}
+            {sending && !brainstormMode && chatStreamText && (
+              <div className="chat-message chat-message--agent">
+                <div className="chat-message__avatar">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="8" width="18" height="12" rx="3" />
+                    <circle cx="9" cy="14" r="2" />
+                    <circle cx="15" cy="14" r="2" />
+                    <line x1="9" y1="6" x2="9" y2="4" />
+                    <line x1="15" y1="6" x2="15" y2="4" />
+                    <line x1="12" y1="6" x2="12" y2="3" />
+                  </svg>
+                </div>
+                <div className="chat-message__bubble">
+                  <div className="chat-message__content">
+                    {chatStreamText}
+                    <span className="brainstorm-cursor">▌</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            {sending && !brainstormMode && !chatStreamText && <ThinkingBubble />}
           </div>
         )}
         {showScrollBtn && (
@@ -320,18 +513,25 @@ export default function ChatArea() {
 
       {/* Input Area */}
       <div className="chatarea__input">
+        {queueLen > 0 && (
+          <div className="chatarea__queue-badge">
+            {queueLen} message{queueLen > 1 ? "s" : ""} queued
+          </div>
+        )}
         <div className={`chatarea__input-box${brainstormMode ? " chatarea__input-box--brainstorm" : ""}`}>
           <textarea
             className="chatarea__input-field chatarea__input-field--active"
             placeholder={
               activeInspiration
-                ? "Type your message..."
+                ? brainstormMode && discussionActive
+                  ? "Type to interrupt the discussion..."
+                  : "Type your message..."
                 : "Select an inspiration to start..."
             }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={!activeInspiration || sending}
+            disabled={!activeInspiration}
             rows={3}
           />
           <div className="chatarea__input-actions">
@@ -351,23 +551,35 @@ export default function ChatArea() {
                 className={`chatarea__tool-btn${brainstormMode ? " chatarea__tool-btn--active" : ""}`}
                 data-tooltip={brainstormMode ? "End Brainstorm" : "Start Brainstorm"}
                 onClick={handleToggleBrainstorm}
-                disabled={!activeInspiration || sending}
+                disabled={!activeInspiration}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
               </button>
             </div>
-            <button
-              className="chatarea__send-btn"
-              disabled={!activeInspiration || !input.trim() || sending}
-              onClick={handleSend}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12" />
-                <polyline points="12 5 19 12 12 19" />
-              </svg>
-            </button>
+            {brainstormMode && discussionActive ? (
+              <button
+                className="chatarea__stop-btn"
+                onClick={() => brainstormStopDiscuss()}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                </svg>
+                <span>Stop</span>
+              </button>
+            ) : (
+              <button
+                className="chatarea__send-btn"
+                disabled={!activeInspiration || !input.trim()}
+                onClick={handleSend}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -500,13 +712,31 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function ThinkingBubble() {
+function ThinkingBubble({ agentName, agentNumber }: { agentName?: string; agentNumber?: number } = {}) {
   const [message] = useState(() => pick(THINKING_MESSAGES));
   const [color] = useState(() => pick(THINKING_COLORS));
 
   return (
     <div className="chat-message chat-message--agent">
+      {agentName && (
+        <div className="chat-message__avatar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="8" width="18" height="12" rx="3" />
+            <circle cx="9" cy="14" r="2" />
+            <circle cx="15" cy="14" r="2" />
+            <line x1="9" y1="6" x2="9" y2="4" />
+            <line x1="15" y1="6" x2="15" y2="4" />
+            <line x1="12" y1="6" x2="12" y2="3" />
+          </svg>
+          <span className="chat-message__avatar-num">{agentNumber ?? "?"}</span>
+        </div>
+      )}
       <div className="chat-message__bubble">
+        {agentName && (
+          <div className="chat-message__agent-info">
+            <span className="chat-message__agent-name">{agentName}</span>
+          </div>
+        )}
         <div className="chat-message__content chat-message__content--thinking">
           <span className="thinking-text" style={{ color }}>
             {message}

@@ -70,6 +70,12 @@ class Message(Base):
     brainstorm_session_id: Mapped[str | None] = mapped_column(
         CHAR(36), ForeignKey("brainstorm_sessions.id", ondelete="SET NULL"), nullable=True
     )
+    parent_message_id: Mapped[str | None] = mapped_column(
+        CHAR(36), ForeignKey("messages.id", ondelete="SET NULL"), nullable=True
+    )
+    round: Mapped[int] = mapped_column(Integer, default=1)
+    intent: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    truncated: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

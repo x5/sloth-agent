@@ -1,15 +1,21 @@
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
 from ..models import BrainstormFile, BrainstormSession, Inspiration
+from ..services.brainstorm import BrainstormEngine
 from ..services.sandbox import SandboxManager
 
 router = APIRouter(prefix="/api", tags=["brainstorm"])
+
+# Track active engines for abort support
+_active_engines: dict[str, BrainstormEngine] = {}
 
 
 class CreateBrainstormSessionRequest(BaseModel):
@@ -19,6 +25,11 @@ class CreateBrainstormSessionRequest(BaseModel):
 class UpdateBrainstormSessionRequest(BaseModel):
     title: str | None = Field(default=None, max_length=200)
     status: str | None = Field(default=None, pattern=r"^(active|cooling_down|ended|summarized)$")
+
+
+class DiscussRequest(BaseModel):
+    content: str = Field(min_length=1)
+    reply_to_message_id: str | None = None
 
 
 class BrainstormSessionResponse(BaseModel):
@@ -162,3 +173,64 @@ def _session_to_response(session: BrainstormSession) -> BrainstormSessionRespons
         ended_at=session.ended_at,
         file_tree=file_tree,
     )
+
+
+@router.post("/brainstorm-sessions/{session_id}/discuss")
+async def brainstorm_discuss(
+    session_id: str,
+    req: DiscussRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE endpoint: start or continue a brainstorm discussion.
+
+    Returns text/event-stream with events from BrainstormEngine.
+    """
+    session = await db.get(BrainstormSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Brainstorm session not found")
+
+    if session.status == "ended":
+        raise HTTPException(status_code=400, detail="Brainstorm session has ended")
+
+    engine = BrainstormEngine(
+        session_id=session_id,
+        inspiration_id=session.inspiration_id,
+        cooldown_seconds=session.cooldown_seconds,
+        max_messages=session.max_messages,
+    )
+
+    # Register engine for abort support
+    _active_engines[session_id] = engine
+
+    async def event_stream():
+        try:
+            async for sse_event in engine.run(
+                user_content=req.content,
+                reply_to_message_id=req.reply_to_message_id,
+            ):
+                data_str = json.dumps(sse_event.data, ensure_ascii=False)
+                yield f"event: {sse_event.event}\ndata: {data_str}\n\n"
+        except Exception as e:
+            error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
+            yield f"event: error\ndata: {error_data}\n\n"
+        finally:
+            _active_engines.pop(session_id, None)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.delete("/brainstorm-sessions/{session_id}/discuss")
+async def abort_discussion(session_id: str):
+    """Abort an active brainstorm discussion."""
+    engine = _active_engines.get(session_id)
+    if engine:
+        engine.abort()
+    return {"status": "aborted"}

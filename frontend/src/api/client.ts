@@ -16,7 +16,49 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
 
 // ---- Declarative route table ----
 
-const BACKEND = "http://127.0.0.1:8000";
+const BACKEND = "http://127.0.0.1:8080";
+
+// ---- Streaming chat (SSE) ----
+
+export async function* streamChatMessage(
+  inspirationId: string,
+  content: string,
+  opts?: { mode?: string; brainstormSessionId?: string },
+  signal?: AbortSignal,
+): AsyncGenerator<{ token?: string; error?: string; done?: boolean }> {
+  const res = await fetch(`${BACKEND}/api/inspirations/${inspirationId}/chat/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content,
+      mode: opts?.mode ?? "chat",
+      brainstorm_session_id: opts?.brainstormSessionId ?? null,
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Chat stream failed (${res.status})`);
+  }
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (raw === "[DONE]") { yield { done: true }; return; }
+      try {
+        yield JSON.parse(raw) as { token?: string; error?: string };
+      } catch { /* skip */ }
+    }
+  }
+}
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
@@ -217,6 +259,10 @@ export interface Message {
   agent_model: string | null;
   mode: string;
   brainstorm_session_id: string | null;
+  parent_message_id: string | null;
+  round: number;
+  intent: string | null;
+  truncated: boolean;
 }
 
 export interface BrainstormSession {

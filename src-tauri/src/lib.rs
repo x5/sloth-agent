@@ -81,6 +81,18 @@ struct Message {
     mode: String,
     #[serde(default)]
     brainstorm_session_id: Option<String>,
+    #[serde(default)]
+    parent_message_id: Option<String>,
+    #[serde(default = "default_round")]
+    round: i32,
+    #[serde(default)]
+    intent: Option<String>,
+    #[serde(default)]
+    truncated: bool,
+}
+
+fn default_round() -> i32 {
+    1
 }
 
 fn default_chat_mode() -> String {
