@@ -16,7 +16,7 @@
 | Iter-1 | Day 1-3 | 项目外壳 + Inspiration CRUD | 4 列布局 + 数据库 + API | ✅ |
 | Iter-2 | Day 4-7 | Settings + 聊天 + 默认 Agent | LLM 管理页 + 消息流 + SSE 流式 | ✅ |
 | Iter-3 | Day 8-14 | Agent Pool 初始化 + Agent 管理 + Right Panel | 5 内置 Agent + Team API + Right Panel 团队面板 | ✅ |
-| Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ⬜ |
+| Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ✅ |
 | Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ⬜ |
 | Iter-6 | Day 21-23 | 彩色线程 UI | BrainstormArea + 色彩竖线 + 回复标签 | ⬜ |
 | Iter-7 | Day 24-26 | 读 Tools + 上下文引擎 | ToolRegistry + ToolPermissionGate + ContextWindowManager | ⬜ |
@@ -1048,7 +1048,7 @@ interface AgentStore {
 
 ### Task 4.0: 数据模型 — brainstorm_sessions + brainstorm_files 表
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 新增两张表支持 Brainstorm 会话管理。brainstorm_files 表在 Iter-4 建好但实际写入延至 Iter-8。使用 Alembic 迁移管理 schema 变更。
 
@@ -1068,7 +1068,7 @@ interface AgentStore {
 
 ### Task 4.1: SandboxManager 服务
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 管理沙箱目录的创建、文件树查询、清理。不负责文件写入（Iter-8）。
 
@@ -1108,7 +1108,7 @@ class SandboxManager:
 
 ### Task 4.2: Brainstorm CRUD API
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** Brainstorm 会话的创建、列表、详情 API。创建会话时自动初始化沙箱目录。
 
@@ -1141,7 +1141,7 @@ class SandboxManager:
 
 ### Task 4.3: 前端 — Brainstorm 会话列表 + 创建
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 前端新增 Brainstorm 视图入口。Col1 SideNavBar 新增 Brainstorm Tab。Col2 显示会话列表，Col3 显示会话详情占位（等 Iter-6）。
 
@@ -1166,6 +1166,12 @@ class SandboxManager:
 - [ ] 点击 "+" → 输入标题 → Enter → 列表中新增会话
 - [ ] 点击会话 → Col3 显示会话基本信息
 - [ ] 切换 Inspiration → 会话列表过滤为该 Inspiration 的会话
+
+**完成备注（2026-05-01）：**
+- UI 架构从"独立 Col2/Col3"改为"集成到 Inspiration Chat 内"（验证反馈 #12-16 驱动）
+- BrainstormFile 表按计划延至 Iter-8
+- 额外实现：slide toggle 状态控制、会话搜索、聊天分割线（start/end/transition）、角色颜色映射
+- 版本发布：v0.5.3
 
 ---
 
