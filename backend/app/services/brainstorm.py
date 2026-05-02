@@ -149,10 +149,15 @@ def _build_context_text(history: list[dict]) -> str:
 class BrainstormEngine:
     """Sequential conversational brainstorm engine.
 
-    Usage:
+    Usage (persistent, Iter-6):
         engine = BrainstormEngine(session_id, inspiration_id)
-        async for event in engine.run(user_content, reply_to_message_id=None):
-            # event is an SSEEvent(event="...", data={...})
+        async for event in engine.run_persistent():
+            ...
+        # inject user messages at any time:
+        await engine.inject(content, reply_to_message_id)
+
+    Usage (one-shot, deprecated Iter-7):
+        async for event in engine.run(user_content):
             ...
     """
 
@@ -173,10 +178,21 @@ class BrainstormEngine:
             max_messages=max_messages,
         )
         self._abort = False
+        self._queue: asyncio.Queue[tuple[str, str | None]] | None = None
+
+    def _get_queue(self) -> asyncio.Queue[tuple[str, str | None]]:
+        """Lazy-init the queue (needs running event loop)."""
+        if self._queue is None:
+            self._queue = asyncio.Queue()
+        return self._queue
 
     def abort(self):
         """Signal the engine to stop. Checked between agents and during streaming."""
         self._abort = True
+
+    async def inject(self, content: str, reply_to: str | None = None) -> None:
+        """Put a user message into the persistent discussion queue."""
+        await self._get_queue().put((content, reply_to))
 
     async def _load_agents(self) -> list[AgentInfo]:
         """Load team agents with their template system prompts."""
@@ -275,40 +291,20 @@ class BrainstormEngine:
             row = result.scalar_one_or_none()
             return (row or 0) + 1
 
-    async def run(
+    async def _run_rounds(
         self,
+        user_msg_id: str,
         user_content: str,
-        reply_to_message_id: str | None = None,
+        current_round: int,
+        agents: list[AgentInfo],
+        agent_indices: dict[str, int],
+        agent_names: list[str],
     ) -> AsyncIterator[SSEEvent]:
-        """Run a brainstorm discussion round.
+        """Run multi-round agent loop for one user topic. Yields SSEEvents.
 
-        Each agent responds sequentially with real-time token streaming.
-        Multiple rounds continue until all agents PASS in a round (natural end)
-        or the abort flag is set or MAX_ROUNDS is hit.
-        Yields SSEEvent objects that the endpoint formats as SSE text.
+        Emits agent_start / agent_token / message_done / agent_pass per agent,
+        round_end after each sub-round, and discussion_end / max_reached at the end.
         """
-        current_round = await self._get_current_round()
-
-        # Save user message
-        user_msg_id = await self._save_message(
-            role="human",
-            content=user_content,
-            parent_message_id=reply_to_message_id,
-            round_num=current_round,
-        )
-        await self._increment_message_count()
-        self.timer.heartbeat()
-
-        # Load agents
-        agents = await self._load_agents()
-        if not agents:
-            yield SSEEvent(event="error", data={"error": "No agents in team. Add agents first."})
-            return
-
-        agent_names = [a.name for a in agents]
-        agent_indices = {a.id: (i + 1) for i, a in enumerate(agents)}
-
-        # ---- Multi-round discussion loop ----
         MAX_ROUNDS = 8
         sub_round = 0
 
@@ -325,14 +321,12 @@ class BrainstormEngine:
                 if self._abort or self.timer.check() == TimerState.ENDED:
                     break
 
-                # Announce agent is thinking (bubble appears with typing indicator)
                 yield SSEEvent(event="agent_start", data={
                     "agent_id": agent.id,
                     "agent_name": agent.name,
                     "agent_number": agent_indices.get(agent.id),
                 })
 
-                # Load fresh history — includes everything said so far in this discussion
                 history = await self._load_history()
                 context_text = _build_context_text(history)
                 other = [n for n in agent_names if n != agent.name]
@@ -349,7 +343,6 @@ class BrainstormEngine:
                     {"role": "user", "content": user_content},
                 ]
 
-                # Stream tokens in real-time
                 full_content = ""
                 try:
                     async for token in self.llm.chat_stream(agent.model, messages):
@@ -372,11 +365,9 @@ class BrainstormEngine:
                 if self._abort:
                     break
 
-                # PASS detection: agent explicitly opts out of this round
                 is_pass = full_content.strip().upper() == "PASS" or not full_content.strip()
 
                 if is_pass:
-                    # Clear streaming bubble — agent has nothing to add
                     yield SSEEvent(event="agent_pass", data={
                         "agent_id": agent.id,
                         "agent_name": agent.name,
@@ -405,15 +396,17 @@ class BrainstormEngine:
                         "round": round_num,
                     })
 
-            # All agents passed → discussion naturally exhausted
+            yield SSEEvent(event="round_end", data={
+                "round": round_num,
+                "speeches": speeches_this_round,
+            })
+
             if speeches_this_round == 0:
                 break
 
-            # Brief breathing room between rounds
             if not self._abort:
                 await asyncio.sleep(0.3)
 
-        # ---- Discussion ended ----
         if self.timer.message_count >= self.timer.max_messages:
             yield SSEEvent(event="max_reached", data={"limit": self.timer.max_messages})
 
@@ -422,3 +415,93 @@ class BrainstormEngine:
             "message_count": self.timer.message_count,
             "round": current_round,
         })
+
+    async def run(
+        self,
+        user_content: str,
+        reply_to_message_id: str | None = None,
+    ) -> AsyncIterator[SSEEvent]:
+        """Run a brainstorm discussion round (one-shot, deprecated — use run_persistent).
+
+        Each agent responds sequentially with real-time token streaming.
+        Multiple rounds continue until all agents PASS in a round (natural end)
+        or the abort flag is set or MAX_ROUNDS is hit.
+        Yields SSEEvent objects that the endpoint formats as SSE text.
+        """
+        current_round = await self._get_current_round()
+
+        # Save user message
+        user_msg_id = await self._save_message(
+            role="human",
+            content=user_content,
+            parent_message_id=reply_to_message_id,
+            round_num=current_round,
+        )
+        await self._increment_message_count()
+        self.timer.heartbeat()
+
+        # Load agents
+        agents = await self._load_agents()
+        if not agents:
+            yield SSEEvent(event="error", data={"error": "No agents in team. Add agents first."})
+            return
+
+        agent_names = [a.name for a in agents]
+        agent_indices = {a.id: (i + 1) for i, a in enumerate(agents)}
+
+        async for event in self._run_rounds(
+            user_msg_id, user_content, current_round, agents, agent_indices, agent_names
+        ):
+            yield event
+
+    async def run_persistent(self) -> AsyncIterator[SSEEvent]:
+        """Persistent queue-driven discussion loop.
+
+        Waits for messages injected via inject(). Runs agent rounds for each
+        message, then loops back to wait. Emits heartbeat every 30s when idle.
+        Stream only ends when abort() is called.
+        """
+        agents = await self._load_agents()
+        if not agents:
+            yield SSEEvent(event="error", data={"error": "No agents in team. Add agents first."})
+            return
+
+        agent_names = [a.name for a in agents]
+        agent_indices = {a.id: (i + 1) for i, a in enumerate(agents)}
+        queue = self._get_queue()
+
+        while not self._abort:
+            # Wait for a user message, or emit heartbeat on timeout
+            try:
+                content, reply_to = await asyncio.wait_for(queue.get(), timeout=30.0)
+            except asyncio.TimeoutError:
+                yield SSEEvent(event="heartbeat", data={})
+                continue
+
+            if self._abort:
+                break
+
+            current_round = await self._get_current_round()
+
+            # Save user message and notify frontend immediately
+            user_msg_id = await self._save_message(
+                role="human",
+                content=content,
+                parent_message_id=reply_to,
+                round_num=current_round,
+            )
+            await self._increment_message_count()
+            self.timer.heartbeat()
+
+            yield SSEEvent(event="user_message", data={
+                "message_id": user_msg_id,
+                "content": content,
+            })
+
+            # Run agent rounds for this topic
+            async for event in self._run_rounds(
+                user_msg_id, content, current_round, agents, agent_indices, agent_names
+            ):
+                yield event
+                if self._abort:
+                    break

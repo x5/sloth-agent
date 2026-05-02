@@ -17,8 +17,8 @@
 | Iter-2 | Day 4-7 | Settings + 聊天 + 默认 Agent | LLM 管理页 + 消息流 + SSE 流式 | ✅ |
 | Iter-3 | Day 8-14 | Agent Pool 初始化 + Agent 管理 + Right Panel | 5 内置 Agent + Team API + Right Panel 团队面板 | ✅ |
 | Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ✅ |
-| Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ⬜ |
-| Iter-6 | Day 21-23 | 彩色线程 UI | BrainstormArea + 色彩竖线 + 回复标签 | ⬜ |
+| Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ✅ |
+| Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ⬜ |
 | Iter-7 | Day 24-26 | 读 Tools + 上下文引擎 | ToolRegistry + ToolPermissionGate + ContextWindowManager | ⬜ |
 | Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer | ⬜ |
 | Iter-9 | Day 30-32 | 异步自主模式 | start-async + 断线恢复 + 浏览器通知 | ⬜ |
@@ -1321,82 +1321,211 @@ error:            {error}
 
 ---
 
-## Iter-6: 彩色线程 UI（3 天）
+## Iter-6: 流体讨论引擎 + 彩色线程 UI（4 天）
 
-> 前端 Brainstorm 专用视图。颜色区分线程，用户可指定回复目标。纯前端工作，后端无变更。
+> **范围扩展（2026-05-02 更新）：** 原计划仅做前端 UI，经 Review 发现后端 Brainstorm 交互存在根本性架构问题（request-response 模型无法支持用户随时插话），故将后端持久连接改造一并纳入 Iter-6。原前端任务保持，Task 6.0 新增后端改造。
 
-### Task 6.0: BrainstormMessage 组件 — 色彩竖线 + 回复标签
+### 背景：当前架构的 3 个根本性问题
 
-**状态：** ⬜
+1. **用户插话必须先中断讨论**：`sendOne()` 中检测到 `discussionActive` 时会调用 `waitForDiscussionIdle()` abort 当前 SSE，再重建新连接。用户每次发言都会截断 agent 正在说的话。
+2. **Reply-to 无 UI 入口**：API 支持 `reply_to_message_id`，但 UI 没有 reply 按钮，前端调用也不传该字段。
+3. **讨论状态清空机制脆弱**：`startDiscussion()` 开头强制 `discussionMessages: []`，靠 useEffect 追加，每次都从零重建。
 
-**描述：** 替换基础消息气泡为 Brainstorm 专用气泡。包含线程色彩竖线、回复标签、Agent 信息行。
+**目标交互**：进入 Brainstorm 模式 → 建立一个持久 SSE 连接 → 用户随时可发消息（注入队列）→ agents 自然接住，不中断流 → 任何消息可 reply → 讨论持续直到手动结束或全员 PASS。
 
-**文件：**
-- `frontend/src/components/BrainstormMessage.tsx` — 新建
-- `frontend/src/components/BrainstormArea.tsx` — 修改集成新组件
+---
 
-**实现要点：**
-- 色彩生成：`const threadColor = hsl(hash(root_message_id) % 360, 45%, 55%)`
-- 根消息 ID 计算：若无 parent_message_id → 自身为根；若有 → 递归找到最顶层根消息
-- 4px 宽色彩竖线在气泡左侧，`border-left: 4px solid threadColor`
-- 回复标签格式：`回复 {agent_number} · "{被回复消息内容前30字}"`
-- 所有消息左对齐，无缩进
-- Agent 信息行：avatar(28×28, role→letter) + agent_name + 时间
-- Round 1 意向状态：头像旁显示 "thinking..." / "跳过"
-
-**验证：**
-- [ ] 两个不同根线程的消息颜色不同
-- [ ] 同一线程下回复消息颜色与根消息一致
-- [ ] 回复消息显示回复标签
-- [ ] 无 parent_message_id 的消息不显示回复标签和竖线
-
-### Task 6.1: BrainstormInput 组件 — 回复引用
+### Task 6.0: 后端 — 持久连接 + 消息队列注入
 
 **状态：** ⬜
 
-**描述：** Brainstorm 专用输入组件。支持泛回复和指定回复两种模式。
+**描述：** `BrainstormEngine` 由 one-shot `run()` 改为持久 queue-driven 循环。新增 `connect` 持久 SSE 端点和 `inject` 消息注入端点，原 `discuss` 端点废弃。
 
 **文件：**
-- `frontend/src/components/BrainstormInput.tsx` — 新建
-- `frontend/src/components/BrainstormArea.tsx` — 集成输入组件
+- `backend/app/services/brainstorm.py` — 重构 BrainstormEngine
+- `backend/app/routers/brainstorm.py` — 新增 connect / inject 端点
 
-**实现要点：**
-- 默认模式：泛回复（parent_message_id = NULL），输入框无标签
-- Hover 消息 → 显示回复按钮（ghost 样式，消息右上角）
-- 点击回复按钮 → 输入框上方出现回复标签："回复 {agent_number} · "{原文前30字}" [✕]"
-- 点击 [✕] → 取消引用，回到泛回复模式
-- 发送时带上 `parent_message_id`
+**后端实现要点：**
+
+**BrainstormEngine 重构**
+
+```python
+class BrainstormEngine:
+    def __init__(self, session_id, inspiration_id, ...):
+        self._queue: asyncio.Queue[dict] = asyncio.Queue()
+        self._abort = False
+
+    async def inject(self, content: str, reply_to_message_id: str | None = None):
+        """用户随时调用，将消息放入队列。不中断当前讨论。"""
+        await self._queue.put({"content": content, "reply_to": reply_to_message_id})
+
+    async def run(self) -> AsyncIterator[SSEEvent]:
+        """持久循环：等队列消息 → agents 响应 → 检查队列 → 继续。"""
+        while not self._abort:
+            # 等待下一条用户消息（有超时，以便定期检查 abort）
+            try:
+                msg = await asyncio.wait_for(self._queue.get(), timeout=30.0)
+            except asyncio.TimeoutError:
+                yield SSEEvent(event="heartbeat", data={})
+                continue
+
+            user_content = msg["content"]
+            reply_to = msg["reply_to"]
+
+            # 保存用户消息
+            user_msg_id = await self._save_message(role="human", content=user_content,
+                                                    parent_message_id=reply_to)
+            yield SSEEvent(event="user_message", data={"message_id": user_msg_id, "content": user_content})
+
+            # agents 顺序发言，每个 agent 之间检查队列是否有新消息
+            agents = await self._load_agents()
+            for agent in agents:
+                if self._abort:
+                    break
+                # 若队列有新消息，优先结束本轮，让新消息先处理
+                if not self._queue.empty():
+                    break
+                # 正常发言流程（与当前 run() 内的 agent 发言逻辑相同）
+                yield* self._agent_turn(agent, user_msg_id, ...)
+
+            # 全员 PASS 后发出 round_end（不关闭连接）
+            yield SSEEvent(event="round_end", data={"round": ...})
+
+        yield SSEEvent(event="discussion_end", data={...})
+```
+
+**新增端点**
+
+```
+POST /api/brainstorm-sessions/{id}/connect   → 建立持久 SSE 连接（不含消息）
+POST /api/brainstorm-sessions/{id}/inject    → 向 queue 注入一条用户消息
+DELETE /api/brainstorm-sessions/{id}/connect → 优雅关闭（设 _abort=True）
+```
+
+- `connect` 端点创建 `BrainstormEngine` 并注册到 `_active_engines[session_id]`，返回 SSE 流
+- `inject` 端点查找 `_active_engines[session_id]`，调用 `engine.inject()`；若无活跃引擎 → 404
+- 原 `POST /discuss` 和 `DELETE /discuss` 端点保留但标注 deprecated，Iter-7 删除
+- `_active_engines` 改为全局单例（保持原有结构），key 为 session_id
+
+**新增 SSE 事件**
+
+| 事件 | 载荷 | 说明 |
+|------|------|------|
+| `user_message` | `message_id, content` | 用户消息已入库（用于前端乐观更新确认）|
+| `round_end` | `round, speeches` | 本轮 agent 发言完毕（连接保持）|
+| `heartbeat` | `{}` | 空闲心跳，防止连接超时 |
 
 **验证：**
-- [ ] Hover 消息 → 回复按钮出现
-- [ ] 点击回复 → 输入框上方出现回复标签
-- [ ] 点击 [✕] → 标签消失
-- [ ] 带 parent_message_id 发送 → 新消息正确关联到被回复消息
+- [ ] `POST /connect` 返回 SSE 流，连接保持（不因单次 inject 关闭）
+- [ ] `POST /inject` 在 SSE 流中触发 agents 响应
+- [ ] 连续 inject 两条消息时，第二条排队，等第一轮 agents 响应完后处理
+- [ ] agent 正在流式输出时 inject 新消息，新消息进队列不中断当前 agent
+- [ ] `DELETE /connect` 触发 `discussion_end` 事件后连接关闭
 
-### Task 6.2: 模式开关 + 布局集成
+---
+
+### Task 6.1: 前端 Store — 持久连接模型
 
 **状态：** ⬜
 
-**描述：** ChatArea TopBar 新增 Chat/Brainstorm 模式切换。Brainstorm 模式时 Col3 渲染 BrainstormArea。
+**描述：** `brainstormStore` 重构：`startDiscussion` 改为 `connectSession`（建立持久连接），`sendMessage` 只做 POST inject，完全分离连接生命周期和消息发送。
 
 **文件：**
-- `frontend/src/components/ChatArea.tsx` — TopBar 新增模式开关
-- `frontend/src/stores/uiStore.ts` — 扩展 chatMode: "chat" | "brainstorm"
-- `frontend/src/components/BrainstormArea.tsx` — 完善整体布局
+- `frontend/src/stores/brainstormStore.ts` — 重构
 
 **实现要点：**
-- TopBar 模式开关：两个 pill 按钮 `[Chat] [Brainstorm]`，选中态 accent 色背景
-- 默认 "chat" 模式
-- 切换 Brainstorm → Col3 渲染 BrainstormArea（含消息列表 + 输入框）
-- Brainstorm 模式下隐藏 ChatArea 原有的 ChatInput
-- 如果当前 Inspiration 无 Brainstorm 会话 → 提示创建
-- 讨论结束时显示 Lead Agent 总结卡片（如 summary 不为 null）
+
+```ts
+// 新接口
+connectSession(sessionId: string): Promise<void>      // 建立持久 SSE 连接
+disconnectSession(): void                              // 关闭连接（DELETE /connect）
+injectMessage(sessionId: string, content: string, replyToMessageId?: string): Promise<void>
+
+// 废弃（Iter-7 删除）
+startDiscussion(...)   // → 改为调用 connectSession + injectMessage
+stopDiscussion()       // → 改为调用 disconnectSession
+```
+
+- `connectSession` 打开 SSE 连接，持续监听 `user_message`, `agent_start`, `agent_token`, `message_done`, `agent_pass`, `round_end`, `heartbeat`, `discussion_end`
+- 连接期间 `discussionConnected: boolean = true`（新状态，取代 `discussionActive`）
+- `injectMessage` 做 `POST /inject`，立即返回（无需等待 SSE 响应）
+- `replyingToId: string | null` 新状态字段，由 UI 设置，`injectMessage` 读取后自动清空
+- `discussionMessages` 仅作为本会话消息增量 buffer，不再 `set({ discussionMessages: [] })` 清空
+- `handleSSEEvent` 新增 `user_message`（确认消息已入库，替换乐观更新临时消息）、`round_end`、`heartbeat` 处理
+
+**新增状态字段**
+
+```ts
+discussionConnected: boolean      // 持久连接是否活跃
+replyingToId: string | null       // 当前 reply 目标消息 ID
+replyingToContent: string | null  // 被引用消息预览文本（前 30 字）
+```
 
 **验证：**
-- [ ] [Chat] [Brainstorm] 切换按钮可见
-- [ ] 切换 Brainstorm → UI 变为 Brainstorm 布局
-- [ ] 切换回 Chat → 恢复 Chat 布局
-- [ ] 讨论自然结束后 → 显示总结卡片
+- [ ] 进入 brainstorm 模式 → `connectSession` 自动调用，`discussionConnected = true`
+- [ ] 输入消息 → `injectMessage` POST，不重建 SSE 连接
+- [ ] 用户连续快速发两条消息 → 两条均进队列，SSE 流中依次收到 agents 响应
+- [ ] 离开 brainstorm 模式 → `disconnectSession` 自动调用，连接关闭
+
+---
+
+### Task 6.2: 前端 UI — Reply 按钮 + 引用条
+
+**状态：** ⬜
+
+**描述：** 消息气泡 hover 显示 Reply 按钮，点击后输入框上方出现引用条；发送带 `replyToMessageId`。
+
+**文件：**
+- `frontend/src/components/ChatArea.tsx` — 消息 hover 交互 + 引用条
+- `frontend/src/stores/brainstormStore.ts` — `replyingToId` 状态已在 Task 6.1 添加
+
+**实现要点：**
+- 仅 brainstorm 模式下，消息 hover 显示 Reply 按钮（右上角，ghost 样式，`↩ Reply`）
+- 点击 Reply → 调用 `useBrainstormStore.setState({ replyingToId, replyingToContent })`
+- 输入框上方引用条：`↩ 回复 {agent_name} · "{内容前30字}" [✕]`，accent 色左边线
+- `[✕]` 清空 `replyingToId`
+- `handleSend` 中读取 `replyingToId`，传入 `injectMessage` 后清空
+- 人类消息也可以被 reply（reply_to 不限 role）
+
+**验证：**
+- [ ] brainstorm 模式下 hover 消息 → Reply 按钮出现
+- [ ] 点击 Reply → 引用条出现在输入框上方
+- [ ] 发送后引用条消失，`replyingToId` 清空
+- [ ] reply 发出后，`message_done` 事件携带正确 `parent_message_id`
+- [ ] chat 模式下 hover 消息 → 无 Reply 按钮
+
+---
+
+### Task 6.3: 前端 UI — 彩色线程竖线
+
+**状态：** ⬜
+
+**描述：** 每条消息根据 `parent_message_id` 链计算线程根 ID，据此着色竖线。
+
+**文件：**
+- `frontend/src/components/ChatArea.tsx` — 消息渲染处新增竖线
+- `frontend/src/utils/threadColor.ts` — 新建，颜色计算工具
+
+**实现要点：**
+- `threadColor.ts`：
+  ```ts
+  // 计算消息的线程根 ID（沿 parent_message_id 链找到无 parent 的祖先）
+  function getRootId(messageId: string, messages: Message[]): string
+  // 根据根 ID 生成色相（djb2 hash % 360）
+  function threadHue(rootId: string): number
+  // 返回 CSS 色值 hsl(hue, 45%, 58%)
+  function threadColor(rootId: string): string
+  ```
+- 无 `parent_message_id` 的消息：无竖线（根消息）
+- 有 `parent_message_id` 的消息：左侧 3px 色彩竖线，颜色 = 线程根的 `threadColor`
+- 人类 reply 消息也显示竖线（与被回复消息同线程色）
+- 竖线仅在 brainstorm 模式显示，chat 模式不显示
+
+**验证：**
+- [ ] 两条无关消息（不同根）竖线颜色不同
+- [ ] 同一 reply 链内所有消息竖线颜色一致
+- [ ] 根消息（无 parent）不显示竖线
+- [ ] chat 模式下所有消息无竖线
 
 ---
 
