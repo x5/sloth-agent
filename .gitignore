@@ -1,4 +1,7 @@
-# Sloth Agent Runtime Data
+# Test artifacts
+coverage.xml
+frontend/coverage/
+
 /memory/
 checkpoints/
 logs/
