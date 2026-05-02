@@ -14,8 +14,11 @@ from ..services.sandbox import SandboxManager
 
 router = APIRouter(prefix="/api", tags=["brainstorm"])
 
-# Track active engines for abort support
+# Track active engines for abort support (deprecated /discuss endpoints)
 _active_engines: dict[str, BrainstormEngine] = {}
+
+# Track persistent connections for /connect endpoints
+_active_connections: dict[str, BrainstormEngine] = {}
 
 
 class CreateBrainstormSessionRequest(BaseModel):
@@ -28,6 +31,11 @@ class UpdateBrainstormSessionRequest(BaseModel):
 
 
 class DiscussRequest(BaseModel):
+    content: str = Field(min_length=1)
+    reply_to_message_id: str | None = None
+
+
+class InjectRequest(BaseModel):
     content: str = Field(min_length=1)
     reply_to_message_id: str | None = None
 
@@ -229,8 +237,96 @@ async def brainstorm_discuss(
 
 @router.delete("/brainstorm-sessions/{session_id}/discuss")
 async def abort_discussion(session_id: str):
-    """Abort an active brainstorm discussion."""
+    """Abort an active brainstorm discussion. (deprecated — use DELETE /connect)"""
     engine = _active_engines.get(session_id)
     if engine:
         engine.abort()
     return {"status": "aborted"}
+
+
+# ---- Persistent connection endpoints (Iter-6) ----
+
+@router.post("/brainstorm-sessions/{session_id}/connect")
+async def brainstorm_connect(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Establish a persistent SSE connection for brainstorm discussions.
+
+    The stream stays open indefinitely, emitting events as agents speak.
+    Use POST /inject to push user messages, DELETE /connect to close.
+    """
+    session = await db.get(BrainstormSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Brainstorm session not found")
+
+    if session.status == "ended":
+        raise HTTPException(status_code=400, detail="Brainstorm session has ended")
+
+    # Disconnect any existing persistent connection for this session
+    existing = _active_connections.get(session_id)
+    if existing:
+        existing.abort()
+
+    engine = BrainstormEngine(
+        session_id=session_id,
+        inspiration_id=session.inspiration_id,
+        cooldown_seconds=session.cooldown_seconds,
+        max_messages=session.max_messages,
+    )
+    _active_connections[session_id] = engine
+
+    async def event_stream():
+        try:
+            async for sse_event in engine.run_persistent():
+                data_str = json.dumps(sse_event.data, ensure_ascii=False)
+                yield f"event: {sse_event.event}\ndata: {data_str}\n\n"
+        except Exception as e:
+            error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
+            yield f"event: error\ndata: {error_data}\n\n"
+        finally:
+            _active_connections.pop(session_id, None)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/brainstorm-sessions/{session_id}/inject", status_code=202)
+async def brainstorm_inject(
+    session_id: str,
+    req: InjectRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Inject a user message into an active persistent connection (non-blocking).
+
+    Returns 202 immediately; message is processed asynchronously by the engine.
+    """
+    session = await db.get(BrainstormSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Brainstorm session not found")
+
+    engine = _active_connections.get(session_id)
+    if not engine:
+        raise HTTPException(
+            status_code=400,
+            detail="No active connection for this session. Call POST /connect first.",
+        )
+
+    await engine.inject(req.content, req.reply_to_message_id)
+    return {"status": "injected"}
+
+
+@router.delete("/brainstorm-sessions/{session_id}/connect")
+async def brainstorm_disconnect(session_id: str):
+    """Close the persistent SSE connection for a brainstorm session."""
+    engine = _active_connections.pop(session_id, None)
+    if engine:
+        engine.abort()
+    return {"status": "disconnected"}

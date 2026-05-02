@@ -7,10 +7,10 @@ import { useAgentStore } from "../stores/agentStore";
 import { useBrainstormStore } from "../stores/brainstormStore";
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
+import { getRootId, threadColor } from "../utils/threadColor";
 import { formatTime as formatMessageTime } from "../utils/time";
 
 import BrainstormStreamBubble from "./BrainstormStreamBubble";
-import { getRootId, threadColor } from "../utils/threadColor";
 
 interface DividerItem {
   id: string;

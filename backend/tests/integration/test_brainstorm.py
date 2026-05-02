@@ -182,3 +182,61 @@ async def test_discuss_on_nonexistent_session_returns_404():
             json={"content": "hello"},
         )
     assert r.status_code == 404
+
+
+# ──────────────────────────────────────────────
+# Persistent connection endpoints (Iter-6)
+# ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_connect_nonexistent_session_returns_404():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post(
+            "/api/brainstorm-sessions/nonexistent-id/connect",
+        )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_connect_ended_session_returns_400():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        insp_id = await _create_inspiration(client, "bs-connect-ended-test")
+        sess = await _create_session(client, insp_id)
+        await client.patch(
+            f"/api/brainstorm-sessions/{sess['id']}",
+            json={"status": "ended"},
+        )
+        r = await client.post(f"/api/brainstorm-sessions/{sess['id']}/connect")
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_inject_without_connection_returns_400():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        insp_id = await _create_inspiration(client, "bs-inject-no-conn-test")
+        sess = await _create_session(client, insp_id)
+        r = await client.post(
+            f"/api/brainstorm-sessions/{sess['id']}/inject",
+            json={"content": "hello"},
+        )
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_inject_nonexistent_session_returns_404():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post(
+            "/api/brainstorm-sessions/nonexistent-id/inject",
+            json={"content": "hello"},
+        )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_disconnect_idle_session_returns_200():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        insp_id = await _create_inspiration(client, "bs-disconnect-idle-test")
+        sess = await _create_session(client, insp_id)
+        r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/connect")
+    assert r.status_code == 200
+    assert r.json()["status"] == "disconnected"

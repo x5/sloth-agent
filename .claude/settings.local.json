@@ -141,7 +141,28 @@
       "Bash(wmic process *)",
       "Bash(\"C:\\\\Users\\\\TUF\\\\Workspace\\\\agent-evolve\\\\src-tauri\\\\target\\\\release\\\\sloth-agent.exe\")",
       "Read(//c/Users/TUF/.claude/skills/ui-ux-pro-max-skill/.claude-plugin/**)",
-      "Read(//c/Users/TUF/.claude/skills/ui-ux-pro-max-skill/**)"
+      "Read(//c/Users/TUF/.claude/skills/ui-ux-pro-max-skill/**)",
+      "WebFetch(domain:mui.com)",
+      "Bash(lsof -ti:8000)",
+      "Bash(xargs kill *)",
+      "Bash(.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(.venv/Scripts/python.exe -c \"import fastapi; print\\(fastapi.__version__\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(.venv/Scripts/pip.exe list *)",
+      "Bash(.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8080)",
+      "Bash(.venv/Scripts/python.exe -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(p\\) for p in sorted\\(d['paths'].keys\\(\\)\\) if 'brainstorm' in p or 'discuss' in p]\")",
+      "Bash(.venv/Scripts/python.exe -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f'{i[\\\\\"id\\\\\"]}  {i[\\\\\"name\\\\\"]}'\\) for i in data[:3]]\")",
+      "Bash(.venv/Scripts/python.exe -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f'{s[\\\\\"id\\\\\"]}  {s[\\\\\"title\\\\\"]}  {s[\\\\\"status\\\\\"]}'\\) for s in data]\")",
+      "Bash(.venv/Scripts/python.exe -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f'{a[\\\\\"id\\\\\"]}  {a[\\\\\"name\\\\\"]}  {a[\\\\\"model\\\\\"]}'\\) for a in data]\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8080 --reload)",
+      "Bash(.venv/Scripts/python.exe -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(p\\) for p in d['paths'] if 'discuss' in p]\")",
+      "Bash(chmod +x /c/Users/TUF/Workspace/agent-evolve/scripts/check-test-coverage.sh)",
+      "Bash(npx lefthook *)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(chmod +x *)",
+      "Bash(npx @playwright/mcp@latest --help)",
+      "Skill(update-config)"
     ]
   }
 }
