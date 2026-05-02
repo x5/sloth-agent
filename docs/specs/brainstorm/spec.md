@@ -163,9 +163,13 @@ stopDiscussion()   // DELETE /discuss
 - 输入框上方显示引用条：`↩ 回复 {agent_name} · "{内容前30字}" [✕]`
 - 发送时将 `replyingToId` 传入 `injectMessage`
 
-**彩色线程竖线：**
+**彩色线程引用预览：**
 - `threadColor.ts`：`getRootId(id, messages)` → FNV-1a hash % 360 → `hsl(hue, 45%, 58%)`
-- 有 `parent_message_id` 的消息显示 3px 左侧竖线（仅 brainstorm 模式）
+- 有 `parent_message_id` 的消息，在气泡内顶部渲染引用预览块（`.chat-message__quote`）：
+  - 引用块左侧显示 3px 线程颜色竖线（`borderLeftColor: threadAccent`）
+  - 上方一行：被引用消息的发言人名（accent 色，`.chat-message__quote-author`）
+  - 下方：被引用内容前 80 字，超出截断加 `…`（`.chat-message__quote-text`，最多 2 行）
+- 不在消息外层 div 添加 `borderLeft`（原竖线方案已移除，因对用户不透明）
 
 **RightPanel (`frontend/src/components/RightPanel.tsx`)：**
 - Brainstorm Tab：会话详情卡片（title, status, message_count, cooldown）

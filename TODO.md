@@ -16,6 +16,29 @@
 
 ## 活跃任务
 
+### P0: Brainstorm interrupt 按钮图标化与状态统一
+
+> Spec: `docs/specs/desktop/spec.md`
+> Change: `docs/changes/brainstorm-interrupt-icon/`
+> 目标: 将 brainstorm 发言中的 interrupt 操作改为与闪电同组的 icon 按钮，并明确可点击/已点击灰态
+
+- [x] **Task BI-1 [P0]: ChatArea interrupt 按钮重构**
+  - [x] 将 interrupt 按钮移入输入工具组，放在闪电按钮旁边
+  - [x] 使用“捂嘴”语义 icon，视觉风格与 brainstorm 紫色保持一致
+  - [x] 点按后按钮保留显示并切换为灰色不可点击态
+  - [x] 补充前端测试覆盖可点击态与灰态
+
+### P0: Brainstorm interrupt 行为回归修复
+
+> Spec: `docs/specs/desktop/spec.md`
+> Change: `docs/changes/fix-brainstorm-interrupt-behavior/`
+> 目标: interrupt 只在 agent 正在回复时可点，且只打断当前 round，不结束 brainstorm mode
+
+- [x] **Task BI-2 [P0]: interrupt 语义修复**
+  - [x] interrupt 亮起条件改为当前存在 active agent 输出
+  - [x] 点击 interrupt 只中断当前 round，不关闭 brainstorm session
+  - [x] 补充前后端测试覆盖连接态但无 active agent 时的灰态，以及 interrupt 不结束 mode
+
 ### P0: MVP 桌面版 Iter-1 — 项目外壳 + Inspiration CRUD
 
 > Spec: `docs/specs/20260425-mvp-desktop-app-spec.md`

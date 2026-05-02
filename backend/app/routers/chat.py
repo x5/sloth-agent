@@ -86,7 +86,11 @@ async def _get_default_agent_or_raise(inspiration_id: str, db: AsyncSession):
     agent = await AgentService.get_default_agent(inspiration_id)
     if not agent:
         raise HTTPException(status_code=400, detail="No Lead Agent found for this Inspiration")
-    return agent
+    # Re-load in the current request session so status updates are persisted on commit.
+    managed_agent = await db.get(InspirationAgent, agent.id)
+    if not managed_agent:
+        raise HTTPException(status_code=400, detail="Lead Agent not found in current DB session")
+    return managed_agent
 
 
 async def _build_agent_map(inspiration_id: str, db: AsyncSession) -> dict[str, tuple[str, int, str]]:
@@ -266,7 +270,9 @@ async def get_messages(
     brainstorm_session_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = _build_message_query(inspiration_id, brainstorm_session_id)
+    # UI message list is a single timeline: include both chat + all brainstorm sessions.
+    # Keep brainstorm_session_id in the signature for backward compatibility.
+    stmt = select(Message).where(Message.inspiration_id == inspiration_id)
     if before:
         result = await db.execute(
             select(Message.created_at).where(Message.id == before)
@@ -294,5 +300,9 @@ async def get_messages(
             agent_model=model,
             mode=m.mode,
             brainstorm_session_id=m.brainstorm_session_id,
+            parent_message_id=m.parent_message_id,
+            round=m.round,
+            intent=m.intent,
+            truncated=m.truncated,
         ))
     return out

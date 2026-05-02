@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import async_session
-from ..models import BrainstormFile, BrainstormSession, Inspiration
+from ..models import BrainstormFile, BrainstormSession, Inspiration, Message
 from ..services.brainstorm import BrainstormEngine
 from ..services.sandbox import SandboxManager
 
@@ -98,6 +98,20 @@ async def create_brainstorm_session(
 
     sandbox_path = SandboxManager.create_session_dir(session.id)
     session.sandbox_path = sandbox_path
+
+    # Persist a timeline divider as a system message.
+    db.add(
+        Message(
+            inspiration_id=inspiration_id,
+            role="system",
+            content=f"{session.title} Started",
+            mode="brainstorm",
+            brainstorm_session_id=session.id,
+            intent="divider_start",
+            round=1,
+            truncated=False,
+        )
+    )
     await db.commit()
     await db.refresh(session)
 
@@ -333,9 +347,61 @@ async def brainstorm_inject(
 
 
 @router.delete("/brainstorm-sessions/{session_id}/connect")
-async def brainstorm_disconnect(session_id: str):
+async def brainstorm_disconnect(session_id: str, db: AsyncSession = Depends(get_db)):
     """Close the persistent SSE connection for a brainstorm session."""
     engine = _active_connections.pop(session_id, None)
     if engine:
         engine.abort()
+
+    # Persist ended state and divider_end regardless of whether the connection
+    # is still active. This keeps timeline events consistent when clients abort early.
+    session = await db.get(BrainstormSession, session_id)
+    if session:
+        if session.status != "ended":
+            session.status = "ended"
+            session.ended_at = datetime.now(timezone.utc)
+
+        existing_end = await db.execute(
+            select(Message.id)
+            .where(
+                Message.brainstorm_session_id == session.id,
+                Message.role == "system",
+                Message.intent == "divider_end",
+            )
+            .limit(1)
+        )
+        if existing_end.scalar_one_or_none() is None:
+            db.add(
+                Message(
+                    inspiration_id=session.inspiration_id,
+                    role="system",
+                    content=f"{session.title} Ended",
+                    mode="brainstorm",
+                    brainstorm_session_id=session.id,
+                    intent="divider_end",
+                    round=1,
+                    truncated=False,
+                )
+            )
+        await db.commit()
     return {"status": "disconnected"}
+
+
+@router.delete("/brainstorm-sessions/{session_id}/interrupt")
+async def brainstorm_interrupt(session_id: str, db: AsyncSession = Depends(get_db)):
+    """Interrupt only the current brainstorm round without ending the session."""
+    session = await db.get(BrainstormSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Brainstorm session not found")
+
+    engine = _active_connections.get(session_id)
+    if engine:
+        engine.interrupt_round()
+        return {"status": "interrupted"}
+
+    engine = _active_engines.get(session_id)
+    if engine:
+        engine.interrupt_round()
+        return {"status": "interrupted"}
+
+    return {"status": "idle"}

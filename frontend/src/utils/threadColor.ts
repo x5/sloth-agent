@@ -39,7 +39,17 @@ export function threadHue(rootId: string): number {
   return hash % 360;
 }
 
-/** Return an HSL color string for a thread, given its root message ID. */
+const THREAD_PALETTE = [
+  "#3B82F6", // blue
+  "#0EA5E9", // sky
+  "#06B6D4", // cyan
+  "#14B8A6", // teal
+  "#10B981", // emerald
+  "#6366F1", // indigo
+];
+
+/** Return a stable, UI-friendly accent color for a thread. */
 export function threadColor(rootId: string): string {
-  return `hsl(${threadHue(rootId)}, 45%, 58%)`;
+  const idx = threadHue(rootId) % THREAD_PALETTE.length;
+  return THREAD_PALETTE[idx];
 }
