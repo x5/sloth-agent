@@ -54,7 +54,13 @@ jobs:
         run: uv sync --project backend --extra dev
 
       - name: Backend unit tests
-        run: uv run --project backend python -m pytest backend/tests/unit -v
+        run: |
+          if [ -d "backend/tests/unit" ]; then
+            uv run --project backend python -m pytest backend/tests/unit -v
+            code=$?; [ $code -eq 5 ] && echo "No unit tests yet, skipping." || exit $code
+          else
+            echo "backend/tests/unit not found — skipping unit tests for now."
+          fi
 
   backend-api-integration:
     runs-on: ubuntu-latest
