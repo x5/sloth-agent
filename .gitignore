@@ -1,5 +1,5 @@
 # Sloth Agent Runtime Data
-memory/
+/memory/
 checkpoints/
 logs/
 .env
@@ -30,3 +30,7 @@ frontend/dist/
 .gstack/
 brainstorm-sessions/
 backend/sloth.db
+
+# Local reference mirrors (do not track)
+docs/ref/gstack-main/
+docs/ref/superpowers-main/
