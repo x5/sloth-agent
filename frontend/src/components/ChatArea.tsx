@@ -10,6 +10,7 @@ import { useUIStore } from "../stores/uiStore";
 import { formatTime as formatMessageTime } from "../utils/time";
 
 import BrainstormStreamBubble from "./BrainstormStreamBubble";
+import { getRootId, threadColor } from "../utils/threadColor";
 
 interface DividerItem {
   id: string;
@@ -76,12 +77,19 @@ export default function ChatArea() {
   const brainstormStop = useBrainstormStore((s) => s.stopBrainstorm);
   const brainstormDiscuss = useBrainstormStore((s) => s.startDiscussion);
   const brainstormStopDiscuss = useBrainstormStore((s) => s.stopDiscussion);
+  const brainstormConnect = useBrainstormStore((s) => s.connectSession);
+  const brainstormDisconnect = useBrainstormStore((s) => s.disconnectSession);
+  const brainstormInject = useBrainstormStore((s) => s.injectMessage);
+  const brainstormSetReplyingTo = useBrainstormStore((s) => s.setReplyingTo);
   const discussionActive = useBrainstormStore((s) => s.discussionActive);
+  const discussionConnected = useBrainstormStore((s) => s.discussionConnected);
   const activeAgentId = useBrainstormStore((s) => s.activeAgentId);
   const activeAgentName = useBrainstormStore((s) => s.activeAgentName);
   const activeAgentNumber = useBrainstormStore((s) => s.activeAgentNumber);
   const discussionMessages = useBrainstormStore((s) => s.discussionMessages);
   const streamingContent = useBrainstormStore((s) => s.streamingContent);
+  const replyingToId = useBrainstormStore((s) => s.replyingToId);
+  const replyingToContent = useBrainstormStore((s) => s.replyingToContent);
 
   useEffect(() => {
     if (activeId) {
@@ -132,6 +140,20 @@ export default function ChatArea() {
     setInput("");
     prevDiscussionCountRef.current = 0;
   }, [loadMessages]);
+
+  // Persistent brainstorm connection lifecycle
+  useEffect(() => {
+    if (!brainstormMode || !brainstormActiveId) return;
+    let cancelled = false;
+    brainstormConnect(brainstormActiveId).catch((e) => {
+      if (!cancelled) console.warn("Brainstorm connect failed:", e);
+    });
+    return () => {
+      cancelled = true;
+      brainstormDisconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brainstormMode, brainstormActiveId]);
 
   useEffect(() => {
     // Auto-scroll only if user is near the bottom
@@ -276,23 +298,35 @@ export default function ChatArea() {
     if (!activeId) return;
 
     if (brainstormMode && brainstormActiveId) {
-      // Wait until any active discussion is fully stopped
-      if (discussionActive) {
-        await waitForDiscussionIdle();
-      }
-      prevDiscussionCountRef.current = discussionMessages.length;
-      setMessages((prev) => [...prev, makeHumanMsg(content)]);
-      setSending(true);
-      try {
-        await brainstormDiscuss(brainstormActiveId, content);
-        // Messages were appended in real-time via the discussionMessages useEffect.
-        // Clear the streaming buffer — no need to reload from DB.
-        useBrainstormStore.setState({ discussionMessages: [] });
-        prevDiscussionCountRef.current = 0;
-      } catch (e) {
-        setMessages((prev) => [...prev, makeErrMsg("Discussion error: " + String(e))]);
-      } finally {
-        setSending(false);
+      if (discussionConnected) {
+        // Persistent mode: inject into running engine — no waiting, no aborting
+        const replyToId = useBrainstormStore.getState().replyingToId;
+        useBrainstormStore.getState().setReplyingTo(null, null);
+        setSending(true);
+        try {
+          await brainstormInject(brainstormActiveId, content, replyToId || undefined);
+        } catch (e) {
+          setMessages((prev) => [...prev, makeErrMsg("Inject error: " + String(e))]);
+        } finally {
+          setSending(false);
+        }
+      } else {
+        // Legacy fallback (no persistent connection)
+        if (discussionActive) {
+          await waitForDiscussionIdle();
+        }
+        prevDiscussionCountRef.current = discussionMessages.length;
+        setMessages((prev) => [...prev, makeHumanMsg(content)]);
+        setSending(true);
+        try {
+          await brainstormDiscuss(brainstormActiveId, content);
+          useBrainstormStore.setState({ discussionMessages: [] });
+          prevDiscussionCountRef.current = 0;
+        } catch (e) {
+          setMessages((prev) => [...prev, makeErrMsg("Discussion error: " + String(e))]);
+        } finally {
+          setSending(false);
+        }
       }
     } else {
       // Chat mode: SSE streaming
@@ -344,8 +378,9 @@ export default function ChatArea() {
         setSending(false);
       }
     }
-  }, [activeId, brainstormMode, brainstormActiveId, discussionActive, discussionMessages.length,
-      brainstormDiscuss, waitForDiscussionIdle, makeHumanMsg, makeErrMsg]);
+  }, [activeId, brainstormMode, brainstormActiveId, discussionActive, discussionConnected,
+      discussionMessages.length, brainstormDiscuss, brainstormInject, waitForDiscussionIdle,
+      makeHumanMsg, makeErrMsg]);
 
   // ---- Process queue: drain one message at a time ----
 
@@ -462,7 +497,7 @@ export default function ChatArea() {
           </div>
         ) : (
           <div className="chatarea__messages">
-            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} />
+            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} brainstormMode={brainstormMode} onReply={(id, preview) => brainstormSetReplyingTo(id, preview)} />
             {/* Brainstorm: show real-time token stream for active agent */}
             {discussionActive && activeAgentId && (() => {
               const agentColor = activeAgentNumber ? (agentColorMap[activeAgentNumber] ?? "#94A3B8") : "#94A3B8";
@@ -515,6 +550,13 @@ export default function ChatArea() {
 
       {/* Input Area */}
       <div className="chatarea__input">
+        {brainstormMode && replyingToId && replyingToContent && (
+          <div className="chatarea__reply-bar">
+            <span className="chatarea__reply-bar__arrow">↩</span>
+            <span className="chatarea__reply-bar__text">回复 {replyingToContent}</span>
+            <button className="chatarea__reply-bar__close" onClick={() => brainstormSetReplyingTo(null, null)}>✕</button>
+          </div>
+        )}
         {queueLen > 0 && (
           <div className="chatarea__queue-badge">
             {queueLen} message{queueLen > 1 ? "s" : ""} queued
@@ -560,10 +602,10 @@ export default function ChatArea() {
                 </svg>
               </button>
             </div>
-            {brainstormMode && discussionActive ? (
+            {brainstormMode && (discussionActive || discussionConnected) ? (
               <button
                 className="chatarea__stop-btn"
-                onClick={() => brainstormStopDiscuss()}
+                onClick={() => discussionConnected ? brainstormDisconnect() : brainstormStopDiscuss()}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -637,11 +679,15 @@ function DisplayItems({
   dividers,
   formatMessageTime,
   agentColorMap,
+  brainstormMode,
+  onReply,
 }: {
   messages: Message[];
   dividers: DividerItem[];
   formatMessageTime: (iso: string) => string;
   agentColorMap: Record<number, string>;
+  brainstormMode: boolean;
+  onReply: (id: string, preview: string) => void;
 }) {
   const items = useMemo<DisplayItem[]>(() => {
     const sorted = [...dividers].sort((a, b) => a.ts.localeCompare(b.ts));
@@ -667,10 +713,20 @@ function DisplayItems({
         }
         const m = item as Message;
         const isHuman = m.role === "human";
+
+        // Thread color line: only in brainstorm mode for reply messages
+        const threadLine = brainstormMode && m.parent_message_id
+          ? threadColor(getRootId(m.parent_message_id, messages))
+          : null;
+
+        // Reply preview: first 30 chars of content (or agent name prefix)
+        const replyPreview = (m.agent_name ? `${m.agent_name} · ` : "") + `"${m.content.slice(0, 30)}"`;
+
         return (
           <div
             key={m.id}
-            className={`chat-message${isHuman ? " chat-message--human" : " chat-message--agent"}`}
+            className={`chat-message${isHuman ? " chat-message--human" : " chat-message--agent"}${brainstormMode ? " chat-message--brainstorm" : ""}`}
+            style={threadLine ? { borderLeft: `3px solid ${threadLine}`, paddingLeft: "6px" } : undefined}
           >
             {!isHuman && (
               <div className="chat-message__avatar">
@@ -693,12 +749,30 @@ function DisplayItems({
                     <span className="chat-message__agent-model">{m.agent_model}</span>
                   )}
                   <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
+                  {brainstormMode && (
+                    <button
+                      className="chat-message__reply-btn"
+                      onClick={() => onReply(m.id, replyPreview)}
+                      title="Reply"
+                    >
+                      ↩
+                    </button>
+                  )}
                 </div>
               )}
               {isHuman && (
                 <div className="chat-message__agent-info">
                   <span className="chat-message__role">You</span>
                   <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
+                  {brainstormMode && (
+                    <button
+                      className="chat-message__reply-btn"
+                      onClick={() => onReply(m.id, replyPreview)}
+                      title="Reply"
+                    >
+                      ↩
+                    </button>
+                  )}
                 </div>
               )}
               <div className="chat-message__content">{m.content}</div>

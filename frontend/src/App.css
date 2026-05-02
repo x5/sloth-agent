@@ -1009,6 +1009,95 @@ body {
   50% { opacity: 0; }
 }
 
+/* Streaming cursor */
+.brainstorm-cursor {
+  display: inline-block;
+  width: 2px;
+  margin-left: 1px;
+  opacity: 1;
+  animation: cursorBlink 0.8s step-end infinite;
+  vertical-align: text-bottom;
+  font-size: 0.9em;
+}
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ========================================
+   Brainstorm Reply Button (hover)
+   ======================================== */
+
+.chat-message__reply-btn {
+  display: none;
+  padding: 1px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+  margin-left: auto;
+}
+
+.chat-message__reply-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-bg-light);
+}
+
+/* Show reply button on message hover (brainstorm mode) */
+.chat-message--brainstorm:hover .chat-message__reply-btn {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ========================================
+   Brainstorm Reply Bar (above input)
+   ======================================== */
+
+.chatarea__reply-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-accent-bg-light);
+  font-size: 12px;
+}
+
+.chatarea__reply-bar__arrow {
+  color: var(--color-accent);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.chatarea__reply-bar__text {
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatarea__reply-bar__close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.chatarea__reply-bar__close:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.06);
+}
+
 /* Input */
 
 .chatarea__input {
