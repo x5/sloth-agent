@@ -74,8 +74,14 @@ function _handleSSEEvent(event: string, data: Record<string, unknown>, set: SetS
       set({ activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
       break;
     }
+    case "max_reached": {
+      console.warn("Brainstorm hit message limit:", data.limit);
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      break;
+    }
     case "error": {
       console.error("SSE error:", data.error);
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
       break;
     }
   }

@@ -8,5 +8,5 @@ pre-commit:
       run: bash scripts/check-test-coverage.sh
     frontend-lint-fix:
       glob: "frontend/src/**/*.{ts,tsx}"
-      run: cd frontend && npm run lint:fix && git add -u frontend/src/
+      run: cd frontend && npm run lint:fix && (git add -u src/ || exit 0)
       stage_fixed: true

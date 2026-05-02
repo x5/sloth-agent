@@ -35,6 +35,10 @@ class MessageResponse(BaseModel):
     agent_model: str | None = None
     mode: str = "chat"
     brainstorm_session_id: str | None = None
+    parent_message_id: str | None = None
+    round: int = 1
+    intent: str | None = None
+    truncated: bool = False
 
     model_config = {"from_attributes": True}
 
