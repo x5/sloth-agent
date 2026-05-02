@@ -6,4 +6,7 @@ pre-commit:
   commands:
     test-file-gate:
       run: bash scripts/check-test-coverage.sh
+    frontend-lint-fix:
+      glob: "frontend/src/**/*.{ts,tsx}"
+      run: cd frontend && npm run lint:fix && git add -u frontend/src/
       stage_fixed: true
