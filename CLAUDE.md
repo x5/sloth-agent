@@ -24,6 +24,10 @@
 4. 合并 `delta.md` 回模块 spec
 5. 归档变更到 `docs/archive/<change-name>/`
 
+## 工具链初始化
+
+- 首次 clone 后执行 `npm install`（repo root），自动安装 lefthook 并注册 pre-commit hook
+
 ## 全局执行约束（必须）
 
 1. 修改 `src/` 前，模块必须已在 `docs/specs/` 注册
