@@ -1,10 +1,10 @@
-import SideNavBar from './components/SideNavBar';
-import ProjectList from './components/ProjectList';
-import ChatArea from './components/ChatArea';
-import RightPanel from './components/RightPanel';
-import AgentPoolList from './components/AgentPoolList';
 import AgentDetail from './components/AgentDetail';
+import AgentPoolList from './components/AgentPoolList';
+import ChatArea from './components/ChatArea';
+import ProjectList from './components/ProjectList';
+import RightPanel from './components/RightPanel';
 import SettingsLayout from './components/SettingsLayout';
+import SideNavBar from './components/SideNavBar';
 import { useUIStore } from './stores/uiStore';
 import './App.css';
 

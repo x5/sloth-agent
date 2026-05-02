@@ -1,7 +1,8 @@
 import { useUIStore } from "../stores/uiStore";
-import SettingsNav from "./SettingsNav";
-import ProviderList from "./ProviderList";
+
 import ProviderDetail from "./ProviderDetail";
+import ProviderList from "./ProviderList";
+import SettingsNav from "./SettingsNav";
 
 export default function SettingsLayout() {
   const settingsSubNav = useUIStore((s) => s.settingsSubNav);

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useLLMStore } from "../stores/llmStore";
+
 import * as api from "../api/client";
+import { useLLMStore } from "../stores/llmStore";
+
 import ConfirmModal from "./ConfirmModal";
 
 export default function ProviderDetail() {

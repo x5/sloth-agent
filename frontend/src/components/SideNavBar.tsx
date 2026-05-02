@@ -1,5 +1,6 @@
-import AppLogo from "./AppLogo";
 import { useUIStore, type ActiveNav } from "../stores/uiStore";
+
+import AppLogo from "./AppLogo";
 
 export default function SideNavBar() {
   const activeNav = useUIStore((s) => s.activeNav);
