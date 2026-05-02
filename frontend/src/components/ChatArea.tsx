@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { memo, useEffect, useRef, useState, useMemo, useCallback } from "react";
 
 import * as api from "../api/client";
 import { streamChatMessage } from "../api/client";
@@ -81,6 +81,11 @@ export default function ChatArea() {
   const brainstormDisconnect = useBrainstormStore((s) => s.disconnectSession);
   const brainstormInject = useBrainstormStore((s) => s.injectMessage);
   const brainstormSetReplyingTo = useBrainstormStore((s) => s.setReplyingTo);
+  const handleReply = useCallback(
+    (id: string, preview: string) => brainstormSetReplyingTo(id, preview),
+    [brainstormSetReplyingTo],
+  );
+
   const discussionActive = useBrainstormStore((s) => s.discussionActive);
   const discussionConnected = useBrainstormStore((s) => s.discussionConnected);
   const activeAgentId = useBrainstormStore((s) => s.activeAgentId);
@@ -497,7 +502,7 @@ export default function ChatArea() {
           </div>
         ) : (
           <div className="chatarea__messages">
-            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} brainstormMode={brainstormMode} onReply={(id, preview) => brainstormSetReplyingTo(id, preview)} />
+            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} brainstormMode={brainstormMode} onReply={handleReply} />
             {/* Brainstorm: show real-time token stream for active agent */}
             {discussionActive && activeAgentId && (() => {
               const agentColor = activeAgentNumber ? (agentColorMap[activeAgentNumber] ?? "#94A3B8") : "#94A3B8";
@@ -674,7 +679,7 @@ const THINKING_COLORS = [
 
 type DisplayItem = Message | DividerItem;
 
-function DisplayItems({
+const DisplayItems = memo(function DisplayItems({
   messages,
   dividers,
   formatMessageTime,
@@ -782,7 +787,7 @@ function DisplayItems({
       })}
     </>
   );
-}
+});
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];

@@ -10,12 +10,13 @@ Core flow:
 """
 
 import asyncio
+import time
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from typing import AsyncIterator
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from ..database import async_session
 from ..models import AgentTemplate, BrainstormSession, InspirationAgent, Message
@@ -72,21 +73,33 @@ class CoolingTimer:
         self.max_messages = max_messages
         self.state = TimerState.RUNNING
         self.message_count = 0
-        self._last_activity = asyncio.get_event_loop().time()
+        self._last_activity = time.monotonic()
         self._state_changed_at = self._last_activity
 
     def heartbeat(self):
-        """Call whenever a new agent speech arrives. Resets idle timer."""
-        now = asyncio.get_event_loop().time()
+        """Call whenever a new agent speech is SAVED. Resets idle timer and increments count."""
+        now = time.monotonic()
         self._last_activity = now
         self.message_count += 1
         if self.state in (TimerState.COOLING_DOWN, TimerState.CONFIRMING):
             self.state = TimerState.RUNNING
             self._state_changed_at = now
 
+    def keep_alive(self):
+        """Reset the idle timer without incrementing message count.
+
+        Call at agent_start to prevent cooldown from triggering during LLM generation,
+        since an LLM call can take 5-30s which would otherwise look like idle time.
+        """
+        now = time.monotonic()
+        self._last_activity = now
+        if self.state in (TimerState.COOLING_DOWN, TimerState.CONFIRMING):
+            self.state = TimerState.RUNNING
+            self._state_changed_at = now
+
     def check(self) -> TimerState:
-        """Check current state based on elapsed time. Returns current state."""
-        now = asyncio.get_event_loop().time()
+        """Advance state machine based on elapsed time. Returns current state."""
+        now = time.monotonic()
         idle = now - self._last_activity
 
         if self.message_count >= self.max_messages:
@@ -138,12 +151,16 @@ SPEECH_PROMPT_TEMPLATE = (
 def _build_context_text(history: list[dict]) -> str:
     """Format message history into readable context for LLM prompts."""
     lines = []
+    truncated = len(history) > 50
     for msg in history[-50:]:
         role = msg.get("role", "unknown")
         name = msg.get("agent_name") or ("User" if role == "human" else "Agent")
         content = msg.get("content", "")
         lines.append(f"[{name}]: {content}")
-    return "\n".join(lines) if lines else "(No messages yet)"
+    result = "\n".join(lines) if lines else "(No messages yet)"
+    if truncated:
+        result = "[Context truncated: showing last 50 messages]\n" + result
+    return result
 
 
 class BrainstormEngine:
@@ -269,15 +286,13 @@ class BrainstormEngine:
         return msg.id
 
     async def _increment_message_count(self):
-        """Increment the session's message_count."""
+        """Atomically increment the session's message_count (no read-modify-write race)."""
         async with async_session() as db:
-            result = await db.execute(
-                select(BrainstormSession).where(BrainstormSession.id == self.session_id)
+            await db.execute(
+                text("UPDATE brainstorm_sessions SET message_count = message_count + 1 WHERE id = :id"),
+                {"id": self.session_id},
             )
-            session = result.scalar_one_or_none()
-            if session:
-                session.message_count = (session.message_count or 0) + 1
-                await db.commit()
+            await db.commit()
 
     async def _get_current_round(self) -> int:
         """Get the current round number for this session."""
@@ -326,6 +341,10 @@ class BrainstormEngine:
                     "agent_name": agent.name,
                     "agent_number": agent_indices.get(agent.id),
                 })
+
+                # Reset idle timer — LLM generation can take 5-30s, which would
+                # otherwise look like idle time and incorrectly trigger cooldown.
+                self.timer.keep_alive()
 
                 history = await self._load_history()
                 context_text = _build_context_text(history)
@@ -421,12 +440,12 @@ class BrainstormEngine:
         user_content: str,
         reply_to_message_id: str | None = None,
     ) -> AsyncIterator[SSEEvent]:
-        """Run a brainstorm discussion round (one-shot, deprecated — use run_persistent).
+        """[DEPRECATED — remove in Iter-7] One-shot discussion run.
 
-        Each agent responds sequentially with real-time token streaming.
-        Multiple rounds continue until all agents PASS in a round (natural end)
-        or the abort flag is set or MAX_ROUNDS is hit.
-        Yields SSEEvent objects that the endpoint formats as SSE text.
+        Processes a single user message, runs agent rounds until natural end or abort,
+        then the stream closes. Each call is a separate SSE connection.
+
+        Use run_persistent() + inject() for the Iter-6+ persistent connection model.
         """
         current_round = await self._get_current_round()
 
@@ -460,14 +479,15 @@ class BrainstormEngine:
         Waits for messages injected via inject(). Runs agent rounds for each
         message, then loops back to wait. Emits heartbeat every 30s when idle.
         Stream only ends when abort() is called.
+
+        Agents are reloaded before each message's rounds, so adding/removing
+        agents during an active session takes effect on the next inject.
         """
-        agents = await self._load_agents()
-        if not agents:
+        # Initial check: refuse to start if team has no agents at all
+        if not await self._load_agents():
             yield SSEEvent(event="error", data={"error": "No agents in team. Add agents first."})
             return
 
-        agent_names = [a.name for a in agents]
-        agent_indices = {a.id: (i + 1) for i, a in enumerate(agents)}
         queue = self._get_queue()
 
         while not self._abort:
@@ -481,6 +501,14 @@ class BrainstormEngine:
             if self._abort:
                 break
 
+            # Reload agents for each message — picks up any adds/removes since last round
+            agents = await self._load_agents()
+            if not agents:
+                yield SSEEvent(event="error", data={"error": "No agents in team. Add agents first."})
+                continue
+
+            agent_names = [a.name for a in agents]
+            agent_indices = {a.id: (i + 1) for i, a in enumerate(agents)}
             current_round = await self._get_current_round()
 
             # Save user message and notify frontend immediately
@@ -496,6 +524,7 @@ class BrainstormEngine:
             yield SSEEvent(event="user_message", data={
                 "message_id": user_msg_id,
                 "content": content,
+                "parent_message_id": reply_to,
             })
 
             # Run agent rounds for this topic

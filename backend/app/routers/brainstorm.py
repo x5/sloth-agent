@@ -14,10 +14,11 @@ from ..services.sandbox import SandboxManager
 
 router = APIRouter(prefix="/api", tags=["brainstorm"])
 
-# Track active engines for abort support (deprecated /discuss endpoints)
+# Track active engines for abort support
+# DEPRECATED: used only by /discuss endpoints (one-shot SSE). Remove in Iter-7.
 _active_engines: dict[str, BrainstormEngine] = {}
 
-# Track persistent connections for /connect endpoints
+# Track persistent connections for /connect endpoints (Iter-6+)
 _active_connections: dict[str, BrainstormEngine] = {}
 
 
@@ -189,9 +190,10 @@ async def brainstorm_discuss(
     req: DiscussRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """SSE endpoint: start or continue a brainstorm discussion.
+    """[DEPRECATED — remove in Iter-7] One-shot SSE discussion endpoint.
 
-    Returns text/event-stream with events from BrainstormEngine.
+    Each call creates a new engine, streams one round of agent responses,
+    then closes. Replaced by POST /connect + POST /inject (persistent connection).
     """
     session = await db.get(BrainstormSession, session_id)
     if not session:
@@ -222,7 +224,9 @@ async def brainstorm_discuss(
             error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
             yield f"event: error\ndata: {error_data}\n\n"
         finally:
-            _active_engines.pop(session_id, None)
+            # Only remove if this engine is still the registered one (avoid evicting a newer engine)
+            if _active_engines.get(session_id) is engine:
+                _active_engines.pop(session_id, None)
 
     return StreamingResponse(
         event_stream(),
@@ -237,7 +241,7 @@ async def brainstorm_discuss(
 
 @router.delete("/brainstorm-sessions/{session_id}/discuss")
 async def abort_discussion(session_id: str):
-    """Abort an active brainstorm discussion. (deprecated — use DELETE /connect)"""
+    """[DEPRECATED — remove in Iter-7] Abort a one-shot discussion. Use DELETE /connect instead."""
     engine = _active_engines.get(session_id)
     if engine:
         engine.abort()
@@ -285,7 +289,9 @@ async def brainstorm_connect(
             error_data = json.dumps({"error": str(e)}, ensure_ascii=False)
             yield f"event: error\ndata: {error_data}\n\n"
         finally:
-            _active_connections.pop(session_id, None)
+            # Only remove if this engine is still the registered one (avoid evicting a newer engine on reconnect)
+            if _active_connections.get(session_id) is engine:
+                _active_connections.pop(session_id, None)
 
     return StreamingResponse(
         event_stream(),
@@ -311,6 +317,9 @@ async def brainstorm_inject(
     session = await db.get(BrainstormSession, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Brainstorm session not found")
+
+    if session.status == "ended":
+        raise HTTPException(status_code=400, detail="Brainstorm session has ended")
 
     engine = _active_connections.get(session_id)
     if not engine:
