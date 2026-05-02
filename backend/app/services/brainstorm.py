@@ -205,8 +205,18 @@ class BrainstormEngine:
         return self._queue
 
     def abort(self):
-        """Signal the engine to stop. Checked between agents and during streaming."""
+        """Signal the engine to stop. Checked between agents and during streaming.
+
+        Also injects a sentinel into the persistent queue so that any blocking
+        ``asyncio.wait_for(queue.get(), ...)`` wakes up immediately instead of
+        waiting for the next heartbeat timeout.
+        """
         self._abort = True
+        if self._queue is not None:
+            try:
+                self._queue.put_nowait(("", None))
+            except Exception:
+                pass
 
     def interrupt_round(self):
         """Stop only the current round, keeping the persistent connection alive."""

@@ -1,16 +1,140 @@
 """Integration tests for brainstorm router."""
 
+import asyncio
 from pathlib import Path
 import sys
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncByteStream, AsyncClient, Response
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.main import app
+from app.services.brainstorm import AgentInfo, BrainstormEngine
+from app.services.llm import LLMService
+
+
+# ──────────────────────────────────────────────
+# Streaming ASGI transport (SSE-compatible)
+# ──────────────────────────────────────────────
+
+
+class StreamingASGITransport:
+    """ASGI transport that supports SSE streaming.
+
+    httpx's built-in ASGITransport buffers ALL body parts and only returns the
+    Response after ``app()`` completes (line 170 in httpx 0.28.1 asgi.py).  For
+    persistent SSE connections the ASGI app never returns, so ``client.stream()``
+    blocks forever and ``aiter_lines()`` is never reached.
+
+    This transport runs ``app()`` in a background task and returns the Response
+    immediately after ``http.response.start``, with body parts streamed through
+    an asyncio.Queue.
+    """
+
+    def __init__(self, app, raise_app_exceptions=True, root_path="", client=("127.0.0.1", 123)):
+        self.app = app
+        self.raise_app_exceptions = raise_app_exceptions
+        self.root_path = root_path
+        self.client = client
+
+    async def handle_async_request(self, request):
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": request.method,
+            "headers": [(k.lower(), v) for (k, v) in request.headers.raw],
+            "scheme": request.url.scheme,
+            "path": request.url.path,
+            "raw_path": request.url.raw_path.split(b"?")[0],
+            "query_string": request.url.query,
+            "server": (request.url.host, request.url.port),
+            "client": self.client,
+            "root_path": self.root_path,
+        }
+
+        request_body_chunks = request.stream.__aiter__()
+        request_complete = False
+
+        body_queue: asyncio.Queue[bytes | None] = asyncio.Queue()
+        start_message = asyncio.Event()
+        response_complete = asyncio.Event()
+        status_code = None
+        response_headers = None
+        app_error: Exception | None = None
+        stream_ended = False
+
+        async def receive():
+            nonlocal request_complete
+            if request_complete:
+                await response_complete.wait()
+                return {"type": "http.disconnect"}
+            try:
+                body = await request_body_chunks.__anext__()
+            except StopAsyncIteration:
+                request_complete = True
+                return {"type": "http.request", "body": b"", "more_body": False}
+            return {"type": "http.request", "body": body, "more_body": True}
+
+        async def send(message):
+            nonlocal status_code, response_headers, stream_ended
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                response_headers = message.get("headers", [])
+                start_message.set()
+            elif message["type"] == "http.response.body":
+                body = message.get("body", b"")
+                more_body = message.get("more_body", False)
+                if body and request.method != "HEAD":
+                    await body_queue.put(body)
+                if not more_body:
+                    stream_ended = True
+                    await body_queue.put(None)
+                    response_complete.set()
+
+        async def run_app():
+            nonlocal app_error
+            try:
+                await self.app(scope, receive, send)
+            except Exception as e:
+                app_error = e
+            finally:
+                start_message.set()
+                if not stream_ended:
+                    await body_queue.put(None)
+                response_complete.set()
+
+        asyncio.create_task(run_app())
+
+        await start_message.wait()
+
+        if app_error and self.raise_app_exceptions:
+            raise app_error
+
+        class _QueueStream(AsyncByteStream):
+            def __init__(self, queue):
+                self._queue = queue
+
+            async def __aiter__(self):
+                while True:
+                    chunk = await self._queue.get()
+                    if chunk is None:
+                        break
+                    yield chunk
+
+        return Response(status_code, headers=response_headers, stream=_QueueStream(body_queue))
+
+    async def aclose(self):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        await self.aclose()
 
 
 # ──────────────────────────────────────────────
@@ -281,3 +405,103 @@ async def test_interrupt_idle_session_returns_200_without_ending_mode():
         session_resp = await client.get(f"/api/brainstorm-sessions/{sess['id']}")
         assert session_resp.status_code == 200
         assert session_resp.json()["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypatch: pytest.MonkeyPatch):
+    async def fake_load_agents(self):
+        return [
+            AgentInfo(
+                id="agent-test-1",
+                name="Lead Agent",
+                role="lead",
+                model="fake-model",
+                system_prompt="You are a test agent.",
+            )
+        ]
+
+    async def fake_chat_stream(self, model, messages):
+        for token in ("Hello", " world"):
+            yield token
+            await asyncio.sleep(0)
+
+    monkeypatch.setattr(BrainstormEngine, "_load_agents", fake_load_agents)
+    monkeypatch.setattr(LLMService, "chat_stream", fake_chat_stream)
+
+    transport = StreamingASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        insp_id = await _create_inspiration(client, "bs-persistent-happy-path-test")
+        sess = await _create_session(client, insp_id)
+
+        seen_events: list[tuple[str, dict]] = []
+        discussion_ended = asyncio.Event()
+        stream_closed = asyncio.Event()
+
+        # The SSE stream reader runs as a background task.  aiter_lines() is an
+        # async generator that blocks between each line waiting for the server
+        # generator to produce more data.  Running it in a separate task allows
+        # the main coroutine to call inject/disconnect while the reader is blocked,
+        # which in turn lets the event loop drive the ASGI generator forward.
+        async def stream_reader():
+            current_event = ""
+            async with client.stream(
+                "POST",
+                f"/api/brainstorm-sessions/{sess['id']}/connect",
+            ) as response:
+                assert response.status_code == 200
+                async for line in response.aiter_lines():
+                    if line.startswith("event: "):
+                        current_event = line[7:].strip()
+                    elif line.startswith("data: ") and current_event:
+                        payload = __import__("json").loads(line[6:])
+                        seen_events.append((current_event, payload))
+                        if current_event == "discussion_end":
+                            discussion_ended.set()
+                            # Keep reading — the loop exits naturally once abort()
+                            # injects a sentinel and run_persistent() returns.
+            stream_closed.set()
+
+        reader_task = asyncio.create_task(stream_reader())
+
+        # Yield once so the reader task establishes its connection before inject.
+        await asyncio.sleep(0)
+
+        inject_response = await client.post(
+            f"/api/brainstorm-sessions/{sess['id']}/inject",
+            json={"content": "What should we build first?"},
+        )
+        assert inject_response.status_code == 202
+
+        # Wait for the discussion to reach discussion_end.
+        await asyncio.wait_for(discussion_ended.wait(), timeout=15.0)
+
+        # Disconnect: abort() sets _abort=True and injects a sentinel into the
+        # engine queue so that run_persistent()'s wait_for(queue.get()) resolves
+        # immediately rather than after the 30-second heartbeat timeout.
+        disc_r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/connect")
+        assert disc_r.status_code == 200
+
+        # The sentinel causes run_persistent() to return, which closes the stream.
+        await asyncio.wait_for(stream_closed.wait(), timeout=5.0)
+
+        if not reader_task.done():
+            reader_task.cancel()
+            try:
+                await reader_task
+            except asyncio.CancelledError:
+                pass
+
+    # Verify all expected SSE events were received
+    event_names = [name for name, _ in seen_events]
+    assert "user_message" in event_names
+    assert "agent_start" in event_names
+    assert "message_done" in event_names
+    assert "round_end" in event_names
+    assert "discussion_end" in event_names
+
+    user_event = next(payload for name, payload in seen_events if name == "user_message")
+    assert user_event["content"] == "What should we build first?"
+
+    done_event = next(payload for name, payload in seen_events if name == "message_done")
+    assert done_event["agent_name"] == "Lead Agent"
+    assert done_event["full_content"] == "Hello world"
