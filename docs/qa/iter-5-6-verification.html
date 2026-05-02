@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iter-5/6 Verification Checklist — Sloth Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1b22; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 24px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  header .meta {
+    display: flex; gap: 24px; margin-top: 8px;
+    font-size: 13px; color: #3e484e;
+  }
+  header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  .progress-bar-wrap {
+    background: rgba(0,0,0,0.05); border-radius: 6px; height: 6px; margin-top: 16px;
+  }
+  .progress-bar-fill {
+    background: #14a0c8; height: 100%; border-radius: 6px;
+    transition: width 0.3s ease; width: 0%;
+  }
+  .progress-text { font-size: 13px; color: #3e484e; margin-top: 8px; }
+
+  .section {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .section__title {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section__subtitle { font-size: 12px; color: #6e797e; margin-top: 4px; margin-bottom: 20px; }
+
+  .check-item {
+    border: 1px solid rgba(0,0,0,0.06); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .check-item:hover { border-color: rgba(0,0,0,0.12); }
+  .check-item--pass { background: rgba(20,160,200,0.04); border-color: rgba(20,160,200,0.25); }
+  .check-item--fail { background: rgba(255,59,48,0.04); border-color: rgba(255,59,48,0.25); }
+
+  .check-item__row {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .check-item__num {
+    width: 24px; height: 24px; min-width: 24px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 600; color: #3e484e;
+  }
+  .check-item__body { flex: 1; min-width: 0; }
+  .check-item__label {
+    font-size: 14px; font-weight: 500; color: #1a1b22; margin-bottom: 2px;
+  }
+  .check-item__detail {
+    font-size: 12px; color: #6e797e; margin-bottom: 10px; line-height: 1.5;
+  }
+
+  .check-item__actions {
+    display: flex; gap: 8px; margin-bottom: 10px;
+  }
+  .btn {
+    padding: 5px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12);
+    background: #fff; font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; color: #3e484e;
+  }
+  .btn:hover { background: #f5f5f5; }
+  .btn--pass {
+    background: rgba(20,160,200,0.08); border-color: rgba(20,160,200,0.3); color: #006782;
+  }
+  .btn--pass:hover { background: rgba(20,160,200,0.14); }
+  .btn--pass.active { background: #14a0c8; color: #fff; border-color: #14a0c8; }
+  .btn--fail {
+    background: rgba(255,59,48,0.06); border-color: rgba(255,59,48,0.25); color: #cc2f26;
+  }
+  .btn--fail:hover { background: rgba(255,59,48,0.1); }
+  .btn--fail.active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+  .btn--bug { color: #d4710a; }
+  .btn--bug:hover { background: rgba(212,113,10,0.06); border-color: rgba(212,113,10,0.25); }
+  .btn--bug.active { background: #d4710a; color: #fff; border-color: #d4710a; }
+  .btn--opt { color: #6e797e; }
+  .btn--opt:hover { background: rgba(110,121,126,0.06); border-color: rgba(110,121,126,0.2); }
+  .btn--opt.active { background: #6e797e; color: #fff; border-color: #6e797e; }
+
+  .check-item__notes {
+    margin-top: 8px;
+  }
+  .check-item__notes textarea {
+    width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px;
+    padding: 8px 12px; font-family: inherit; font-size: 12px; resize: vertical;
+    min-height: 36px; color: #1a1b22;
+  }
+  .check-item__notes textarea:focus { outline: none; border-color: #14a0c8; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+  }
+  .badge--pass { background: rgba(20,160,200,0.1); color: #006782; }
+  .badge--fail { background: rgba(255,59,48,0.1); color: #cc2f26; }
+  .badge--bug { background: rgba(212,113,10,0.1); color: #9a5200; }
+  .badge--opt { background: rgba(110,121,126,0.08); color: #3e484e; }
+
+  .summary {
+    display: flex; gap: 16px; margin-top: 12px;
+  }
+  .summary__item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+  }
+  .summary__dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .summary__dot--pass { background: #14a0c8; }
+  .summary__dot--fail { background: #ff3b30; }
+  .summary__dot--bug { background: #d4710a; }
+  .summary__dot--opt { background: #6e797e; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Iter-5 / Iter-6 Verification Checklist</h1>
+  <div class="meta">
+    <span>Sloth Agent v0.6.0</span>
+    <span>Target: 2026-05-02</span>
+    <span>Plan: docs/plans/20260425-mvp-desktop-app-plan.md</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / 0 checked</div>
+  <div class="summary" id="summary"></div>
+  <div style="margin-top: 16px; display: flex; gap: 8px;">
+    <button class="btn" onclick="exportJSON()" style="padding: 8px 20px; font-size: 13px; font-weight: 600;">Export JSON</button>
+    <button class="btn" onclick="importJSON()" style="padding: 8px 20px; font-size: 13px;">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" onchange="handleImport(event)" style="display:none;">
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- ITER-5: 讨论引擎                                               -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Iter-5 — Task 5.0: Message 模型扩展</div>
+  <div class="section__subtitle">backend/app/models.py — Message 表新增 5 个 brainstorm 字段</div>
+
+  <!-- #1 -->
+  <div class="check-item" data-id="1">
+    <div class="check-item__row">
+      <div class="check-item__num">1</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Message 模型 — brainstorm 相关字段</div>
+        <div class="check-item__detail">
+          Message 表新增 5 个字段：brainstorm_session_id (FK→brainstorm_sessions SET NULL), parent_message_id (FK→messages SET NULL), round (Integer default 1), intent (String 10 nullable), truncated (Boolean default False)。<br>
+          mode 字段区分 "chat" 和 "brainstorm"。brainstorm_session_id 为 NULL 时属于 Chat 模式消息。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #2 -->
+  <div class="check-item" data-id="2">
+    <div class="check-item__row">
+      <div class="check-item__num">2</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Chat 模式消息不受影响</div>
+        <div class="check-item__detail">
+          现有 Chat 模式消息的新字段保持默认值（brainstorm_session_id=NULL, round=1, intent=NULL, truncated=False）。<br>
+          Chat API 和 brainstorm API 写入的消息可共存于同一张 messages 表。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section__title">Iter-5 — Task 5.1: BrainstormEngine + CoolingTimer</div>
+  <div class="section__subtitle">backend/app/services/brainstorm.py — 讨论引擎核心</div>
+
+  <!-- #3 -->
+  <div class="check-item" data-id="3">
+    <div class="check-item__row">
+      <div class="check-item__num">3</div>
+      <div class="check-item__body">
+        <div class="check-item__label">CoolingTimer 状态机 — 4 状态转换</div>
+        <div class="check-item__detail">
+          RUNNING → (idle >= cooldown_seconds) → COOLING_DOWN → (idle >= cooldown + confirmation) → CONFIRMING → (idle in state >= confirmation) → ENDED。<br>
+          新发言 / user message → 重置到 RUNNING。message_count >= max_messages → ENDED。<br>
+          使用 time.monotonic() 而非 asyncio time。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #4 -->
+  <div class="check-item" data-id="4">
+    <div class="check-item__row">
+      <div class="check-item__num">4</div>
+      <div class="check-item__body">
+        <div class="check-item__label">CoolingTimer — heartbeat() vs keep_alive() 职责分离</div>
+        <div class="check-item__detail">
+          heartbeat(): agent 发言保存入库后调用，重置空闲计时器 + 递增 message_count。<br>
+          keep_alive(): agent 开始生成时调用（agent_start 后），仅重置空闲计时器，不递增 count。<br>
+          防止 LLM 调用耗时（5-30s）被误判为空闲，错误触发冷却。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #5 -->
+  <div class="check-item" data-id="5">
+    <div class="check-item__row">
+      <div class="check-item__num">5</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BrainstormEngine — 多轮循环架构 (MAX_ROUNDS=8)</div>
+        <div class="check-item__detail">
+          _run_rounds(): while sub_round < MAX_ROUNDS 循环，每轮所有 Agent 顺序发言。<br>
+          全员 PASS（speeches_this_round == 0）→ 自然结束。<br>
+          每个 Agent 可见完整对话历史（含本轮前序 Agent 的响应）。<br>
+          互动式 Prompt：针对最新发言回应，可点名反驳、追问；无新内容时发 PASS。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #6 -->
+  <div class="check-item" data-id="6">
+    <div class="check-item__row">
+      <div class="check-item__num">6</div>
+      <div class="check-item__body">
+        <div class="check-item__label">PASS 机制 — Agent 回复 "PASS" 不入库</div>
+        <div class="check-item__detail">
+          Agent 回复纯文本 "PASS"（大小写不敏感）→ 发送 agent_pass SSE 事件，消息不持久化到 DB。<br>
+          空内容也视为 PASS。agent_pass 事件携带 agent_id, agent_name, agent_number。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #7 -->
+  <div class="check-item" data-id="7">
+    <div class="check-item__row">
+      <div class="check-item__num">7</div>
+      <div class="check-item__body">
+        <div class="check-item__label">LLM 错误处理 — Agent 失败不阻断讨论</div>
+        <div class="check-item__detail">
+          单个 Agent LLM 调用失败 → 捕获异常 → 发送含错误信息的 agent_token → 继续下一个 Agent。<br>
+          不中断整个讨论流程。错误内容截断到 100 字符。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section__title">Iter-5 — Task 5.2: SSE Discuss 端点</div>
+  <div class="section__subtitle">backend/app/routers/brainstorm.py — POST /discuss + DELETE /discuss (DEPRECATED)</div>
+
+  <!-- #8 -->
+  <div class="check-item" data-id="8">
+    <div class="check-item__row">
+      <div class="check-item__num">8</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /discuss — 一次性 SSE 讨论端点</div>
+        <div class="check-item__detail">
+          Body: {"content": "...", "reply_to_message_id": null}。<br>
+          返回 text/event-stream。用户消息先保存为 human message → 加载历史 → 获取 Team agents → BrainstormEngine.run()。<br>
+          会话不存在 → 404。会话已 ended → 400。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #9 -->
+  <div class="check-item" data-id="9">
+    <div class="check-item__row">
+      <div class="check-item__num">9</div>
+      <div class="check-item__body">
+        <div class="check-item__label">SSE 事件格式 — event + data JSON</div>
+        <div class="check-item__detail">
+          每个 SSE 事件格式: "event: {type}\ndata: {json}\n\n"。<br>
+          所有 data 字段使用 JSON 编码，ensure_ascii=False 支持中文。<br>
+          异常时发送 event: error。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #10 -->
+  <div class="check-item" data-id="10">
+    <div class="check-item__row">
+      <div class="check-item__num">10</div>
+      <div class="check-item__body">
+        <div class="check-item__label">DELETE /discuss — 中止讨论</div>
+        <div class="check-item__detail">
+          查找 _active_engines 中的 engine → 调用 engine.abort()。<br>
+          返回 {"status": "aborted"}。无活跃引擎时静默返回。<br>
+          标记为 DEPRECATED — Iter-7 删除。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #11 -->
+  <div class="check-item" data-id="11">
+    <div class="check-item__row">
+      <div class="check-item__num">11</div>
+      <div class="check-item__body">
+        <div class="check-item__label">消息持久化 — brainstorm_session_id + round + parent_message_id</div>
+        <div class="check-item__detail">
+          Agent 发言入库时包含 brainstorm_session_id, round, parent_message_id。<br>
+          message_count 原子递增（UPDATE ... SET message_count = message_count + 1）。<br>
+          消息可通过 brainstorm_session_id 过滤查询。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section__title">Iter-5 — Task 5.3: 前端 SSE 消费</div>
+  <div class="section__subtitle">frontend/src/stores/brainstormStore.ts + ChatArea.tsx</div>
+
+  <!-- #12 -->
+  <div class="check-item" data-id="12">
+    <div class="check-item__row">
+      <div class="check-item__num">12</div>
+      <div class="check-item__body">
+        <div class="check-item__label">brainstormStore — 讨论状态管理</div>
+        <div class="check-item__detail">
+          discussionActive, activeAgentId, activeAgentName, activeAgentNumber, discussionMessages, streamingContent。<br>
+          agent_start → 设置 activeAgent*。agent_token → 累积 streamingContent。<br>
+          message_done → 追加到 discussionMessages，清空 streaming。<br>
+          agent_pass / discussion_end / error → 清空 activeAgent* 和 streaming。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #13 -->
+  <div class="check-item" data-id="13">
+    <div class="check-item__row">
+      <div class="check-item__num">13</div>
+      <div class="check-item__body">
+        <div class="check-item__label">ChatArea — brainstorm 模式指示器</div>
+        <div class="check-item__detail">
+          TopBar 显示 brainstorm badge（闪电图标 + 会话编号）。<br>
+          brainstorm 模式下输入框 placeholder 变化。<br>
+          闪电按钮切换 brainstorm mode（创建/停止 brainstorm session）。<br>
+          讨论进行中显示 Stop 按钮替代 Send 按钮。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #14 -->
+  <div class="check-item" data-id="14">
+    <div class="check-item__row">
+      <div class="check-item__num">14</div>
+      <div class="check-item__body">
+        <div class="check-item__label">会话分割线 — start / end / transition</div>
+        <div class="check-item__detail">
+          brainstorm 模式切换时插入分割线：start（进入）、end（退出）、transition（切换）。<br>
+          分割线按时间排序与消息交错渲染。会话编号通过 sessionNum() 计算（最旧=#1）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ITER-6: 持久连接 + Reply + 彩色线程                             -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Iter-6 — Task 6.0: 后端持久连接</div>
+  <div class="section__subtitle">backend — run_persistent() + /connect + /inject 端点</div>
+
+  <!-- #15 -->
+  <div class="check-item" data-id="15">
+    <div class="check-item__row">
+      <div class="check-item__num">15</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /connect — 建立持久 SSE 连接</div>
+        <div class="check-item__detail">
+          创建 BrainstormEngine → 注册到 _active_connections[session_id] → 返回 SSE 流。<br>
+          连接已存在时先 abort 旧连接。会话不存在 → 404，已 ended → 400。<br>
+          SSE 流由 engine.run_persistent() 驱动，空闲 30s 发送 heartbeat。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #16 -->
+  <div class="check-item" data-id="16">
+    <div class="check-item__row">
+      <div class="check-item__num">16</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /inject — 注入用户消息（非阻塞 202）</div>
+        <div class="check-item__detail">
+          Body: {"content": "...", "reply_to_message_id": null}。<br>
+          查找 _active_connections 中的 engine → 调用 engine.inject()。<br>
+          无活跃引擎 → 400（"No active connection"）。会话已 ended → 400。<br>
+          返回 {"status": "injected"}，立即返回不等待 agent 响应。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #17 -->
+  <div class="check-item" data-id="17">
+    <div class="check-item__row">
+      <div class="check-item__num">17</div>
+      <div class="check-item__body">
+        <div class="check-item__label">DELETE /connect — 优雅关闭</div>
+        <div class="check-item__detail">
+          从 _active_connections 移除 engine → 调用 engine.abort()。<br>
+          返回 {"status": "disconnected"}。engine 的 run_persistent() 循环退出 → SSE 流关闭。<br>
+          无活跃引擎时静默返回。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #18 -->
+  <div class="check-item" data-id="18">
+    <div class="check-item__row">
+      <div class="check-item__num">18</div>
+      <div class="check-item__body">
+        <div class="check-item__label">run_persistent() — queue-driven 持久循环</div>
+        <div class="check-item__detail">
+          while not self._abort 循环等待 queue.get()（30s 超时 → heartbeat）。<br>
+          收到消息 → 保存入库 → 推送 user_message SSE → _run_rounds()。<br>
+          _run_rounds() 结束后回到等待状态，连接保持。<br>
+          queue 非空时 break 当前 agent 循环，优先处理新消息。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #19 -->
+  <div class="check-item" data-id="19">
+    <div class="check-item__row">
+      <div class="check-item__num">19</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Agent 列表热重载 — 每条消息重新加载</div>
+        <div class="check-item__detail">
+          run_persistent() 在每条 inject 消息处理前调用 _load_agents()。<br>
+          运行中添加/移除 Agent 在下一条消息起生效，无需断开重连。<br>
+          初始空团队检查保留（连接建立时）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #20 -->
+  <div class="check-item" data-id="20">
+    <div class="check-item__row">
+      <div class="check-item__num">20</div>
+      <div class="check-item__body">
+        <div class="check-item__label">SSE 事件 — user_message / round_end / heartbeat</div>
+        <div class="check-item__detail">
+          user_message: {message_id, content, parent_message_id} — 用户消息已入库。<br>
+          round_end: {round, speeches} — 本轮结束，连接保持。<br>
+          heartbeat: {} — 空闲 30s 心跳。<br>
+          这 3 个事件为 Iter-6 新增，与 Iter-5 的 7 个事件共 10 个。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section__title">Iter-6 — Task 6.1: 前端 Store 重构</div>
+  <div class="section__subtitle">frontend/src/stores/brainstormStore.ts — 持久连接模型</div>
+
+  <!-- #21 -->
+  <div class="check-item" data-id="21">
+    <div class="check-item__row">
+      <div class="check-item__num">21</div>
+      <div class="check-item__body">
+        <div class="check-item__label">connectSession / disconnectSession / injectMessage</div>
+        <div class="check-item__detail">
+          connectSession: POST /connect → 建立持久 SSE → discussionConnected = true。<br>
+          disconnectSession: abort 控制器 + DELETE /connect → 清空状态。<br>
+          injectMessage: POST /inject → 立即返回，不等待 agent 响应。<br>
+          发消息只调 injectMessage，不重建 SSE 连接。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #22 -->
+  <div class="check-item" data-id="22">
+    <div class="check-item__row">
+      <div class="check-item__num">22</div>
+      <div class="check-item__body">
+        <div class="check-item__label">discussionConnected vs discussionActive 语义区分</div>
+        <div class="check-item__detail">
+          discussionConnected: SSE 连接是否活跃（进入 brainstorm 模式即建立）。<br>
+          discussionActive: 当前是否有 agent 正在生成内容（user_message 后 true，discussion_end 后 false）。<br>
+          两者共存，语义不同。前端同时检查两者（如 Stop 按钮显示条件）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #23 -->
+  <div class="check-item" data-id="23">
+    <div class="check-item__row">
+      <div class="check-item__num">23</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Session 切换状态清空 — 防止跨会话消息污染</div>
+        <div class="check-item__detail">
+          activateSession() 切换 session 时清空：discussionMessages, discussionActive, activeAgentId, activeAgentName, activeAgentNumber, streamingContent。<br>
+          防止原 session 的消息显示在新 session 界面上。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #24 -->
+  <div class="check-item" data-id="24">
+    <div class="check-item__row">
+      <div class="check-item__num">24</div>
+      <div class="check-item__body">
+        <div class="check-item__label">user_message 事件 — 乐观更新替换</div>
+        <div class="check-item__detail">
+          前端发送消息时立即显示 temp-{timestamp} 占位消息。<br>
+          收到 user_message SSE 事件后，查找最新 temp-human 消息并替换为真实 ID。<br>
+          无 temp 消息时直接追加。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section__title">Iter-6 — Task 6.2: Reply UI</div>
+  <div class="section__subtitle">ChatArea.tsx — Reply 按钮 + 引用条</div>
+
+  <!-- #25 -->
+  <div class="check-item" data-id="25">
+    <div class="check-item__row">
+      <div class="check-item__num">25</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Reply 按钮 — brainstorm 模式下消息 hover 显示</div>
+        <div class="check-item__detail">
+          brainstorm 模式下，agent 和 human 消息均可 hover 显示 ↩ Reply 按钮。<br>
+          chat 模式下不显示 Reply 按钮。<br>
+          点击 → 写入 replyingToId + replyingToContent（前 30 字预览）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #26 -->
+  <div class="check-item" data-id="26">
+    <div class="check-item__row">
+      <div class="check-item__num">26</div>
+      <div class="check-item__body">
+        <div class="check-item__label">引用条 — 输入框上方显示</div>
+        <div class="check-item__detail">
+          有 replyingToId 时，输入框上方显示引用条：↩ 回复 {agent_name} · "{内容前30字}" [✕]。<br>
+          [✕] 按钮清空 replyingToId。accent 色左边线。<br>
+          发送后引用条自动消失（injectMessage 读取 replyingToId 后清空）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #27 -->
+  <div class="check-item" data-id="27">
+    <div class="check-item__row">
+      <div class="check-item__num">27</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Reply 传递 — reply_to_message_id 到后端</div>
+        <div class="check-item__detail">
+          handleSend → 读取 replyingToId → 传入 injectMessage(sessionId, content, replyToId)。<br>
+          injectMessage → POST /inject body 中的 reply_to_message_id。<br>
+          后端 _save_message 时设置 parent_message_id。message_done 事件携带 parent_message_id。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section__title">Iter-6 — Task 6.3: 彩色线程竖线</div>
+  <div class="section__subtitle">frontend/src/utils/threadColor.ts + ChatArea.tsx</div>
+
+  <!-- #28 -->
+  <div class="check-item" data-id="28">
+    <div class="check-item__row">
+      <div class="check-item__num">28</div>
+      <div class="check-item__body">
+        <div class="check-item__label">getRootId() — 沿 parent_message_id 链找到根消息</div>
+        <div class="check-item__detail">
+          遍历 parent_message_id 链直到无 parent 的祖先。visited Set 检测循环。<br>
+          maxDepth=50 安全上限防止异常深链。<br>
+          无 parent_message_id 的消息为根消息（无竖线）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #29 -->
+  <div class="check-item" data-id="29">
+    <div class="check-item__row">
+      <div class="check-item__num">29</div>
+      <div class="check-item__body">
+        <div class="check-item__label">threadColor() — FNV-1a hash → HSL 色值</div>
+        <div class="check-item__detail">
+          FNV-1a hash（offset basis 2166136261, prime 16777619）% 360 → 色相。<br>
+          返回 hsl(hue, 45%, 58%)。同一根消息的所有 reply 共享同一颜色。<br>
+          不同根消息大概率不同颜色。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #30 -->
+  <div class="check-item" data-id="30">
+    <div class="check-item__row">
+      <div class="check-item__num">30</div>
+      <div class="check-item__body">
+        <div class="check-item__label">竖线渲染 — 仅 brainstorm 模式</div>
+        <div class="check-item__detail">
+          有 parent_message_id 的消息 → 左侧 3px 色彩竖线（borderLeft style）。<br>
+          仅 brainstorm 模式显示，chat 模式不显示。<br>
+          人类 reply 消息也显示竖线（与被回复消息同线程色）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Review Fixes                                                  -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Review Fixes — 2026-05-02</div>
+  <div class="section__subtitle">Code Review + Spec Cross-Reference 驱动的修复</div>
+
+  <!-- #31 -->
+  <div class="check-item" data-id="31">
+    <div class="check-item__row">
+      <div class="check-item__num">31</div>
+      <div class="check-item__body">
+        <div class="check-item__label">CoolingTimer keep_alive() — LLM 生成期间不触发冷却</div>
+        <div class="check-item__detail">
+          agent_start 事件后调用 self.timer.keep_alive()。仅重置 _last_activity，不递增 message_count。<br>
+          验证：agent 发言中（LLM 调用 >5s）冷却状态保持 RUNNING。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #32 -->
+  <div class="check-item" data-id="32">
+    <div class="check-item__row">
+      <div class="check-item__num">32</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BACKEND 常量统一 — 单点定义</div>
+        <div class="check-item__detail">
+          client.ts: export const BACKEND = "http://127.0.0.1:8080"。<br>
+          brainstormStore.ts: import { BACKEND } from "../api/client"（不再重复定义）。<br>
+          验证：修改端口只需改一处。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #33 -->
+  <div class="check-item" data-id="33">
+    <div class="check-item__row">
+      <div class="check-item__num">33</div>
+      <div class="check-item__body">
+        <div class="check-item__label">Deprecated 注释 — 旧路径标记清晰</div>
+        <div class="check-item__detail">
+          _active_engines dict: "DEPRECATED: 仅由 /discuss 端点使用。Iter-7 删除。"<br>
+          brainstorm_discuss / abort_discussion: "[DEPRECATED — remove in Iter-7]"<br>
+          BrainstormEngine.run(): "[DEPRECATED — remove in Iter-7]"<br>
+          startDiscussion / stopDiscussion: 说明替代方案和删除时间。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 端到端集成                                                     -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">端到端集成测试</div>
+  <div class="section__subtitle">完整链路验证</div>
+
+  <!-- #34 -->
+  <div class="check-item" data-id="34">
+    <div class="check-item__row">
+      <div class="check-item__num">34</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 创建 Brainstorm → 发消息 → 多 Agent 回复</div>
+        <div class="check-item__detail">
+          创建 Inspiration + Brainstorm Session → 进入 brainstorm 模式 → 输入话题 → 发送。<br>
+          多个 Agent 依次流式回复（agent_start → agent_token → message_done）。<br>
+          全员 PASS → discussion_end。消息持久化到 DB。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #35 -->
+  <div class="check-item" data-id="35">
+    <div class="check-item__row">
+      <div class="check-item__num">35</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 持久连接 — inject 不中断 SSE</div>
+        <div class="check-item__detail">
+          建立 /connect → 注入第一条消息 → agent 开始回复 → 注入第二条消息。<br>
+          第二条消息不中断第一条的 agent 流。第二条排队等第一条轮次结束后处理。<br>
+          连接始终保持，不重建。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #36 -->
+  <div class="check-item" data-id="36">
+    <div class="check-item__row">
+      <div class="check-item__num">36</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Reply 链 — 彩色线程一致性</div>
+        <div class="check-item__detail">
+          Agent A 发言 → hover 显示 Reply → 点击 → 引用条出现 → 输入回复 → 发送。<br>
+          回复消息显示与 Agent A 同色竖线。沿 parent_message_id 链回溯到同一根。<br>
+          不同根的 reply 链颜色不同。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #37 -->
+  <div class="check-item" data-id="37">
+    <div class="check-item__row">
+      <div class="check-item__num">37</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Session 切换 — 状态清空</div>
+        <div class="check-item__detail">
+          在 Session A 讨论中 → 切换到 Session B → Session A 的消息消失。<br>
+          Session B 显示自己的消息（或空）。discussionMessages 清空。<br>
+          切换回来后重新加载 Session A 的历史消息。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #38 -->
+  <div class="check-item" data-id="38">
+    <div class="check-item__row">
+      <div class="check-item__num">38</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Chat 模式不受影响</div>
+        <div class="check-item__detail">
+          不进入 brainstorm 模式 → 正常 Chat 消息发送/接收。<br>
+          Chat 消息无 brainstorm 竖线、无 Reply 按钮、无分割线。<br>
+          Chat 和 Brainstorm 消息通过 mode 字段和 brainstorm_session_id 区分。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #39 -->
+  <div class="check-item" data-id="39">
+    <div class="check-item__row">
+      <div class="check-item__num">39</div>
+      <div class="check-item__body">
+        <div class="check-item__label">测试门禁 — 后端 34 + 前端 36</div>
+        <div class="check-item__detail">
+          uv run --project backend python -m pytest backend/tests/ -v → 34 passed。<br>
+          npm run test -- --run → 36 passed (15 files)。<br>
+          npx eslint src → 无 error。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- .container -->
+
+<script>
+const items = document.querySelectorAll('.check-item');
+const STATE_KEY = 'iter56-verification-state';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveState(state) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function toggle(btn, type) {
+  const item = btn.closest('.check-item');
+  const allBtns = item.querySelectorAll('.btn--pass, .btn--bug, .btn--opt, .btn--fail');
+  allBtns.forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const id = item.dataset.id;
+  const state = getState();
+  state[id] = type;
+  saveState(state);
+
+  item.classList.remove('check-item--pass', 'check-item--fail');
+  if (type === 'pass') item.classList.add('check-item--pass');
+  if (type === 'bug') item.classList.add('check-item--fail');
+  if (type === 'opt') item.classList.add('check-item--pass');
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const state = getState();
+  let pass = 0, bug = 0, opt = 0, total = items.length;
+  let checked = 0;
+
+  items.forEach(item => {
+    const id = item.dataset.id;
+    const s = state[id];
+    if (s) checked++;
+    if (s === 'pass') pass++;
+    if (s === 'bug') bug++;
+    if (s === 'opt') opt++;
+  });
+
+  const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = checked + ' / ' + total + ' checked  (' + pct + '%)';
+
+  let summaryHtml = '';
+  if (pass > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--pass"></span> ' + pass + ' Pass</span>';
+  if (bug > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--bug"></span> ' + bug + ' Bug</span>';
+  if (opt > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--opt"></span> ' + opt + ' 优化</span>';
+  document.getElementById('summary').innerHTML = summaryHtml;
+}
+
+// Restore state on load
+const savedState = getState();
+Object.entries(savedState).forEach(([id, type]) => {
+  const item = document.querySelector(`.check-item[data-id="${id}"]`);
+  if (!item) return;
+  const btn = item.querySelector(type === 'bug' ? '.btn--bug' : type === 'opt' ? '.btn--opt' : '.btn--pass');
+  if (btn) {
+    btn.classList.add('active');
+    item.classList.remove('check-item--pass', 'check-item--fail');
+    if (type === 'pass' || type === 'opt') item.classList.add('check-item--pass');
+    if (type === 'bug') item.classList.add('check-item--fail');
+  }
+});
+updateSummary();
+
+function exportJSON() {
+  const state = getState();
+  const notes = {};
+  document.querySelectorAll('.check-item textarea').forEach(ta => {
+    const id = ta.closest('.check-item').dataset.id;
+    if (ta.value.trim()) notes[id] = ta.value;
+  });
+  const exportData = { version: 'iter-5-6', exportedAt: new Date().toISOString(), verdicts: state, notes: notes };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'iter-5-6-verification-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  document.getElementById('importFile').click();
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.verdicts) { alert('Invalid file: no verdicts found'); return; }
+      if (!confirm('Import ' + Object.keys(data.verdicts).length + ' verdicts + ' + (data.notes ? Object.keys(data.notes).length : 0) + ' notes? This will overwrite current state.')) return;
+      saveState(data.verdicts);
+      if (data.notes) {
+        const notesState = {};
+        Object.entries(data.notes).forEach(([id, text]) => { notesState[id] = text; });
+        localStorage.setItem('iter56-verification-notes', JSON.stringify(notesState));
+        document.querySelectorAll('.check-item textarea').forEach(ta => {
+          const id = ta.closest('.check-item').dataset.id;
+          if (data.notes[id]) ta.value = data.notes[id];
+        });
+      }
+      location.reload();
+    } catch(err) { alert('Failed to parse file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// Persist notes in localStorage on input
+document.querySelectorAll('.check-item textarea').forEach(ta => {
+  ta.addEventListener('input', function() {
+    const notesState = JSON.parse(localStorage.getItem('iter56-verification-notes') || '{}');
+    const id = this.closest('.check-item').dataset.id;
+    if (this.value.trim()) notesState[id] = this.value;
+    else delete notesState[id];
+    localStorage.setItem('iter56-verification-notes', JSON.stringify(notesState));
+  });
+});
+
+// Restore notes on load
+(function() {
+  const notesState = JSON.parse(localStorage.getItem('iter56-verification-notes') || '{}');
+  Object.entries(notesState).forEach(([id, text]) => {
+    const ta = document.querySelector('.check-item[data-id="' + id + '"] textarea');
+    if (ta) ta.value = text;
+  });
+})();
+
+</script>
+
+</body>
+</html>
