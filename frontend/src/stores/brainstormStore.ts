@@ -1,9 +1,8 @@
 ﻿import { create } from "zustand";
 
 import * as api from "../api/client";
+import { BACKEND } from "../api/client";
 import type { BrainstormSession, Message } from "../api/client";
-
-const BACKEND = "http://127.0.0.1:8080";
 
 type SetState = (partial: Partial<BrainstormState> | ((s: BrainstormState) => Partial<BrainstormState>)) => void;
 type GetState = () => BrainstormState;
@@ -17,7 +16,6 @@ function _handleSSEEvent(
   data: Record<string, unknown>,
   set: SetState,
   get: GetState,
-  persistent = false,
 ) {
   switch (event) {
     case "agent_start": {
@@ -108,7 +106,7 @@ function _handleSSEEvent(
         agent_model: null,
         mode: "brainstorm",
         brainstorm_session_id: get().activeId,
-        parent_message_id: null,
+        parent_message_id: (data.parent_message_id as string) || null,
         round: 1,
         intent: null,
         truncated: false,
@@ -168,7 +166,7 @@ async function _startPersistentReading(
         } else if (line.startsWith("data: ") && currentEvent) {
           try {
             const data = JSON.parse(line.slice(6));
-            _handleSSEEvent(currentEvent, data, set, get, /* persistent */ true);
+            _handleSSEEvent(currentEvent, data, set, get);
           } catch {
             // skip malformed JSON
           }
@@ -315,6 +313,13 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
       }),
       activeId: sessionId,
       brainstormMode: true,
+      // Clear discussion messages when switching sessions to prevent cross-session contamination
+      discussionMessages: [],
+      discussionActive: false,
+      activeAgentId: null,
+      activeAgentName: null,
+      activeAgentNumber: null,
+      streamingContent: "",
     }));
   },
 
@@ -358,7 +363,7 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
       throw new Error(err || `Connect failed (${res.status})`);
     }
 
-    set({ discussionConnected: true, discussionMessages: [] });
+    set({ discussionConnected: true });
 
     // Start background reading loop (intentionally not awaited)
     _startPersistentReading(res, set, get);
@@ -371,7 +376,9 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
     }
     const { activeId } = get();
     if (activeId) {
-      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/connect`, { method: "DELETE" }).catch(() => {});
+      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/connect`, { method: "DELETE" }).catch(
+        (e) => console.warn("Failed to send DELETE /connect on disconnect:", e),
+      );
     }
     set({
       discussionConnected: false,
@@ -397,7 +404,10 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
 
   setReplyingTo: (id, content) => set({ replyingToId: id, replyingToContent: content }),
 
-  // ---- @deprecated: legacy one-shot SSE (kept until Iter-7) ----
+  // ---- @deprecated: legacy one-shot SSE ----
+  // These methods use the old POST /discuss endpoint (one request per user message).
+  // They are retained only as a fallback during the Iter-6 → Iter-7 transition.
+  // REMOVE in Iter-7 along with the /discuss backend endpoints.
 
   startDiscussion: async (sessionId: string, content: string, replyToMessageId?: string) => {
     if (_abortController) {
@@ -405,6 +415,8 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
     }
     _abortController = new AbortController();
 
+    // NOTE: legacy path clears discussionMessages on each call (each call is a new one-shot SSE).
+    // The persistent path (connectSession) does NOT clear here — messages accumulate across injections.
     set({ discussionActive: true, discussionMessages: [] });
 
     try {

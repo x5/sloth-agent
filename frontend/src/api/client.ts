@@ -16,7 +16,7 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
 
 // ---- Declarative route table ----
 
-const BACKEND = "http://127.0.0.1:8080";
+export const BACKEND = "http://127.0.0.1:8080";
 
 // ---- Streaming chat (SSE) ----
 
