@@ -41,6 +41,21 @@ jobs:
       - name: Frontend unit tests
         run: npm run test -- --run
 
+  backend-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install backend dependencies
+        run: uv sync --project backend --extra dev
+
+      - name: Backend unit tests
+        run: uv run --project backend python -m pytest backend/tests/unit -v
+
   backend-api-integration:
     runs-on: ubuntu-latest
     steps:

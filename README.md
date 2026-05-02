@@ -32,6 +32,17 @@ Sloth Agent 是一站式全能开发智能 Agent。整合了 OpenClaw、Hermes A
 
 ---
 
+## CLAUDE 文档导航
+
+- 全局入口与硬约束：`CLAUDE.md`
+- Core 模块（`src/sloth_agent/`）：`src/sloth_agent/CLAUDE.md`
+- Frontend 模块（`frontend/`）：`frontend/CLAUDE.md`
+- Backend 模块（`backend/`）：`backend/CLAUDE.md`
+
+说明：顶层 `CLAUDE.md` 保持精简，详细规则以模块内 `CLAUDE.md` 为准。
+
+---
+
 ## 核心特性
 
 ### 全自主流水线
