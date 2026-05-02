@@ -41,14 +41,13 @@ jobs:
       - name: Frontend unit tests with coverage
         run: npm run test:coverage
 
-      - name: Diff coverage check (new/changed code ≥ 80%)
+      - name: Diff coverage check (new/changed code ≥ 90%)
+        if: github.event_name == 'pull_request'
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE="HEAD~1"
-          fi
-          npx diff-cover coverage/lcov.info --compare-branch=$BASE --fail-under=90
+          git fetch origin ${{ github.base_ref }} --depth=1
+          npx diff-cover coverage/lcov.info \
+            --compare-branch=origin/${{ github.base_ref }} \
+            --fail-under=90
 
   backend-unit:
     runs-on: ubuntu-latest
@@ -86,14 +85,13 @@ jobs:
       - name: API integration tests with coverage
         run: uv run --project backend python -m pytest backend/tests/integration -v --cov=backend/app --cov-report=xml:coverage.xml
 
-      - name: Diff coverage check (new/changed code ≥ 80%)
+      - name: Diff coverage check (new/changed code ≥ 90%)
+        if: github.event_name == 'pull_request'
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE="HEAD~1"
-          fi
-          uv run --project backend diff-cover coverage.xml --compare-branch=$BASE --fail-under=90
+          git fetch origin ${{ github.base_ref }} --depth=1
+          uv run --project backend diff-cover coverage.xml \
+            --compare-branch=origin/${{ github.base_ref }} \
+            --fail-under=90
 
   python-baseline:
     runs-on: ubuntu-latest
