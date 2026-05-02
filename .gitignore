@@ -33,6 +33,23 @@ frontend/dist/
 .gstack/
 brainstorm-sessions/
 backend/sloth.db
+backend/sloth.db-shm
+backend/sloth.db-wal
+backend/sloth.db-bak
+backend/sloth.db.bak
+
+# Root node_modules
+node_modules/
+
+# Coverage artifacts
+.coverage
+backend/.coverage
+*.coveragerc
+
+# Screenshot / review artifacts
+scripts/iter5_screenshots/
+scripts/review_iter5.py
+scripts/review_iter5_v2.py
 
 # Local reference mirrors (do not track)
 docs/ref/gstack-main/
