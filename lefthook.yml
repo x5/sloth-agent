@@ -15,6 +15,6 @@ pre-push:
   parallel: true
   commands:
     backend-unit-tests:
-      run: uv run --directory {root}/backend pytest tests/ -q --tb=short
+      run: uv run --project backend pytest backend/tests/ -q --tb=short
     frontend-unit-tests:
-      run: cd {root}/frontend && npm run test -- --run
+      run: cd frontend && npm run test -- --run
