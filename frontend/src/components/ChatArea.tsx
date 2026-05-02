@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { useInspirationStore } from "../stores/inspirationStore";
-import { useUIStore } from "../stores/uiStore";
-import { useAgentStore } from "../stores/agentStore";
-import { useBrainstormStore } from "../stores/brainstormStore";
+
 import * as api from "../api/client";
 import { streamChatMessage } from "../api/client";
 import type { Message } from "../api/client";
+import { useAgentStore } from "../stores/agentStore";
+import { useBrainstormStore } from "../stores/brainstormStore";
+import { useInspirationStore } from "../stores/inspirationStore";
+import { useUIStore } from "../stores/uiStore";
 import { formatTime as formatMessageTime } from "../utils/time";
+
 import BrainstormStreamBubble from "./BrainstormStreamBubble";
 
 interface DividerItem {
@@ -63,7 +65,7 @@ export default function ChatArea() {
     if (activeId) {
       fetchTeam(activeId);
     }
-  }, [activeId]);
+  }, [activeId, fetchTeam]);
 
   // Brainstorm store
   const brainstormSessions = useBrainstormStore((s) => s.sessions);
@@ -85,7 +87,7 @@ export default function ChatArea() {
     if (activeId) {
       brainstormFetchAll(activeId);
     }
-  }, [activeId]);
+  }, [activeId, brainstormFetchAll]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");

@@ -1,0 +1,75 @@
+name: quality-gates
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  test-file-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check test file coverage
+        run: bash scripts/check-test-coverage.sh
+
+  frontend-lint-and-unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend unit tests
+        run: npm run test -- --run
+
+  backend-api-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install backend dependencies
+        run: uv sync --project backend --extra dev
+
+      - name: API integration tests
+        run: uv run --project backend python -m pytest backend/tests/integration -v
+
+  python-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install root dependencies
+        run: uv sync --extra dev
+
+      - name: Baseline tests
+        run: uv run pytest tests/ -v
+
+      - name: Evals tests
+        run: uv run pytest evals/ -v

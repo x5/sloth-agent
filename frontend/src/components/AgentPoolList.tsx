@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import { useAgentPoolStore } from "../stores/agentPoolStore";
 
 const ROLE_COLOR: Record<string, string> = {
@@ -12,7 +13,7 @@ export default function AgentPoolList() {
 
   useEffect(() => {
     fetchAll().catch((e) => setError(String(e)));
-  }, []);
+  }, [fetchAll]);
 
   // Auto-select first agent when list loads
   useEffect(() => {

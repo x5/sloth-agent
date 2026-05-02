@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+
 import { useLLMStore } from "../stores/llmStore";
 import { useUIStore } from "../stores/uiStore";
 
@@ -10,7 +11,7 @@ export default function SettingsNav() {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   return (
     <div className="settings-nav">

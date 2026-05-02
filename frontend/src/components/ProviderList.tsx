@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useLLMStore } from "../stores/llmStore";
-import { ProviderIcon } from "./ProviderIcon";
+
 import { PROVIDER_PRESETS, API_FORMATS } from "../shared/providerPresets";
+import { useLLMStore } from "../stores/llmStore";
+
+import { ProviderIcon } from "./ProviderIcon";
 
 export default function ProviderList() {
   const { configs, activeId, loading, fetchAll, setActive } = useLLMStore();
@@ -9,14 +11,14 @@ export default function ProviderList() {
 
   useEffect(() => {
     fetchAll().catch((e) => setError(String(e)));
-  }, []);
+  }, [fetchAll]);
 
   // Auto-select first config
   useEffect(() => {
     if (!activeId && configs.length > 0) {
       setActive(configs[0].id);
     }
-  }, [configs, activeId]);
+  }, [configs, activeId, setActive]);
 
   return (
     <div className="provider-list">

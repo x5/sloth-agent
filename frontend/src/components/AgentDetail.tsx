@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+
 import { useAgentPoolStore } from "../stores/agentPoolStore";
 import { useLLMStore } from "../stores/llmStore";
+
 import { ProviderIcon } from "./ProviderIcon";
 import SystemPromptView from "./SystemPromptView";
 
@@ -20,7 +22,7 @@ export default function AgentDetail() {
 
   useEffect(() => {
     fetchLLM().catch(() => {});
-  }, []);
+  }, [fetchLLM]);
 
   useEffect(() => {
     if (template) {

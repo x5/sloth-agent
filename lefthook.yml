@@ -1,0 +1,9 @@
+# lefthook.yml — Git hooks for test coverage enforcement
+# Docs: https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    test-file-gate:
+      run: bash scripts/check-test-coverage.sh
+      stage_fixed: true

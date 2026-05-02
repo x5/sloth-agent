@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useUIStore } from "../stores/uiStore";
-import { useInspirationStore } from "../stores/inspirationStore";
+
 import { useAgentStore } from "../stores/agentStore";
-import { useLLMStore } from "../stores/llmStore";
 import { useBrainstormStore } from "../stores/brainstormStore";
+import { useInspirationStore } from "../stores/inspirationStore";
+import { useLLMStore } from "../stores/llmStore";
+import { useUIStore } from "../stores/uiStore";
 import { formatTime } from "../utils/time";
 
 const ROLE_COLOR: Record<string, string> = {
@@ -51,13 +52,13 @@ export default function RightPanel() {
       fetchTemplatePool();
       fetchLLM();
     }
-  }, [col4Content, activeInspirationId]);
+  }, [col4Content, activeInspirationId, fetchTeam, fetchTemplatePool, fetchLLM]);
 
   useEffect(() => {
     if (rightPanelTab === "brainstorm" && activeInspirationId) {
       brainstormFetchAll(activeInspirationId);
     }
-  }, [rightPanelTab, activeInspirationId]);
+  }, [rightPanelTab, activeInspirationId, brainstormFetchAll]);
 
   const availableTemplates = useMemo(() => {
     const inTeamIds = new Set(

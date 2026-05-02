@@ -6,8 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "test": "vitest",
+    "test:run": "vitest --run",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "prepare": "cd .. && lefthook install"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
@@ -17,11 +22,24 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@tauri-apps/cli": "^2.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.4",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "jsdom": "^26.1.0",
+    "lefthook": "^1.13.6",
     "typescript": "~5.6.2",
-    "vite": "^6.0.3"
+    "typescript-eslint": "^8.59.1",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
   }
 }

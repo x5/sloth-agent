@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+
 import { useInspirationStore } from "../stores/inspirationStore";
 import { useUIStore } from "../stores/uiStore";
-import ConfirmModal from "./ConfirmModal";
 import { formatRelativeTime } from "../utils/time";
+
+import ConfirmModal from "./ConfirmModal";
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/);
@@ -22,7 +24,7 @@ export default function ProjectList() {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   // Auto-select first inspiration when list loads
   useEffect(() => {

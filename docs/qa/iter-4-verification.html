@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iter-4 Verification Checklist — Sloth Agent</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f5; color: #1a1b22; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 24px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  header .meta {
+    display: flex; gap: 24px; margin-top: 8px;
+    font-size: 13px; color: #3e484e;
+  }
+  header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  .progress-bar-wrap {
+    background: rgba(0,0,0,0.05); border-radius: 6px; height: 6px; margin-top: 16px;
+  }
+  .progress-bar-fill {
+    background: #14a0c8; height: 100%; border-radius: 6px;
+    transition: width 0.3s ease; width: 0%;
+  }
+  .progress-text { font-size: 13px; color: #3e484e; margin-top: 8px; }
+
+  .section {
+    background: #fff; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px;
+    padding: 24px 32px; margin-bottom: 16px;
+  }
+  .section__title {
+    font-size: 16px; font-weight: 700; letter-spacing: -0.2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section__subtitle { font-size: 12px; color: #6e797e; margin-top: 4px; margin-bottom: 20px; }
+
+  .check-item {
+    border: 1px solid rgba(0,0,0,0.06); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .check-item:hover { border-color: rgba(0,0,0,0.12); }
+  .check-item--pass { background: rgba(20,160,200,0.04); border-color: rgba(20,160,200,0.25); }
+  .check-item--fail { background: rgba(255,59,48,0.04); border-color: rgba(255,59,48,0.25); }
+
+  .check-item__row {
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .check-item__num {
+    width: 24px; height: 24px; min-width: 24px; border-radius: 50%;
+    background: rgba(0,0,0,0.05); display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 600; color: #3e484e;
+  }
+  .check-item__body { flex: 1; min-width: 0; }
+  .check-item__label {
+    font-size: 14px; font-weight: 500; color: #1a1b22; margin-bottom: 2px;
+  }
+  .check-item__detail {
+    font-size: 12px; color: #6e797e; margin-bottom: 10px; line-height: 1.5;
+  }
+
+  .check-item__actions {
+    display: flex; gap: 8px; margin-bottom: 10px;
+  }
+  .btn {
+    padding: 5px 16px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.12);
+    background: #fff; font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; color: #3e484e;
+  }
+  .btn:hover { background: #f5f5f5; }
+  .btn--pass {
+    background: rgba(20,160,200,0.08); border-color: rgba(20,160,200,0.3); color: #006782;
+  }
+  .btn--pass:hover { background: rgba(20,160,200,0.14); }
+  .btn--pass.active { background: #14a0c8; color: #fff; border-color: #14a0c8; }
+  .btn--fail {
+    background: rgba(255,59,48,0.06); border-color: rgba(255,59,48,0.25); color: #cc2f26;
+  }
+  .btn--fail:hover { background: rgba(255,59,48,0.1); }
+  .btn--fail.active { background: #ff3b30; color: #fff; border-color: #ff3b30; }
+  .btn--bug { color: #d4710a; }
+  .btn--bug:hover { background: rgba(212,113,10,0.06); border-color: rgba(212,113,10,0.25); }
+  .btn--bug.active { background: #d4710a; color: #fff; border-color: #d4710a; }
+  .btn--opt { color: #6e797e; }
+  .btn--opt:hover { background: rgba(110,121,126,0.06); border-color: rgba(110,121,126,0.2); }
+  .btn--opt.active { background: #6e797e; color: #fff; border-color: #6e797e; }
+
+  .check-item__notes {
+    margin-top: 8px;
+  }
+  .check-item__notes textarea {
+    width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px;
+    padding: 8px 12px; font-family: inherit; font-size: 12px; resize: vertical;
+    min-height: 36px; color: #1a1b22;
+  }
+  .check-item__notes textarea:focus { outline: none; border-color: #14a0c8; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+  }
+  .badge--pass { background: rgba(20,160,200,0.1); color: #006782; }
+  .badge--fail { background: rgba(255,59,48,0.1); color: #cc2f26; }
+  .badge--bug { background: rgba(212,113,10,0.1); color: #9a5200; }
+  .badge--opt { background: rgba(110,121,126,0.08); color: #3e484e; }
+
+  .summary {
+    display: flex; gap: 16px; margin-top: 12px;
+  }
+  .summary__item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+  }
+  .summary__dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .summary__dot--pass { background: #14a0c8; }
+  .summary__dot--fail { background: #ff3b30; }
+  .summary__dot--bug { background: #d4710a; }
+  .summary__dot--opt { background: #6e797e; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Iter-4 Verification Checklist</h1>
+  <div class="meta">
+    <span>Sloth Agent v0.6.0</span>
+    <span>Target: 2026-04-30</span>
+    <span>Plan: docs/plans/20260425-mvp-desktop-app-plan.md</span>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar"></div>
+  </div>
+  <div class="progress-text" id="progressText">0 / 0 checked</div>
+  <div class="summary" id="summary"></div>
+  <div style="margin-top: 16px; display: flex; gap: 8px;">
+    <button class="btn" onclick="exportJSON()" style="padding: 8px 20px; font-size: 13px; font-weight: 600;">Export JSON</button>
+    <button class="btn" onclick="importJSON()" style="padding: 8px 20px; font-size: 13px;">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" onchange="handleImport(event)" style="display:none;">
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- TASK 4.0: Models + SandboxManager                             -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 4.0 — Models & SandboxManager</div>
+  <div class="section__subtitle">backend/app/models.py + backend/app/services/sandbox.py</div>
+
+  <!-- #1 -->
+  <div class="check-item" data-id="1">
+    <div class="check-item__row">
+      <div class="check-item__num">1</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BrainstormSession model — 14 columns + CHAR(36) PK</div>
+        <div class="check-item__detail">
+          Tablename "brainstorm_sessions"。14 个 mapped_column：id, inspiration_id (FK), title, status, sandbox_path, max_messages, cooldown_seconds, message_count, summary, started_by, notification_sent, created_at, ended_at。<br>
+          status default="active", max_messages default=500, cooldown_seconds default=5, message_count default=0。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #2 -->
+  <div class="check-item" data-id="2">
+    <div class="check-item__row">
+      <div class="check-item__num">2</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BrainstormFile model — 7 columns</div>
+        <div class="check-item__detail">
+          Tablename "brainstorm_files"。7 个 mapped_column：id, session_id (FK→brainstorm_sessions CASCADE), file_path, content, created_by (FK→inspiration_agents SET NULL), file_type, created_at。<br>
+          file_type default="other"。content 为 Text 类型。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #3 -->
+  <div class="check-item" data-id="3">
+    <div class="check-item__row">
+      <div class="check-item__num">3</div>
+      <div class="check-item__body">
+        <div class="check-item__label">SandboxManager.create_session_dir() — sandbox at project root</div>
+        <div class="check-item__detail">
+          创建 brainstorm-sessions/{session_id}/ 目录。<br>
+          路径在项目根目录（不是 backend/ 子目录）。使用 _PROJECT_ROOT 计算。<br>
+          返回绝对路径。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #4 -->
+  <div class="check-item" data-id="4">
+    <div class="check-item__row">
+      <div class="check-item__num">4</div>
+      <div class="check-item__body">
+        <div class="check-item__label">SandboxManager.get_file_tree() — recursive listing</div>
+        <div class="check-item__detail">
+          递归遍历 sandbox 目录，返回 [{name, path, type, size}]。<br>
+          type 为 "file" 或 "directory"。path 使用 "/" 分隔符。<br>
+          目录在前、文件在后，各自按字母排序。空目录返回 []。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #5 -->
+  <div class="check-item" data-id="5">
+    <div class="check-item__row">
+      <div class="check-item__num">5</div>
+      <div class="check-item__body">
+        <div class="check-item__label">SandboxManager.archive_session() + cleanup_archive()</div>
+        <div class="check-item__detail">
+          archive_session: 将会话目录移动到 .archive/{session_id}-{timestamp}/。<br>
+          cleanup_archive(max_age_days=7): 删除 7 天前的归档目录。<br>
+          会话目录不存在时 archive_session 静默返回。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #6 -->
+  <div class="check-item" data-id="6">
+    <div class="check-item__row">
+      <div class="check-item__num">6</div>
+      <div class="check-item__body">
+        <div class="check-item__label">.gitignore — brainstorm-sessions/ + sloth.db</div>
+        <div class="check-item__detail">
+          .gitignore 包含 brainstorm-sessions/ 和 backend/sloth.db。<br>
+          sandbox 目录和 SQLite 数据库不会被提交到 Git。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TASK 4.1: CRUD API Endpoints                                  -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 4.1 — Brainstorm CRUD API (brainstorm.py)</div>
+  <div class="section__subtitle">backend/app/routers/brainstorm.py — 4 endpoints: create / list / get / update</div>
+
+  <!-- #7 -->
+  <div class="check-item" data-id="7">
+    <div class="check-item__row">
+      <div class="check-item__num">7</div>
+      <div class="check-item__body">
+        <div class="check-item__label">POST /api/inspirations/{id}/brainstorm-sessions — 创建会话</div>
+        <div class="check-item__detail">
+          请求体 {"title": "..."} → 验证：min_length=1, max_length=200。<br>
+          Inspiration 不存在 → 404。<br>
+          创建 BrainstormSession DB 行 → 创建 sandbox 目录 → 更新 sandbox_path → 返回 201。<br>
+          返回含 file_tree（初始为空数组 []）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #8 -->
+  <div class="check-item" data-id="8">
+    <div class="check-item__row">
+      <div class="check-item__num">8</div>
+      <div class="check-item__body">
+        <div class="check-item__label">GET /api/inspirations/{id}/brainstorm-sessions — 列表</div>
+        <div class="check-item__detail">
+          返回该 Inspiration 下所有会话，按 created_at DESC 排序。<br>
+          Inspiration 不存在 → 404。<br>
+          每个会话含 file_tree。空列表返回 []。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #9 -->
+  <div class="check-item" data-id="9">
+    <div class="check-item__row">
+      <div class="check-item__num">9</div>
+      <div class="check-item__body">
+        <div class="check-item__label">GET /api/brainstorm-sessions/{id} — 详情</div>
+        <div class="check-item__detail">
+          返回单个会话完整数据（15 字段含 file_tree）。<br>
+          会话不存在 → 404。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #10 -->
+  <div class="check-item" data-id="10">
+    <div class="check-item__row">
+      <div class="check-item__num">10</div>
+      <div class="check-item__body">
+        <div class="check-item__label">PATCH /api/brainstorm-sessions/{id} — 更新</div>
+        <div class="check-item__detail">
+          部分更新 title 和/或 status。<br>
+          status 仅接受 "active"|"cooling_down"|"ended"|"summarized"。<br>
+          status="ended" 时自动设置 ended_at = now()。<br>
+          会话不存在 → 404。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #11 -->
+  <div class="check-item" data-id="11">
+    <div class="check-item__row">
+      <div class="check-item__num">11</div>
+      <div class="check-item__body">
+        <div class="check-item__label">main.py — brainstorm router 注册</div>
+        <div class="check-item__detail">
+          app.include_router(brainstorm.router) 在 main.py 中。<br>
+          /api/inspirations/{id}/brainstorm-sessions 和 /api/brainstorm-sessions/{id} 可访问。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TASK 4.2: Frontend                                            -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Task 4.2 — Frontend (BrainstormList + BrainstormSessionDetail)</div>
+  <div class="section__subtitle">4 new files + 3 modified: components, store, API client, App.tsx, App.css, SideNavBar</div>
+
+  <!-- #12 -->
+  <div class="check-item" data-id="12">
+    <div class="check-item__row">
+      <div class="check-item__num">12</div>
+      <div class="check-item__body">
+        <div class="check-item__label">SideNavBar — Brainstorm 导航按钮</div>
+        <div class="check-item__detail">
+          Agents 和 Settings 之间新增 Brainstorm 按钮（闪电 SVG 图标）。<br>
+          点击设置 activeNav="brainstorm"。高亮状态正确。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #13 -->
+  <div class="check-item" data-id="13">
+    <div class="check-item__row">
+      <div class="check-item__num">13</div>
+      <div class="check-item__body">
+        <div class="check-item__label">App.tsx — 3-way Col2/Col3 routing</div>
+        <div class="check-item__detail">
+          activeNav === "brainstorm" → Col2 = BrainstormList, Col3 = BrainstormSessionDetail。<br>
+          ActiveNav type 包含 "brainstorm"。Settings 使用独立 layout 不受影响。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #14 -->
+  <div class="check-item" data-id="14">
+    <div class="check-item__row">
+      <div class="check-item__num">14</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BrainstormList — 会话列表 + inline create</div>
+        <div class="check-item__detail">
+          复用 .projectlist CSS。显示 Brainstorm 标题 + "+" 按钮。<br>
+          无 Inspiration 时显示 "Select an inspiration first"。<br>
+          inline create：输入框 → Enter 创建 / Escape 取消 / Cancel 按钮。<br>
+          会话列表显示 title + status badge (active/ended/cooling_down) + 时间。<br>
+          选中高亮。loading 时显示 shimmer。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #15 -->
+  <div class="check-item" data-id="15">
+    <div class="check-item__row">
+      <div class="check-item__num">15</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BrainstormSessionDetail — Sandbox + Settings + File Tree</div>
+        <div class="check-item__detail">
+          Top bar: 标题 + status dot + status 文字。<br>
+          Sandbox 区：显示 sandbox_path（等宽字体）。<br>
+          Settings grid：Max Messages / Cooldown / Message Count / Created。<br>
+          File Tree：文件列表（图标 + name + path），空时显示 "No files generated yet"。<br>
+          未选中会话时显示空状态占位。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #16 -->
+  <div class="check-item" data-id="16">
+    <div class="check-item__row">
+      <div class="check-item__num">16</div>
+      <div class="check-item__body">
+        <div class="check-item__label">brainstormStore.ts — Zustand store</div>
+        <div class="check-item__detail">
+          State: sessions[], activeId, loading。<br>
+          fetchAll(inspirationId): 加载列表，若 activeId 不存在则自动选第一个。<br>
+          create(inspirationId, title): 调用 API → prepend 到列表 → 设为 active。<br>
+          setActive(id): 设置当前选中。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #17 -->
+  <div class="check-item" data-id="17">
+    <div class="check-item__row">
+      <div class="check-item__num">17</div>
+      <div class="check-item__body">
+        <div class="check-item__label">API Client — BrainstormSession interface + httpFallback</div>
+        <div class="check-item__detail">
+          BrainstormSession interface: 15 字段含 file_tree: FileTreeEntry[]。<br>
+          FileTreeEntry: name, path, type, size。<br>
+          httpFallback 4 个 case: create_brainstorm_session, list_brainstorm_sessions, get_brainstorm_session, update_brainstorm_session。<br>
+          4 个导出函数。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #18 -->
+  <div class="check-item" data-id="18">
+    <div class="check-item__row">
+      <div class="check-item__num">18</div>
+      <div class="check-item__body">
+        <div class="check-item__label">App.css — Brainstorm 样式 (~150 行)</div>
+        <div class="check-item__detail">
+          .brainstorm-detail__section / __label / __path。<br>
+          .brainstorm-detail__grid / __field / __key / __value。<br>
+          .brainstorm-detail__file-list / __file / __file-icon / __file-name / __file-path。<br>
+          .brainstorm-detail__empty-files。<br>
+          .projectlist__inline-create / __inline-input / __inline-actions。<br>
+          .projectlist__status / __status--active (绿) / __status--ended (灰) / __status--cooling_down (琥珀)。<br>
+          .projectlist__loading shimmer 动画。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Rust Bridge Layer                                            -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">Rust 桥接层 — Brainstorm Commands</div>
+  <div class="section__subtitle">src-tauri/src/lib.rs — 4 个新 Tauri command + BrainstormSession struct</div>
+
+  <!-- #19 -->
+  <div class="check-item" data-id="19">
+    <div class="check-item__row">
+      <div class="check-item__num">19</div>
+      <div class="check-item__body">
+        <div class="check-item__label">BrainstormSession struct — 15 fields</div>
+        <div class="check-item__detail">
+          id, inspiration_id, title, status, sandbox_path, max_messages, cooldown_seconds, message_count, summary, started_by, notification_sent, created_at, ended_at。<br>
+          file_tree: Vec&lt;serde_json::Value&gt;。所有 serde 字段与 API JSON 对齐。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #20 -->
+  <div class="check-item" data-id="20">
+    <div class="check-item__row">
+      <div class="check-item__num">20</div>
+      <div class="check-item__body">
+        <div class="check-item__label">4 Tauri commands + invoke_handler registration</div>
+        <div class="check-item__detail">
+          create_brainstorm_session(inspiration_id, title) → POST。<br>
+          list_brainstorm_sessions(inspiration_id) → GET。<br>
+          get_brainstorm_session(session_id) → GET。<br>
+          update_brainstorm_session(session_id, data) → PATCH (serde_json::Value)。<br>
+          4 个命令均在 generate_handler![] 中注册。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- End-to-End Integration                                       -->
+<!-- ============================================================ -->
+<div class="section">
+  <div class="section__title">端到端集成测试</div>
+  <div class="section__subtitle">完整链路验证</div>
+
+  <!-- #21 -->
+  <div class="check-item" data-id="21">
+    <div class="check-item__row">
+      <div class="check-item__num">21</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Create Inspiration → Create Brainstorm Session → View Detail</div>
+        <div class="check-item__detail">
+          完整链路：创建 Inspiration → 切换到 Brainstorm tab → 点击 "+" → 输入标题 → Enter 创建。<br>
+          新会话出现在列表顶部并自动选中 → Col3 显示 Sandbox path、Settings grid、空 File Tree。<br>
+          Sandbox path 指向项目根目录 brainstorm-sessions/{uuid}/ 且目录已在磁盘上创建。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #22 -->
+  <div class="check-item" data-id="22">
+    <div class="check-item__row">
+      <div class="check-item__num">22</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: PATCH status → ended_at set</div>
+        <div class="check-item__detail">
+          更新 Brainstorm Session status="ended" → ended_at 自动设置为当前 UTC 时间。<br>
+          status 不接受无效值（如 "paused"）→ 422。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #23 -->
+  <div class="check-item" data-id="23">
+    <div class="check-item__row">
+      <div class="check-item__num">23</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: Sandbox directory — real filesystem</div>
+        <div class="check-item__detail">
+          创建 Session → 项目根目录 brainstorm-sessions/{session_id}/ 目录存在。<br>
+          手动添加文件到 sandbox → GET session 返回的 file_tree 包含该文件。<br>
+          File tree 中 path 使用 "/" 而非 "\"（跨平台兼容）。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #24 -->
+  <div class="check-item" data-id="24">
+    <div class="check-item__row">
+      <div class="check-item__num">24</div>
+      <div class="check-item__body">
+        <div class="check-item__label">E2E: 数据持久化 (重启)</div>
+        <div class="check-item__detail">
+          重启后端 → Brainstorm Sessions 数据保留在 SQLite 中。<br>
+          sandbox 目录结构保留在磁盘上。<br>
+          列表 API 返回相同的 sessions。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #25 -->
+  <div class="check-item" data-id="25">
+    <div class="check-item__row">
+      <div class="check-item__num">25</div>
+      <div class="check-item__body">
+        <div class="check-item__label">编译验证</div>
+        <div class="check-item__detail">
+          cd frontend && npx tsc --noEmit → 无 TypeScript 错误。<br>
+          cargo check → Rust 编译无错误。
+        </div>
+        <div class="check-item__actions">
+          <button class="btn btn--pass" onclick="toggle(this, 'pass')">Pass</button>
+          <button class="btn btn--bug" onclick="toggle(this, 'bug')">Bug</button>
+          <button class="btn btn--opt" onclick="toggle(this, 'opt')">优化建议</button>
+        </div>
+        <div class="check-item__notes"><textarea placeholder="Notes..." oninput="updateSummary()"></textarea></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- .container -->
+
+<script>
+const items = document.querySelectorAll('.check-item');
+const STATE_KEY = 'iter4-verification-state';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveState(state) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function toggle(btn, type) {
+  const item = btn.closest('.check-item');
+  const allBtns = item.querySelectorAll('.btn--pass, .btn--bug, .btn--opt, .btn--fail');
+  allBtns.forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const id = item.dataset.id;
+  const state = getState();
+  state[id] = type;
+  saveState(state);
+
+  item.classList.remove('check-item--pass', 'check-item--fail');
+  if (type === 'pass') item.classList.add('check-item--pass');
+  if (type === 'bug') item.classList.add('check-item--fail');
+  if (type === 'opt') item.classList.add('check-item--pass');
+
+  updateSummary();
+}
+
+function updateSummary() {
+  const state = getState();
+  let pass = 0, bug = 0, opt = 0, total = items.length;
+  let checked = 0;
+
+  items.forEach(item => {
+    const id = item.dataset.id;
+    const s = state[id];
+    if (s) checked++;
+    if (s === 'pass') pass++;
+    if (s === 'bug') bug++;
+    if (s === 'opt') opt++;
+  });
+
+  const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = checked + ' / ' + total + ' checked  (' + pct + '%)';
+
+  let summaryHtml = '';
+  if (pass > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--pass"></span> ' + pass + ' Pass</span>';
+  if (bug > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--bug"></span> ' + bug + ' Bug</span>';
+  if (opt > 0) summaryHtml += '<span class="summary__item"><span class="summary__dot summary__dot--opt"></span> ' + opt + ' 优化</span>';
+  document.getElementById('summary').innerHTML = summaryHtml;
+}
+
+// Restore state on load
+const savedState = getState();
+Object.entries(savedState).forEach(([id, type]) => {
+  const item = document.querySelector(`.check-item[data-id="${id}"]`);
+  if (!item) return;
+  const btn = item.querySelector(type === 'bug' ? '.btn--bug' : type === 'opt' ? '.btn--opt' : '.btn--pass');
+  if (btn) {
+    btn.classList.add('active');
+    item.classList.remove('check-item--pass', 'check-item--fail');
+    if (type === 'pass' || type === 'opt') item.classList.add('check-item--pass');
+    if (type === 'bug') item.classList.add('check-item--fail');
+  }
+});
+updateSummary();
+
+function exportJSON() {
+  const state = getState();
+  const notes = {};
+  document.querySelectorAll('.check-item textarea').forEach(ta => {
+    const id = ta.closest('.check-item').dataset.id;
+    if (ta.value.trim()) notes[id] = ta.value;
+  });
+  const exportData = { version: 'iter-4', exportedAt: new Date().toISOString(), verdicts: state, notes: notes };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'iter-4-verification-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON() {
+  document.getElementById('importFile').click();
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.verdicts) { alert('Invalid file: no verdicts found'); return; }
+      if (!confirm('Import ' + Object.keys(data.verdicts).length + ' verdicts + ' + (data.notes ? Object.keys(data.notes).length : 0) + ' notes? This will overwrite current state.')) return;
+      saveState(data.verdicts);
+      if (data.notes) {
+        const notesState = {};
+        Object.entries(data.notes).forEach(([id, text]) => { notesState[id] = text; });
+        localStorage.setItem('iter4-verification-notes', JSON.stringify(notesState));
+        document.querySelectorAll('.check-item textarea').forEach(ta => {
+          const id = ta.closest('.check-item').dataset.id;
+          if (data.notes[id]) ta.value = data.notes[id];
+        });
+      }
+      location.reload();
+    } catch(err) { alert('Failed to parse file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// Persist notes in localStorage on input
+document.querySelectorAll('.check-item textarea').forEach(ta => {
+  ta.addEventListener('input', function() {
+    const notesState = JSON.parse(localStorage.getItem('iter4-verification-notes') || '{}');
+    const id = this.closest('.check-item').dataset.id;
+    if (this.value.trim()) notesState[id] = this.value;
+    else delete notesState[id];
+    localStorage.setItem('iter4-verification-notes', JSON.stringify(notesState));
+  });
+});
+
+// Restore notes on load
+(function() {
+  const notesState = JSON.parse(localStorage.getItem('iter4-verification-notes') || '{}');
+  Object.entries(notesState).forEach(([id, text]) => {
+    const ta = document.querySelector('.check-item[data-id="' + id + '"] textarea');
+    if (ta) ta.value = text;
+  });
+})();
+
+</script>
+
+</body>
+</html>
