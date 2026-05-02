@@ -10,3 +10,11 @@ pre-commit:
       glob: "frontend/src/**/*.{ts,tsx}"
       run: cd frontend && npm run lint:fix && (git add -u src/ || exit 0)
       stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    backend-unit-tests:
+      run: uv run --directory {root}/backend pytest tests/ -q --tb=short
+    frontend-unit-tests:
+      run: cd {root}/frontend && npm run test -- --run
