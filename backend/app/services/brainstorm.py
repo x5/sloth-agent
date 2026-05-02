@@ -195,6 +195,7 @@ class BrainstormEngine:
             max_messages=max_messages,
         )
         self._abort = False
+        self._abort_round = False
         self._queue: asyncio.Queue[tuple[str, str | None]] | None = None
 
     def _get_queue(self) -> asyncio.Queue[tuple[str, str | None]]:
@@ -206,6 +207,10 @@ class BrainstormEngine:
     def abort(self):
         """Signal the engine to stop. Checked between agents and during streaming."""
         self._abort = True
+
+    def interrupt_round(self):
+        """Stop only the current round, keeping the persistent connection alive."""
+        self._abort_round = True
 
     async def inject(self, content: str, reply_to: str | None = None) -> None:
         """Put a user message into the persistent discussion queue."""
@@ -324,6 +329,9 @@ class BrainstormEngine:
         sub_round = 0
 
         while not self._abort and sub_round < MAX_ROUNDS:
+            if self._abort_round:
+                break
+
             sub_round += 1
             round_num = current_round + sub_round - 1
 
@@ -333,13 +341,14 @@ class BrainstormEngine:
             speeches_this_round = 0
 
             for agent in agents:
-                if self._abort or self.timer.check() == TimerState.ENDED:
+                if self._abort or self._abort_round or self.timer.check() == TimerState.ENDED:
                     break
 
                 yield SSEEvent(event="agent_start", data={
                     "agent_id": agent.id,
                     "agent_name": agent.name,
                     "agent_number": agent_indices.get(agent.id),
+                    "parent_message_id": user_msg_id,
                 })
 
                 # Reset idle timer — LLM generation can take 5-30s, which would
@@ -365,7 +374,7 @@ class BrainstormEngine:
                 full_content = ""
                 try:
                     async for token in self.llm.chat_stream(agent.model, messages):
-                        if self._abort:
+                        if self._abort or self._abort_round:
                             break
                         full_content += token
                         yield SSEEvent(event="agent_token", data={
@@ -381,7 +390,7 @@ class BrainstormEngine:
                         "token": full_content,
                     })
 
-                if self._abort:
+                if self._abort or self._abort_round:
                     break
 
                 is_pass = full_content.strip().upper() == "PASS" or not full_content.strip()
@@ -420,6 +429,9 @@ class BrainstormEngine:
                 "speeches": speeches_this_round,
             })
 
+            if self._abort_round:
+                break
+
             if speeches_this_round == 0:
                 break
 
@@ -434,6 +446,7 @@ class BrainstormEngine:
             "message_count": self.timer.message_count,
             "round": current_round,
         })
+        self._abort_round = False
 
     async def run(
         self,
@@ -500,6 +513,8 @@ class BrainstormEngine:
 
             if self._abort:
                 break
+
+            self._abort_round = False
 
             # Reload agents for each message — picks up any adds/removes since last round
             agents = await self._load_agents()

@@ -41,6 +41,9 @@ jobs:
       - name: Frontend unit tests with coverage
         run: npm run test:coverage
 
+      - name: Frontend critical regressions
+        run: npm run test:regressions
+
       - name: Diff coverage check (new/changed code ≥ 90%)
         if: github.event_name == 'pull_request'
         run: |

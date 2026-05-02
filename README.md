@@ -17,7 +17,7 @@
 > **Sloth**: Try Me，我来做你的牛马~
 
 > [!NOTE]
-> **最新版本 v0.5.3** — Brainstorm 状态逻辑修复 + Team Sidebar 重设计 + 自定义 Tooltip + UI 统一。
+> **最新版本 v0.5.4** — Brainstorm 多轮讨论引擎 + Reply UI + CI 质量门禁 + 测试基建。
 > [查看 Release](https://github.com/x5/sloth-agent/releases) · [安装指南](docs/guides/20260417-v0.1-installation-guide.md)
 
 ---
@@ -408,7 +408,7 @@ uv run sloth logs --level INFO --limit 50
 
 ---
 
-### 桌面应用 (v0.5.3+)
+### 桌面应用 (v0.5.4+)
 
 Sloth Agent 现已支持桌面应用形态，提供原生 GUI 交互体验：
 
@@ -483,6 +483,7 @@ cd ..
 | Iter-2 | v0.5.1 | 聊天 + Agent 消息 + 设计系统 + UX 打磨 |
 | Iter-2 Fix | v0.5.2 | Provider 预设 + Autocomplete + 连接测试 + 设计一致性 |
 | Iter-3 Fix | v0.5.3 | Brainstorm 状态逻辑 + Team Sidebar 重设计 + UI 统一 |
+| Iter-4/5/6 | v0.5.4 | Brainstorm 多轮引擎 + Reply UI + CI 质量门禁 + 测试基建 |
 | Iter-3 | v0.5.x | Agent Pool 管理面板 + 多 Agent 协作 |
 
 **相关文档：**
@@ -492,5 +493,5 @@ cd ..
 
 ---
 
-*Sloth Agent v0.5.3*
-*最后更新: 2026-05-01*
+*Sloth Agent v0.5.4*
+*最后更新: 2026-05-03*

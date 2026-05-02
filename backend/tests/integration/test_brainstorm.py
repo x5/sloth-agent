@@ -240,3 +240,44 @@ async def test_disconnect_idle_session_returns_200():
         r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/connect")
     assert r.status_code == 200
     assert r.json()["status"] == "disconnected"
+
+
+@pytest.mark.asyncio
+async def test_disconnect_idle_session_persists_end_divider_and_marks_ended():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        insp_id = await _create_inspiration(client, "bs-disconnect-divider-test")
+        sess = await _create_session(client, insp_id, "Divider Session")
+
+        r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/connect")
+        assert r.status_code == 200
+
+        session_resp = await client.get(f"/api/brainstorm-sessions/{sess['id']}")
+        assert session_resp.status_code == 200
+        session_data = session_resp.json()
+        assert session_data["status"] == "ended"
+        assert session_data["ended_at"] is not None
+
+        msgs_resp = await client.get(f"/api/inspirations/{insp_id}/messages?limit=200")
+        assert msgs_resp.status_code == 200
+        msgs = msgs_resp.json()
+        assert any(
+            m.get("role") == "system"
+            and m.get("intent") == "divider_end"
+            and m.get("brainstorm_session_id") == sess["id"]
+            for m in msgs
+        )
+
+
+@pytest.mark.asyncio
+async def test_interrupt_idle_session_returns_200_without_ending_mode():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        insp_id = await _create_inspiration(client, "bs-interrupt-idle-test")
+        sess = await _create_session(client, insp_id)
+
+        r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/interrupt")
+        assert r.status_code == 200
+        assert r.json()["status"] == "idle"
+
+        session_resp = await client.get(f"/api/brainstorm-sessions/{sess['id']}")
+        assert session_resp.status_code == 200
+        assert session_resp.json()["status"] == "active"

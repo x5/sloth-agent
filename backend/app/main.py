@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-from .database import init_db
+from .database import engine, init_db
 from .routers import agent_templates, agents, brainstorm, chat, inspirations, llm
 from .services.agent import AgentService
 from .services.llm import seed_default_llm
@@ -22,6 +22,9 @@ async def lifespan(app: FastAPI):
     await AgentService.seed_expert_agents()
     await seed_default_llm()
     yield
+    # Dispose connection pool before the event loop shuts down to avoid
+    # "no active connection" / CancelledError noise from aiosqlite cleanup.
+    await engine.dispose()
 
 
 app = FastAPI(title="Sloth Agent Backend", version="0.2.0", lifespan=lifespan)

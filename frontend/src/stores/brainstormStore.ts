@@ -4,6 +4,8 @@ import * as api from "../api/client";
 import { BACKEND } from "../api/client";
 import type { BrainstormSession, Message } from "../api/client";
 
+import { useAgentStore } from "./agentStore";
+
 type SetState = (partial: Partial<BrainstormState> | ((s: BrainstormState) => Partial<BrainstormState>)) => void;
 type GetState = () => BrainstormState;
 
@@ -19,10 +21,18 @@ function _handleSSEEvent(
 ) {
   switch (event) {
     case "agent_start": {
+      useAgentStore.getState().setAgentStatus(data.agent_id as string, "working");
+      // Use parent_message_id from event if available; otherwise fall back to the
+      // last human message in the queue (agents always reply to the latest inject).
+      const explicitParent = (data.parent_message_id as string) || null;
+      const fallbackParent = explicitParent
+        ? null
+        : [...get().discussionMessages].reverse().find((m) => m.role === "human")?.id ?? null;
       set({
         activeAgentId: data.agent_id as string,
         activeAgentName: data.agent_name as string,
         activeAgentNumber: (data.agent_number as number) ?? null,
+        activeParentMessageId: explicitParent ?? fallbackParent,
         streamingContent: "",
       });
       break;
@@ -38,6 +48,7 @@ function _handleSSEEvent(
     }
     case "message_done": {
       const agentId = data.agent_id as string;
+      useAgentStore.getState().setAgentStatus(agentId, "idle");
       const fullContent = data.full_content as string;
       const messageId = data.message_id as string;
       const agentName = data.agent_name as string | null;
@@ -66,27 +77,32 @@ function _handleSSEEvent(
         activeAgentId: null,
         activeAgentName: null,
         activeAgentNumber: null,
+        activeParentMessageId: null,
         streamingContent: "",
       }));
       break;
     }
     case "discussion_end": {
-      // In persistent mode the connection stays open 鈥?only mark agents as idle
-      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      useAgentStore.getState().setAllAgentStatus("idle");
+      // In persistent mode the connection stays open — only mark agents as idle
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
       break;
     }
     case "agent_pass": {
-      set({ activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      useAgentStore.getState().setAgentStatus(data.agent_id as string, "idle");
+      set({ activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
       break;
     }
     case "max_reached": {
+      useAgentStore.getState().setAllAgentStatus("idle");
       console.warn("Brainstorm hit message limit:", data.limit);
-      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
       break;
     }
     case "error": {
+      useAgentStore.getState().setAllAgentStatus("idle");
       console.error("SSE error:", data.error);
-      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
       break;
     }
     // ---- Iter-6 persistent-mode events ----
@@ -179,7 +195,7 @@ async function _startPersistentReading(
       console.error("Persistent SSE error:", e);
     }
   } finally {
-    set({ discussionConnected: false, discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+    set({ discussionConnected: false, discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
     _persistentController = null;
   }
 }
@@ -195,6 +211,7 @@ interface BrainstormState {
   activeAgentId: string | null;
   activeAgentName: string | null;
   activeAgentNumber: number | null;
+  activeParentMessageId: string | null;
   discussionMessages: Message[];
   streamingContent: string;
 
@@ -238,6 +255,7 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
   activeAgentId: null,
   activeAgentName: null,
   activeAgentNumber: null,
+  activeParentMessageId: null,
   discussionMessages: [],
   streamingContent: "",
 
@@ -276,16 +294,23 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
       _abortController.abort();
       _abortController = null;
     }
-    // Abort persistent connection
+    const { activeId } = get();
+    if (activeId) {
+      // Ask backend to close first so divider_end is persisted before local abort cleanup.
+      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/connect`, { method: "DELETE" }).catch(() => {});
+    }
+    // Abort persistent connection after sending DELETE /connect.
     if (_persistentController) {
       _persistentController.abort();
       _persistentController = null;
     }
-    const { activeId } = get();
-    if (activeId) {
-      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/connect`, { method: "DELETE" }).catch(() => {});
-    }
-    set({
+    const nowIso = new Date().toISOString();
+    set((s) => ({
+      sessions: s.sessions.map((ses) =>
+        activeId && ses.id === activeId
+          ? { ...ses, status: "ended", ended_at: ses.ended_at || nowIso }
+          : ses,
+      ),
       brainstormMode: false,
       activeId: null,
       discussionConnected: false,
@@ -293,10 +318,11 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
       activeAgentId: null,
       activeAgentName: null,
       activeAgentNumber: null,
+      activeParentMessageId: null,
       streamingContent: "",
       replyingToId: null,
       replyingToContent: null,
-    });
+    }));
   },
 
   activateSession: async (sessionId: string) => {
@@ -319,6 +345,7 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
       activeAgentId: null,
       activeAgentName: null,
       activeAgentNumber: null,
+      activeParentMessageId: null,
       streamingContent: "",
     }));
   },
@@ -370,24 +397,31 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
   },
 
   disconnectSession: () => {
-    if (_persistentController) {
-      _persistentController.abort();
-      _persistentController = null;
-    }
     const { activeId } = get();
     if (activeId) {
       fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/connect`, { method: "DELETE" }).catch(
         (e) => console.warn("Failed to send DELETE /connect on disconnect:", e),
       );
     }
-    set({
+    if (_persistentController) {
+      _persistentController.abort();
+      _persistentController = null;
+    }
+    const nowIso = new Date().toISOString();
+    set((s) => ({
+      sessions: s.sessions.map((ses) =>
+        activeId && ses.id === activeId
+          ? { ...ses, status: "ended", ended_at: ses.ended_at || nowIso }
+          : ses,
+      ),
       discussionConnected: false,
       discussionActive: false,
       activeAgentId: null,
       activeAgentName: null,
       activeAgentNumber: null,
+      activeParentMessageId: null,
       streamingContent: "",
-    });
+    }));
   },
 
   injectMessage: async (sessionId: string, content: string, replyToMessageId?: string) => {
@@ -478,17 +512,17 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
   },
 
   stopDiscussion: () => {
+    const { activeId } = get();
+    if (activeId) {
+      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/interrupt`, {
+        method: "DELETE",
+      }).catch(() => {});
+    }
     if (_abortController) {
       _abortController.abort();
       _abortController = null;
     }
-    const { activeId } = get();
-    if (activeId) {
-      fetch(`${BACKEND}/api/brainstorm-sessions/${activeId}/discuss`, {
-        method: "DELETE",
-      }).catch(() => {});
-    }
-    set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, streamingContent: "" });
+    set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
   },
 }));
 

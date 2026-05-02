@@ -52,6 +52,8 @@ export default function ChatArea() {
 
   const teamMembers = useAgentStore((s) => s.teamMembers);
   const fetchTeam = useAgentStore((s) => s.fetchTeam);
+  const startStatusSync = useAgentStore((s) => s.startStatusSync);
+  const stopStatusSync = useAgentStore((s) => s.stopStatusSync);
   const workingCount = teamMembers.filter((m) => m.status === "working").length;
 
   const agentColorMap = useMemo(() => {
@@ -91,10 +93,30 @@ export default function ChatArea() {
   const activeAgentId = useBrainstormStore((s) => s.activeAgentId);
   const activeAgentName = useBrainstormStore((s) => s.activeAgentName);
   const activeAgentNumber = useBrainstormStore((s) => s.activeAgentNumber);
+  const activeParentMessageId = useBrainstormStore((s) => s.activeParentMessageId);
   const discussionMessages = useBrainstormStore((s) => s.discussionMessages);
   const streamingContent = useBrainstormStore((s) => s.streamingContent);
   const replyingToId = useBrainstormStore((s) => s.replyingToId);
   const replyingToContent = useBrainstormStore((s) => s.replyingToContent);
+  const [interruptRequested, setInterruptRequested] = useState(false);
+
+  const canInterrupt = brainstormMode && Boolean(activeAgentId);
+
+  useEffect(() => {
+    if (!brainstormMode) {
+      setInterruptRequested(false);
+    }
+  }, [brainstormMode, brainstormActiveId]);
+
+  // Reset only when agent truly stops (null), NOT when a new agent_start arrives.
+  // Resetting on new agent_start causes a race: if agent_start for agent-2 arrives
+  // before the interrupt has propagated to the backend, the button would briefly
+  // re-enable and confuse the user.
+  useEffect(() => {
+    if (!activeAgentId) {
+      setInterruptRequested(false);
+    }
+  }, [activeAgentId]);
 
   useEffect(() => {
     if (activeId) {
@@ -116,8 +138,40 @@ export default function ChatArea() {
   const queueRef = useRef<string[]>([]);
   const [queueLen, setQueueLen] = useState(0);
 
-  // Brainstorm dividers (local state)
-  const [dividers, setDividers] = useState<DividerItem[]>([]);
+  const dividers = useMemo<DividerItem[]>(() => {
+    // Fallback for legacy data: synthesize divider items from session timestamps
+    // when persisted system divider messages are missing.
+    const persisted = new Set(
+      messages
+        .filter((m) => m.role === "system" && (m.intent === "divider_start" || m.intent === "divider_end") && m.brainstorm_session_id)
+        .map((m) => `${m.brainstorm_session_id}:${m.intent}`),
+    );
+
+    const synthetic: DividerItem[] = [];
+    for (const s of brainstormSessions) {
+      const n = sessionNum(brainstormSessions, s.id);
+      if (!persisted.has(`${s.id}:divider_start`)) {
+        synthetic.push({
+          id: `synthetic-${s.id}-start`,
+          type: "divider",
+          variant: "start",
+          label: `Brainstorm #${n} Started`,
+          ts: s.created_at,
+        });
+      }
+      if (s.ended_at && !persisted.has(`${s.id}:divider_end`)) {
+        synthetic.push({
+          id: `synthetic-${s.id}-end`,
+          type: "divider",
+          variant: "end",
+          label: `Brainstorm #${n} Ended`,
+          ts: s.ended_at,
+        });
+      }
+    }
+
+    return synthetic;
+  }, [messages, brainstormSessions]);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -130,7 +184,7 @@ export default function ChatArea() {
     try {
       const msgs = await api.getMessages(
         activeId,
-        undefined,
+        500,
         undefined,
         brainstormMode ? brainstormActiveId : null,
       );
@@ -140,11 +194,21 @@ export default function ChatArea() {
     }
   }, [activeId, brainstormMode, brainstormActiveId]);
 
+  const prevModeForLoadRef = useRef(brainstormMode);
   useEffect(() => {
+    const wasMode = prevModeForLoadRef.current;
+    prevModeForLoadRef.current = brainstormMode;
+
+    // Keep the on-screen brainstorm transcript when user exits brainstorm mode.
+    // Avoid reloading chat-only history immediately, which clears recent discussion.
+    if (wasMode && !brainstormMode) {
+      return;
+    }
+
     loadMessages();
     setInput("");
     prevDiscussionCountRef.current = 0;
-  }, [loadMessages]);
+  }, [loadMessages, brainstormMode]);
 
   // Persistent brainstorm connection lifecycle
   useEffect(() => {
@@ -177,7 +241,9 @@ export default function ChatArea() {
     if (scrollHeight - scrollTop - clientHeight < 300) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [streamingContent, chatStreamText]);  const prevDiscussionCountRef = useRef(0);
+  }, [streamingContent, chatStreamText]);
+
+  const prevDiscussionCountRef = useRef(0);
   useEffect(() => {
     const prev = prevDiscussionCountRef.current;
     const curr = discussionMessages.length;
@@ -187,54 +253,6 @@ export default function ChatArea() {
     }
     prevDiscussionCountRef.current = curr;
   }, [discussionMessages]);
-
-  // Push dividers when active brainstorm session changes
-  const prevSessionRef = useRef<string | null>(null);
-  const prevModeRef = useRef(false);
-  useEffect(() => {
-    const prev = prevSessionRef.current;
-    const wasMode = prevModeRef.current;
-    if (prev === brainstormActiveId && wasMode === brainstormMode) return;
-    prevSessionRef.current = brainstormActiveId;
-    prevModeRef.current = brainstormMode;
-
-    // Brainstorm turned OFF — push "Ended" divider for previous session
-    if (wasMode && !brainstormMode && prev) {
-      const oldNum = sessionNum(brainstormSessions, prev);
-      setDividers((d) => [...d, {
-        id: `div-end-${Date.now()}`,
-        type: "divider",
-        variant: "end",
-        label: `Brainstorm #${oldNum} Ended`,
-        ts: new Date().toISOString(),
-      }]);
-      return;
-    }
-
-    if (!brainstormMode) return;
-    if (!brainstormActiveId) return;
-
-    const newNum = sessionNum(brainstormSessions, brainstormActiveId);
-    const newDividers: DividerItem[] = [];
-    if (prev) {
-      const oldNum = sessionNum(brainstormSessions, prev);
-      newDividers.push({
-        id: `div-switch-${Date.now()}`,
-        type: "divider",
-        variant: "transition",
-        label: `Brainstorm #${oldNum} → Brainstorm #${newNum}`,
-        ts: new Date().toISOString(),
-      });
-    }
-    newDividers.push({
-      id: `div-start-${Date.now() + 1}`,
-      type: "divider",
-      variant: "start",
-      label: `Brainstorm #${newNum} Started`,
-      ts: new Date().toISOString(),
-    });
-    setDividers((d) => [...d, ...newDividers]);
-  }, [brainstormActiveId, brainstormMode, brainstormSessions]);
 
   const handleToggleBrainstorm = useCallback(async () => {
     if (!activeId) return;
@@ -247,7 +265,7 @@ export default function ChatArea() {
 
   // ---- Message queue: batch all queued messages into one request ----
 
-  const makeHumanMsg = useCallback((content: string): Message => ({
+  const makeHumanMsg = useCallback((content: string, parentMessageId: string | null = null): Message => ({
     id: "temp-" + Date.now(),
     inspiration_id: activeId || "",
     agent_id: null,
@@ -259,7 +277,7 @@ export default function ChatArea() {
     agent_model: null,
     mode: brainstormMode ? "brainstorm" : "chat",
     brainstorm_session_id: brainstormMode ? brainstormActiveId : null,
-    parent_message_id: null,
+    parent_message_id: parentMessageId,
     round: 1,
     intent: null,
     truncated: false,
@@ -320,11 +338,13 @@ export default function ChatArea() {
         if (discussionActive) {
           await waitForDiscussionIdle();
         }
+        const replyToId = useBrainstormStore.getState().replyingToId;
+        useBrainstormStore.getState().setReplyingTo(null, null);
         prevDiscussionCountRef.current = discussionMessages.length;
-        setMessages((prev) => [...prev, makeHumanMsg(content)]);
+        setMessages((prev) => [...prev, makeHumanMsg(content, replyToId || null)]);
         setSending(true);
         try {
-          await brainstormDiscuss(brainstormActiveId, content);
+          await brainstormDiscuss(brainstormActiveId, content, replyToId || undefined);
           useBrainstormStore.setState({ discussionMessages: [] });
           prevDiscussionCountRef.current = 0;
         } catch (e) {
@@ -338,6 +358,7 @@ export default function ChatArea() {
       setMessages((prev) => [...prev, makeHumanMsg(content)]);
       setChatStreamText("");
       setSending(true);
+      await startStatusSync(activeId);
       const abort = new AbortController();
       chatAbortRef.current = abort;
       let accumulated = "";
@@ -352,18 +373,21 @@ export default function ChatArea() {
         }
         // Commit final message to messages array
         if (accumulated) {
+          const leadIdx = teamMembers.findIndex((m) => m.role === "lead");
+          const leadAgent = leadIdx >= 0 ? teamMembers[leadIdx] : null;
+          const leadNumber = leadIdx >= 0 ? leadIdx + 1 : null;
           setMessages((prev) => [
             ...prev,
             {
               id: "stream-" + Date.now(),
               inspiration_id: activeId,
-              agent_id: null,
+              agent_id: leadAgent?.id ?? null,
               role: "agent",
               content: accumulated,
               created_at: new Date().toISOString(),
-              agent_name: null,
-              agent_number: null,
-              agent_model: null,
+              agent_name: leadAgent?.name ?? null,
+              agent_number: leadNumber,
+              agent_model: leadAgent?.model ?? null,
               mode: "chat",
               brainstorm_session_id: null,
               parent_message_id: null,
@@ -381,11 +405,13 @@ export default function ChatArea() {
         chatAbortRef.current = null;
         setChatStreamText("");
         setSending(false);
+        await stopStatusSync();
+        await loadMessages();
       }
     }
   }, [activeId, brainstormMode, brainstormActiveId, discussionActive, discussionConnected,
       discussionMessages.length, brainstormDiscuss, brainstormInject, waitForDiscussionIdle,
-      makeHumanMsg, makeErrMsg]);
+      makeHumanMsg, makeErrMsg, teamMembers, startStatusSync, stopStatusSync, loadMessages]);
 
   // ---- Process queue: drain one message at a time ----
 
@@ -413,6 +439,12 @@ export default function ChatArea() {
     await processQueue();
   };
 
+  const handleInterrupt = useCallback(() => {
+    if (!canInterrupt || interruptRequested) return;
+    setInterruptRequested(true);
+    brainstormStopDiscuss();
+  }, [canInterrupt, interruptRequested, brainstormStopDiscuss]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -435,7 +467,7 @@ export default function ChatArea() {
                   : `${teamMembers.length} AGENT${teamMembers.length !== 1 ? "S" : ""} IDLE`}
               >
                 <span className={`chatarea__status-dot${workingCount > 0 ? " chatarea__status-dot--working" : " chatarea__status-dot--idle"}`} />
-                <span className="chatarea__status-count">{teamMembers.length}</span>
+                <span className="chatarea__status-count">{workingCount > 0 ? workingCount : teamMembers.length}</span>
                 <svg className="chatarea__status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="8" width="18" height="12" rx="3" />
                   <circle cx="9" cy="14" r="2" />
@@ -502,16 +534,31 @@ export default function ChatArea() {
           </div>
         ) : (
           <div className="chatarea__messages">
-            <DisplayItems messages={messages} dividers={dividers} formatMessageTime={formatMessageTime} agentColorMap={agentColorMap} brainstormMode={brainstormMode} onReply={handleReply} />
+            <DisplayItems
+              messages={messages}
+              dividers={dividers}
+              formatMessageTime={formatMessageTime}
+              agentColorMap={agentColorMap}
+              onReply={handleReply}
+              brainstormSessions={brainstormSessions}
+            />
             {/* Brainstorm: show real-time token stream for active agent */}
             {discussionActive && activeAgentId && (() => {
               const agentColor = activeAgentNumber ? (agentColorMap[activeAgentNumber] ?? "#94A3B8") : "#94A3B8";
+              const streamParentMsg = activeParentMessageId
+                ? discussionMessages.find((m) => m.id === activeParentMessageId) ?? null
+                : null;
+              const streamThreadAccent = activeParentMessageId
+                ? threadColor(getRootId(activeParentMessageId, discussionMessages))
+                : null;
               return (
                 <BrainstormStreamBubble
                   agentName={activeAgentName || "Agent"}
                   agentNumber={activeAgentNumber}
                   agentColor={agentColor}
                   streamingContent={streamingContent}
+                  parentMsg={streamParentMsg}
+                  quoteAccent={streamThreadAccent}
                 />
               );
             })()}
@@ -527,8 +574,32 @@ export default function ChatArea() {
                     <line x1="15" y1="6" x2="15" y2="4" />
                     <line x1="12" y1="6" x2="12" y2="3" />
                   </svg>
+                  {(() => {
+                    const leadIdx = teamMembers.findIndex((m) => m.role === "lead");
+                    const leadNumber = leadIdx >= 0 ? leadIdx + 1 : null;
+                    return (
+                      <span
+                        className="chat-message__avatar-num"
+                        style={leadNumber && agentColorMap[leadNumber] ? { color: agentColorMap[leadNumber], borderColor: `${agentColorMap[leadNumber]}44`, background: `${agentColorMap[leadNumber]}12` } : undefined}
+                      >
+                        {leadNumber ?? "?"}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="chat-message__bubble">
+                  {(() => {
+                    const lead = teamMembers.find((m) => m.role === "lead") ?? null;
+                    return (
+                      <div className="chat-message__agent-info">
+                        <span className="chat-message__agent-name">{lead?.name || "Agent"}</span>
+                        {lead?.model && (
+                          <span className="chat-message__agent-model">{lead.model}</span>
+                        )}
+                        <span className="chat-message__time">typing…</span>
+                      </div>
+                    );
+                  })()}
                   <div className="chat-message__content">
                     {chatStreamText}
                     <span className="brainstorm-cursor">▌</span>
@@ -599,6 +670,7 @@ export default function ChatArea() {
               <button
                 className={`chatarea__tool-btn${brainstormMode ? " chatarea__tool-btn--active" : ""}`}
                 data-tooltip={brainstormMode ? "End Brainstorm" : "Start Brainstorm"}
+                aria-label={brainstormMode ? "End Brainstorm" : "Start Brainstorm"}
                 onClick={handleToggleBrainstorm}
                 disabled={!activeInspiration}
               >
@@ -606,18 +678,27 @@ export default function ChatArea() {
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
               </button>
+              {brainstormMode && (
+                <button
+                  className={`chatarea__tool-btn chatarea__tool-btn--interrupt${canInterrupt && !interruptRequested ? " chatarea__tool-btn--active" : " chatarea__tool-btn--muted"}`}
+                  data-tooltip={canInterrupt && !interruptRequested
+                    ? "Interrupt current brainstorm round"
+                    : "Interrupt unavailable"
+                  }
+                  aria-label="Interrupt Brainstorm"
+                  onClick={handleInterrupt}
+                  disabled={!canInterrupt || interruptRequested}
+                >
+                  {/* Speaker-with-X mute icon — "silence the talking agent" */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="15" y1="9" x2="21" y2="15" />
+                    <line x1="21" y1="9" x2="15" y2="15" />
+                  </svg>
+                </button>
+              )}
             </div>
-            {brainstormMode && (discussionActive || discussionConnected) ? (
-              <button
-                className="chatarea__stop-btn"
-                onClick={() => discussionConnected ? brainstormDisconnect() : brainstormStopDiscuss()}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
-                </svg>
-                <span>Stop</span>
-              </button>
-            ) : (
+            {!(brainstormMode && (discussionActive || discussionConnected)) && (
               <button
                 className="chatarea__send-btn"
                 disabled={!activeInspiration || !input.trim()}
@@ -684,15 +765,15 @@ const DisplayItems = memo(function DisplayItems({
   dividers,
   formatMessageTime,
   agentColorMap,
-  brainstormMode,
   onReply,
+  brainstormSessions,
 }: {
   messages: Message[];
   dividers: DividerItem[];
   formatMessageTime: (iso: string) => string;
   agentColorMap: Record<number, string>;
-  brainstormMode: boolean;
   onReply: (id: string, preview: string) => void;
+  brainstormSessions: { id: string }[];
 }) {
   const items = useMemo<DisplayItem[]>(() => {
     const sorted = [...dividers].sort((a, b) => a.ts.localeCompare(b.ts));
@@ -717,11 +798,31 @@ const DisplayItems = memo(function DisplayItems({
           return <BrainstormDivider key={item.id} label={item.label} variant={item.variant} />;
         }
         const m = item as Message;
+        if (m.role === "system" && (m.intent === "divider_start" || m.intent === "divider_end")) {
+          const sessionIndex = m.brainstorm_session_id
+            ? sessionNum(brainstormSessions, m.brainstorm_session_id)
+            : null;
+          const phase = m.intent === "divider_start" ? "Started" : "Ended";
+          const unifiedLabel = sessionIndex ? `Brainstorm #${sessionIndex} ${phase}` : m.content;
+          return (
+            <BrainstormDivider
+              key={m.id}
+              label={unifiedLabel || (m.intent === "divider_start" ? "Brainstorm Started" : "Brainstorm Ended")}
+              variant={m.intent === "divider_start" ? "start" : "end"}
+            />
+          );
+        }
         const isHuman = m.role === "human";
+        const isBrainstormMsg = m.mode === "brainstorm";
 
-        // Thread color line: only in brainstorm mode for reply messages
-        const threadLine = brainstormMode && m.parent_message_id
+        // Thread color: only in brainstorm mode for reply messages
+        const threadAccent = isBrainstormMsg && m.parent_message_id
           ? threadColor(getRootId(m.parent_message_id, messages))
+          : null;
+
+        // Find the parent message to show as a quote preview
+        const parentMsg = m.parent_message_id
+          ? messages.find((msg) => msg.id === m.parent_message_id) ?? null
           : null;
 
         // Reply preview: first 30 chars of content (or agent name prefix)
@@ -730,8 +831,7 @@ const DisplayItems = memo(function DisplayItems({
         return (
           <div
             key={m.id}
-            className={`chat-message${isHuman ? " chat-message--human" : " chat-message--agent"}${brainstormMode ? " chat-message--brainstorm" : ""}`}
-            style={threadLine ? { borderLeft: `3px solid ${threadLine}`, paddingLeft: "6px" } : undefined}
+            className={`chat-message${isHuman ? " chat-message--human" : " chat-message--agent"}${isBrainstormMsg ? " chat-message--brainstorm" : ""}`}
           >
             {!isHuman && (
               <div className="chat-message__avatar">
@@ -754,7 +854,7 @@ const DisplayItems = memo(function DisplayItems({
                     <span className="chat-message__agent-model">{m.agent_model}</span>
                   )}
                   <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
-                  {brainstormMode && (
+                  {isBrainstormMsg && (
                     <button
                       className="chat-message__reply-btn"
                       onClick={() => onReply(m.id, replyPreview)}
@@ -769,7 +869,7 @@ const DisplayItems = memo(function DisplayItems({
                 <div className="chat-message__agent-info">
                   <span className="chat-message__role">You</span>
                   <span className="chat-message__time">{formatMessageTime(m.created_at)}</span>
-                  {brainstormMode && (
+                  {isBrainstormMsg && (
                     <button
                       className="chat-message__reply-btn"
                       onClick={() => onReply(m.id, replyPreview)}
@@ -778,6 +878,19 @@ const DisplayItems = memo(function DisplayItems({
                       ↩
                     </button>
                   )}
+                </div>
+              )}
+              {parentMsg && (
+                <div
+                  className="chat-message__quote"
+                  style={threadAccent ? { borderLeftColor: threadAccent } : undefined}
+                >
+                  <span className="chat-message__quote-author">
+                    {parentMsg.agent_name || "You"}
+                  </span>
+                  <span className="chat-message__quote-text">
+                    {parentMsg.content.slice(0, 80)}{parentMsg.content.length > 80 ? "…" : ""}
+                  </span>
                 </div>
               )}
               <div className="chat-message__content">{m.content}</div>

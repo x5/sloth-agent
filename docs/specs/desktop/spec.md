@@ -1,7 +1,7 @@
 # 桌面应用 MVP
 
 > 归档参考: archive/initial-specs/20260425-mvp-desktop-app-spec.md
-> 最后更新: 2026-05-01
+> 最后更新: 2026-05-02
 
 ## 概述
 
@@ -40,6 +40,22 @@
 - `InspirationList`, `ChatArea`, `RightPanel`
 - `AgentPoolList`, `AgentDetail`
 - `SettingsPage`, `LLMConfig`
+
+### 侧栏列表滚动行为
+- Inspiration 列表、Agents 列表、Settings 列表在窗口高度不足时，必须保持 item 高度稳定并显示纵向滚动。
+- 列容器与滚动容器必须显式允许高度收缩（`min-height: 0`）。
+- 列表 item / provider card 必须禁止沿纵向主轴收缩（`flex: 0 0 auto`），避免内容被压扁重叠。
+
+### 滚动条样式
+- 桌面应用主要滚动容器必须统一使用与聊天消息区一致的蓝色细滚动条样式。
+- 统一样式包括：`scrollbar-width: thin`、蓝色半透明 thumb、transparent track，以及 hover 时更高可见度的蓝色 thumb。
+
+### Brainstorm interrupt 按钮
+- 在 brainstorm mode 下，输入区必须提供一个与 brainstorm 闪电按钮并排的 interrupt icon button，用于中断当前讨论轮次。
+- interrupt button 必须使用“捂嘴”语义 icon，而不是独立红色文字按钮。
+- 只有在当前存在 active agent 正在输出时，按钮才必须呈 brainstorm 紫色可点击态。
+- 当 interrupt 已触发或当前无可中断轮次时，按钮必须保持可见，但呈灰色不可点击态。
+- 点击 interrupt 只能中断当前正在进行的 agent 回复 / 当前 round，不能结束 brainstorm mode；brainstorm mode 的开始与结束仍由闪电按钮独立控制。
 
 ### Zustand Stores
 - `inspirationStore`, `chatStore`, `agentPoolStore`, `agentStore`

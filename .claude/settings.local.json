@@ -162,7 +162,11 @@
       "WebFetch(domain:www.npmjs.com)",
       "Bash(chmod +x *)",
       "Bash(npx @playwright/mcp@latest --help)",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "Bash(npx eslint *)",
+      "Bash(cat lefthook.yml)",
+      "Bash(cat .lefthook.yml)",
+      "Bash(lefthook version *)"
     ]
   }
 }

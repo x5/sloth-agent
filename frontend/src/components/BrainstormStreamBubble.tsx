@@ -1,12 +1,19 @@
 
+interface ParentMsgPreview {
+  agent_name: string | null;
+  content: string;
+}
+
 interface Props {
   agentName: string;
   agentNumber?: number | null;
   agentColor?: string;
   streamingContent?: string;
+  parentMsg?: ParentMsgPreview | null;
+  quoteAccent?: string | null;
 }
 
-export default function BrainstormStreamBubble({ agentName, agentNumber, agentColor, streamingContent }: Props) {
+export default function BrainstormStreamBubble({ agentName, agentNumber, agentColor, streamingContent, parentMsg, quoteAccent }: Props) {
   const color = agentColor || "#94A3B8";
   const hasContent = streamingContent && streamingContent.length > 0;
 
@@ -33,6 +40,14 @@ export default function BrainstormStreamBubble({ agentName, agentNumber, agentCo
           <span className="chat-message__agent-name">{agentName}</span>
           <span className="chat-message__time" style={{ color }}>typing…</span>
         </div>
+        {parentMsg && (
+          <div className="chat-message__quote" style={quoteAccent ? { borderLeftColor: quoteAccent } : undefined}>
+            <span className="chat-message__quote-author">{parentMsg.agent_name || "You"}</span>
+            <span className="chat-message__quote-text">
+              {parentMsg.content.slice(0, 80)}{parentMsg.content.length > 80 ? "…" : ""}
+            </span>
+          </div>
+        )}
         <div className="chat-message__content">
           {hasContent ? (
             <span>
