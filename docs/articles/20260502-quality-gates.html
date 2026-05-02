@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <title>质量门禁体系 — 三层防御 + 即时诊断</title>
+  <meta name="description" content="Sloth Agent 的质量门禁实践：测试文件覆盖强制、PostToolUse 即时类型诊断、Playwright MCP 浏览器验证——如何让坏代码根本提交不了。" />
+  <style>
+    :root {
+      --bg: #0B0F19;
+      --card: #151B2B;
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139,92,246,0.12);
+      --purple-glow: rgba(139,92,246,0.25);
+      --cyan: #06B6D4;
+      --cyan-soft: rgba(6,182,212,0.12);
+      --green: #22c55e;
+      --green-soft: rgba(34,197,94,0.12);
+      --amber: #F59E0B;
+      --amber-soft: rgba(245,158,11,0.12);
+      --red: #EF4444;
+      --red-soft: rgba(239,68,68,0.12);
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --muted-dim: #64748B;
+      --border: rgba(255,255,255,0.06);
+      --border-accent: rgba(139,92,246,0.25);
+      --radius-card: 16px;
+      --radius-panel: 24px;
+      --shadow-base: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-hover: 0 8px 40px rgba(139,92,246,0.12);
+      --font-mono: "JetBrains Mono", "Noto Sans SC", monospace;
+      --font-heading: "JetBrains Mono", "Noto Sans SC", sans-serif;
+      --font-body: "Inter", "Noto Sans SC", sans-serif;
+      --font-sc: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+      --max-w: 1200px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font-body); line-height: 1.6;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%);
+      z-index: 0;
+    }
+    .progress-bar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa); transform-origin: left; transform: scaleX(0); z-index: 100; }
+    .topbar { position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(11,15,25,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); max-width: var(--max-w); margin: 0 auto; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.14em; color: var(--text); }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15); }
+    .topbar-date { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
+    .section { max-width: var(--max-w); margin: 0 auto; padding: 64px 24px; }
+    .section-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: var(--purple); margin-bottom: 12px; }
+    .section-heading { font-family: var(--font-heading); font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 700; line-height: 1.25; color: var(--text); margin: 0; }
+    .heading-group { display: flex; flex-direction: column; gap: 6px; }
+    .heading-dialect { font-family: var(--font-sc); font-size: clamp(0.88rem, 1.8vw, 1.05rem); font-weight: 500; color: var(--amber); line-height: 1.5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .dialect-tag { flex-shrink: 0; padding: 1px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; color: var(--amber); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); letter-spacing: 0.04em; white-space: nowrap; }
+    .hero { text-align: center; padding-top: 48px; }
+    .hero-icon { width: 96px; height: 96px; margin: 0 auto 24px; display: block; }
+    .hero-title { font-family: var(--font-heading); font-size: clamp(2.4rem, 6vw, 4.5rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--green) 50%, var(--cyan) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 20px; }
+    .hero-subtitle { font-family: var(--font-sc); font-size: clamp(1rem, 2vw, 1.25rem); font-weight: 400; color: var(--muted); max-width: 56ch; margin: 0 auto 24px; line-height: 2; }
+    .hero-subtitle strong { color: var(--text); font-weight: 600; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
+    .pill.purple { border-color: var(--border-accent); color: var(--purple); }
+    .pill.cyan { border-color: rgba(6,182,212,0.25); color: var(--cyan); }
+    .pill.green { border-color: rgba(34,197,94,0.25); color: var(--green); }
+    .pill.amber { border-color: rgba(245,158,11,0.25); color: var(--amber); }
+    .diagram-svg { width: 100%; height: auto; margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); box-shadow: var(--shadow-base); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; display: grid; grid-template-columns: 1fr; align-content: start; gap: 14px; box-shadow: var(--shadow-base); transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+    .card:hover { transform: translateY(-3px); border-color: var(--border-accent); box-shadow: var(--shadow-hover); }
+    .card-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--purple-soft); border: 1px solid var(--border-accent); }
+    .card-icon svg { width: 20px; height: 20px; stroke: var(--purple); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .card-icon.cyan { background: var(--cyan-soft); border-color: rgba(6,182,212,0.25); }
+    .card-icon.cyan svg { stroke: var(--cyan); }
+    .card-icon.green { background: var(--green-soft); border-color: rgba(34,197,94,0.25); }
+    .card-icon.green svg { stroke: var(--green); }
+    .card-icon.amber { background: var(--amber-soft); border-color: rgba(245,158,11,0.25); }
+    .card-icon.amber svg { stroke: var(--amber); }
+    .card-icon.red { background: var(--red-soft); border-color: rgba(239,68,68,0.25); }
+    .card-icon.red svg { stroke: var(--red); }
+    .card h3 { font-family: var(--font-heading); font-size: 1rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .cmp-table-wrap { margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-base); }
+    .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .cmp-table thead th { background: rgba(139,92,246,0.08); font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600; color: var(--text); padding: 18px 20px; text-align: left; }
+    .cmp-table tbody td { padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.6; vertical-align: top; }
+    .cmp-table tbody td:first-child { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--purple); white-space: nowrap; width: 140px; }
+    .cmp-table tbody td:nth-child(2) { color: var(--text); }
+    .cmp-table tbody tr:hover td { background: rgba(139,92,246,0.04); }
+    .terminal { background: #0a0d14; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; margin-top: 32px; }
+    .terminal-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #F59E0B; }
+    .terminal-dot.green { background: #22c55e; }
+    .terminal-title { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); margin-left: 8px; }
+    .terminal-body { padding: 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+    .t-purple { color: #a78bfa; }
+    .t-cyan { color: var(--cyan); }
+    .t-green { color: var(--green); }
+    .t-amber { color: var(--amber); }
+    .t-red { color: var(--red); }
+    .t-muted { color: var(--muted-dim); }
+    .t-white { color: var(--text); }
+    .quote-panel { background: var(--card); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 32px; margin-top: 64px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
+    .quote-mark { font-family: var(--font-mono); font-size: 4rem; font-weight: 700; color: var(--purple); line-height: 0.8; }
+    .quote-text { font-family: var(--font-sc); font-size: 1.15rem; font-weight: 500; color: var(--text); line-height: 1.7; }
+    .analogy-panel { background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.04)); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 28px 32px; margin-top: 32px; }
+    .analogy-title { font-family: var(--font-sc); font-size: 1.05rem; font-weight: 700; color: var(--amber); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .analogy-body { font-family: var(--font-sc); font-size: 0.95rem; color: var(--muted); line-height: 1.8; }
+    .analogy-body strong { color: var(--text); }
+    .pro-con-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .pro-card, .con-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; }
+    .pro-card { border-top: 3px solid var(--green); }
+    .con-card { border-top: 3px solid var(--red); }
+    .pro-con-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+    .pro-card .pro-con-title { color: var(--green); }
+    .con-card .pro-con-title { color: var(--red); }
+    .pro-con-list { list-style: none; display: grid; gap: 12px; }
+    .pro-con-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+    .pro-con-list li::before { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; width: 20px; text-align: center; }
+    .pro-card .pro-con-list li::before { content: "+"; color: var(--green); }
+    .con-card .pro-con-list li::before { content: "-"; color: var(--red); }
+    .pro-con-list li strong { color: var(--text); }
+    .anti-table-wrap { margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-base); }
+    .anti-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .anti-table thead th { background: rgba(239,68,68,0.06); font-family: var(--font-heading); font-size: 0.9rem; font-weight: 600; color: var(--text); padding: 16px 20px; text-align: left; border-bottom: 1px solid rgba(239,68,68,0.15); }
+    .anti-table tbody td { padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.6; vertical-align: top; }
+    .anti-table tbody td:first-child { color: var(--red); font-weight: 600; white-space: nowrap; }
+    .anti-table tbody td:last-child { color: var(--green); }
+    .anti-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+    .layer-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+    .layer-badge.l1 { background: var(--cyan-soft); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+    .layer-badge.l2 { background: var(--purple-soft); color: var(--purple); border: 1px solid var(--border-accent); }
+    .layer-badge.l3 { background: var(--green-soft); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .footer { max-width: var(--max-w); margin: 0 auto; padding: 0 24px 64px; }
+    .footer-panel { background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%); border: 1px solid var(--border); border-radius: var(--radius-panel); padding: 40px; display: grid; gap: 24px; box-shadow: var(--shadow-base); }
+    .footer-heading { font-family: var(--font-heading); font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 700; line-height: 1.25; color: var(--text); }
+    .footer-note { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); padding-top: 16px; border-top: 1px solid var(--border); }
+    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+    @media (max-width: 980px) { .grid-2, .grid-3, .pro-con-grid { grid-template-columns: 1fr; } .cmp-table-wrap, .anti-table-wrap { overflow-x: auto; } .cmp-table, .anti-table { min-width: 600px; } }
+    @media (max-width: 720px) { .section { padding: 48px 16px; } .topbar { flex-direction: column; gap: 8px; align-items: flex-start; } .footer-panel { padding: 24px; } .quote-panel { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <div class="progress-bar" id="progress"></div>
+
+  <header class="topbar">
+    <div class="brand"><svg width="20" height="20" viewBox="100 80 880 840" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><g transform="translate(512,512) scale(1.48,1.48) translate(-722,-657)"><path fill="#ffffff" d="M 444.18 743.32 C 444.98 741.15 445.15 738.02 445.64 735.91 Q 448.89 721.82 452.21 710.96 Q 458.39 690.73 469.00 671.08 Q 492.00 628.52 528.54 599.12 Q 564.42 570.26 609.43 563.66 Q 630.12 560.63 648.20 562.88 Q 694.15 568.62 723.38 604.28 A 0.82 0.81 44.6 0 0 724.64 604.28 C 746.18 577.51 777.86 562.85 812.02 562.05 C 856.69 561.00 897.63 578.20 930.22 608.29 C 969.28 644.37 996.00 692.99 1003.54 745.65 A 0.27 0.27 0.0 0 0 1004.07 745.64 Q 1006.92 720.60 1005.80 694.04 Q 1003.28 634.07 976.03 580.12 C 945.88 520.41 894.58 471.75 833.15 446.69 Q 781.67 425.69 725.74 425.56 C 657.69 425.40 592.40 447.82 541.19 491.93 C 474.03 549.78 437.12 633.62 442.22 722.73 Q 442.84 733.47 443.79 743.27 A 0.20 0.20 0.0 0 0 444.18 743.32 Z"/><path fill="#192d4c" d="M 722.94 754.71 C 739.39 754.72 771.24 759.82 771.23 782.51 C 771.22 805.21 739.37 810.28 722.92 810.27 C 706.46 810.27 674.61 805.17 674.62 782.47 C 674.63 759.78 706.48 754.70 722.94 754.71 Z"/></g></svg>SLOTH AGENT &middot; QUALITY GATES</div>
+    <div class="topbar-date">2026-05-02 &middot; Engineering Practice</div>
+  </header>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="section hero">
+    <svg class="hero-icon" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 48 12 L 76 28 V 52 C 76 70 62 82 48 88 C 34 82 20 70 20 52 V 28 Z" fill="none" stroke="#22c55e" stroke-width="3"/>
+      <path d="M 48 20 L 68 32 V 52 C 68 66 56 76 48 80 C 40 76 28 66 28 52 V 32 Z" fill="rgba(34,197,94,0.08)" stroke="rgba(34,197,94,0.3)" stroke-width="1.5"/>
+      <polyline points="36,50 44,58 60,42" fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="48" cy="50" r="18" fill="none" stroke="rgba(34,197,94,0.15)" stroke-width="1"/>
+    </svg>
+    <h1 class="hero-title">Quality Gates</h1>
+    <p class="hero-subtitle">
+      <strong>让坏代码根本提交不了</strong><br>
+      三层测试门禁 + 即时类型诊断 + 浏览器自动验证——<br>
+      不是靠人记住规范，而是<strong>让机器强制执行</strong>
+    </p>
+    <div class="hero-pills">
+      <span class="pill cyan">测试文件 100% 覆盖</span>
+      <span class="pill purple">写完即诊断</span>
+      <span class="pill green">CI 合并拦截</span>
+      <span class="pill amber">三语言覆盖</span>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 1: WHY ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§1 Problem</div>
+    <div class="heading-group">
+      <h2 class="section-heading">为什么需要质量门禁？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">痛点</span>规范写在文档里，但没人执行；测试覆盖率 7%，代码裸奔上线</p>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">🏗️ 建筑类比</div>
+      <div class="analogy-body">
+        想象你是一个建筑工地的安全主管。工地上有安全规范手册，但没人检查工人是否戴安全帽。<br><br>
+        <strong>没有门禁的做法</strong>：规范写了"必须戴安全帽"，但工人嫌热不戴，主管假装没看见。直到出了事故才追责——但已经晚了。<br><br>
+        <strong>有门禁的做法</strong>：工地入口装了闸机，不戴安全帽的人<strong>根本进不去</strong>。不是靠自觉，是靠硬件。<br><br>
+        质量门禁就是代码仓库的<strong>闸机</strong>。
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon red">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h3>没有门禁的痛</h3>
+        <p>CLAUDE.md 写了"组件必须有测试"，但 15 个组件只有 1 个有测试（7%）。规范形同虚设，坏代码畅通无阻。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>三层门禁</h3>
+        <p>本地脚本 → Git Hook → CI 检查，三层拦截。测试文件不存在？提交不了。类型检查不过？编辑时就知道。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h3>结果</h3>
+        <p>覆盖率从 7% 到 100%。不是靠人记住"要写测试"，而是<strong>不写测试就提交不了</strong>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 2: THREE LAYERS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§2 Architecture</div>
+    <div class="heading-group">
+      <h2 class="section-heading">三层测试门禁</h2>
+      <p class="heading-dialect"><span class="dialect-tag">核心</span>本地脚本（秒级反馈）→ Git Hook（提交拦截）→ CI（合并拦截）</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three Layer Gates">
+      <defs>
+        <pattern id="tl-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/></pattern>
+        <marker id="tl-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/></marker>
+        <marker id="tl-arr-c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#06B6D4"/></marker>
+        <marker id="tl-arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
+      </defs>
+      <rect width="1000" height="380" fill="#0B0F19"/><rect width="1000" height="380" fill="url(#tl-grid)"/>
+
+      <!-- Layer 1 -->
+      <rect x="30" y="40" width="280" height="140" rx="14" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="2"/>
+      <text x="50" y="70" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#06B6D4">LAYER 1: 本地脚本</text>
+      <text x="50" y="95" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">check-test-coverage.sh</text>
+      <text x="50" y="118" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">扫描所有组件和路由</text>
+      <text x="50" y="138" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">验证对应测试文件存在</text>
+      <text x="50" y="165" font-family="JetBrains Mono, monospace" font-size="10" fill="#06B6D4">~ 0.8s | exit 0/1</text>
+
+      <line x1="310" y1="110" x2="350" y2="110" stroke="#06B6D4" stroke-width="2" marker-end="url(#tl-arr-c)"/>
+
+      <!-- Layer 2 -->
+      <rect x="355" y="40" width="280" height="140" rx="14" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="2"/>
+      <text x="375" y="70" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#8B5CF6">LAYER 2: Git Hook</text>
+      <text x="375" y="95" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">lefthook pre-commit</text>
+      <text x="375" y="118" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">提交时自动运行 L1 脚本</text>
+      <text x="375" y="138" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">+ 自动 lint:fix 修复格式</text>
+      <text x="375" y="165" font-family="JetBrains Mono, monospace" font-size="10" fill="#8B5CF6">~ 1s | 阻塞提交</text>
+
+      <line x1="635" y1="110" x2="675" y2="110" stroke="#8B5CF6" stroke-width="2" marker-end="url(#tl-arr)"/>
+
+      <!-- Layer 3 -->
+      <rect x="680" y="40" width="290" height="140" rx="14" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="2"/>
+      <text x="700" y="70" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#22c55e">LAYER 3: CI 门禁</text>
+      <text x="700" y="95" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">GitHub Actions</text>
+      <text x="700" y="118" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">test-file-gate: 全量检查</text>
+      <text x="700" y="138" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">lint + unit + integration</text>
+      <text x="700" y="165" font-family="JetBrains Mono, monospace" font-size="10" fill="#22c55e">PR 必须通过才能合并</text>
+
+      <!-- Bottom: what each layer blocks -->
+      <rect x="80" y="220" width="240" height="60" rx="10" fill="rgba(6,182,212,0.04)" stroke="rgba(6,182,212,0.15)" stroke-width="1"/>
+      <text x="200" y="248" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#06B6D4">开发者的终端</text>
+      <text x="200" y="268" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">即时反馈："你少了 3 个测试文件"</text>
+
+      <rect x="385" y="220" width="240" height="60" rx="10" fill="rgba(139,92,246,0.04)" stroke="rgba(139,92,246,0.15)" stroke-width="1"/>
+      <text x="505" y="248" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#8B5CF6">git commit</text>
+      <text x="505" y="268" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">提交被拦截："测试文件缺失"</text>
+
+      <rect x="690" y="220" width="240" height="60" rx="10" fill="rgba(34,197,94,0.04)" stroke="rgba(34,197,94,0.15)" stroke-width="1"/>
+      <text x="810" y="248" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#22c55e">PR Merge</text>
+      <text x="810" y="268" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">合并被阻止："CI 未通过"</text>
+
+      <!-- Flow lines -->
+      <line x1="200" y1="200" x2="200" y2="218" stroke="rgba(6,182,212,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="505" y1="180" x2="505" y2="218" stroke="rgba(139,92,246,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="810" y1="180" x2="810" y2="218" stroke="rgba(34,197,94,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <!-- Bottom label -->
+      <text x="500" y="320" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" fill="#94A3B8">三层防御，任何一层都能独立拦截。坏代码逃不过去。</text>
+      <text x="500" y="345" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">L1 给开发者即时反馈，L2 防止意外提交，L3 防止合并到主分支</text>
+    </svg>
+  </section>
+
+  <!-- ==================== SECTION 3: CHECK SCRIPT ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§3 Layer 1</div>
+    <div class="heading-group">
+      <h2 class="section-heading">检查脚本：scripts/check-test-coverage.sh</h2>
+      <p class="heading-dialect"><span class="dialect-tag">本地</span>扫描所有组件和路由，验证对应测试文件存在——0.8 秒出结果</p>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">bash scripts/check-test-coverage.sh</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted"># 前端组件检查</span>
+<span class="t-white">frontend/src/components/AgentDetail.tsx</span>    <span class="t-green">✓ AgentDetail.test.tsx</span>
+<span class="t-white">frontend/src/components/ChatArea.tsx</span>        <span class="t-green">✓ ChatArea.test.tsx</span>
+<span class="t-white">frontend/src/components/ProviderList.tsx</span>    <span class="t-green">✓ ProviderList.test.tsx</span>
+<span class="t-white">...</span>                                        <span class="t-green">✓ 15/15 组件全部有测试</span>
+
+<span class="t-muted"># 后端路由检查</span>
+<span class="t-white">backend/app/routers/agents.py</span>              <span class="t-green">✓ test_agents.py</span>
+<span class="t-white">backend/app/routers/brainstorm.py</span>          <span class="t-green">✓ test_brainstorm.py</span>
+<span class="t-white">backend/app/routers/llm.py</span>                 <span class="t-green">✓ test_llm.py</span>
+<span class="t-white">...</span>                                        <span class="t-green">✓ 7/7 路由全部有集测</span>
+
+<span class="t-green">OK: All components and routers have corresponding test files.</span></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>前端组件匹配规则</h3>
+        <p>扫描 <code>frontend/src/components/*.tsx</code>，排除 <code>*.test.tsx</code> 和 <code>index.tsx</code>。每个组件必须有同目录下的 <code>ComponentName.test.tsx</code>。</p>
+      </div>
+      <div class="card">
+        <h3>后端路由匹配规则</h3>
+        <p>扫描 <code>backend/app/routers/*.py</code>，排除 <code>__init__.py</code>。每个路由文件必须有 <code>backend/tests/integration/test_{name}.py</code>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 4: HOOKS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§4 PostToolUse Hooks</div>
+    <div class="heading-group">
+      <h2 class="section-heading">即时类型诊断：写完就知道对不对</h2>
+      <p class="heading-dialect"><span class="dialect-tag">实时</span>每次编辑文件后，自动运行对应语言的类型检查——不用等 commit</p>
+    </div>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr><th>语言</th><th>触发文件</th><th>检查工具</th><th>耗时</th><th>检查内容</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>TypeScript</td><td><code>*.ts</code> / <code>*.tsx</code></td><td><code>tsc --noEmit</code></td><td>~2-3s</td><td>类型错误、接口不匹配、未使用的导入</td></tr>
+          <tr><td>Python</td><td><code>*.py</code></td><td><code>mypy</code></td><td>~3-5s</td><td>类型注解错误、函数签名不匹配</td></tr>
+          <tr><td>Rust</td><td><code>*.rs</code></td><td><code>cargo check</code></td><td>~3-10s</td><td>借用检查、类型错误、未使用的变量</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">.claude/hooks/post-edit-check.sh — 运行逻辑</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted"># 1. 从 stdin 读取 hook JSON，提取 file_path</span>
+<span class="t-cyan">FILE_PATH</span>=<span class="t-amber">$(echo "$INPUT" | python3 -c "extract file_path")</span>
+
+<span class="t-muted"># 2. 跳过非源码路径</span>
+<span class="t-purple">case</span> "$FILE_PATH" <span class="t-purple">in</span>
+  *node_modules*|*.venv*|*__pycache__*|*target/*) <span class="t-purple">exit</span> 0 ;;
+<span class="t-purple">esac</span>
+
+<span class="t-muted"># 3. 按扩展名分发</span>
+<span class="t-purple">case</span> "$REL_PATH" <span class="t-purple">in</span>
+  *.ts|*.tsx)  <span class="t-cyan">cd frontend && npx tsc --noEmit</span>    ;;
+  *.py)        <span class="t-cyan">uv run mypy "$REL_PATH"</span>           ;;
+  *.rs)        <span class="t-cyan">cd src-tauri && cargo check</span>        ;;
+<span class="t-purple">esac</span>
+
+<span class="t-muted"># 4. 非阻塞：失败仅 warning，不阻塞编辑</span>
+<span class="t-green">|| true</span>  <span class="t-muted"># exit 0 always</span></div>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">⚡ 非阻塞设计</div>
+      <div class="analogy-body">
+        类型检查失败时，hook 只输出警告（exit 0），<strong>不阻塞编辑操作</strong>。这是因为类型错误通常是渐进式的——你可能正在写一半的代码，中间状态有类型错误是正常的。<br><br>
+        真正的阻塞发生在<strong>提交时</strong>（lefthook pre-commit）和<strong>合并时</strong>（CI 门禁）。PostToolUse hook 的价值是<strong>即时反馈</strong>，不是强制执行。
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 5: PLAYWRIGHT MCP ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§5 Browser Verification</div>
+    <div class="heading-group">
+      <h2 class="section-heading">Playwright MCP：让 AI 打开浏览器验证</h2>
+      <p class="heading-dialect"><span class="dialect-tag">视觉</span>代码改完了，让 Claude 打开浏览器实际看看效果——不是盲写盲测</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-icon cyan">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <h3>Playwright MCP 是什么</h3>
+        <p>微软官方的 MCP 服务器，让 Claude 能控制浏览器：导航页面、点击元素、截图验证、检查 DOM 状态。比人工打开浏览器快 10 倍。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h3>用在哪</h3>
+        <p>前端组件改完后，让 Claude 打开页面截图验证布局；API 改完后，让 Claude 调用接口验证响应。不是"我觉得改对了"，而是"我看到了改对了"。</p>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">.mcp.json — 项目级 MCP 配置</span>
+      </div>
+      <div class="terminal-body"><span class="t-purple">{</span>
+  <span class="t-cyan">"mcpServers"</span>: <span class="t-purple">{</span>
+    <span class="t-cyan">"playwright"</span>: <span class="t-purple">{</span>
+      <span class="t-cyan">"command"</span>: <span class="t-green">"npx"</span>,
+      <span class="t-cyan">"args"</span>: [<span class="t-green">"@playwright/mcp@latest"</span>, <span class="t-green">"--headless"</span>]
+    <span class="t-purple">}</span>
+  <span class="t-purple">}</span>
+<span class="t-purple">}</span></div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 6: LEFTHOOK ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§6 Git Hooks</div>
+    <div class="heading-group">
+      <h2 class="section-heading">Lefthook：提交时自动拦截 + 自动修复</h2>
+      <p class="heading-dialect"><span class="dialect-tag">拦截</span>pre-commit hook 跑测试文件检查 + 自动 lint:fix</p>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">lefthook.yml</span>
+      </div>
+      <div class="terminal-body"><span class="t-cyan">pre-commit:</span>
+  <span class="t-cyan">parallel:</span> <span class="t-green">true</span>
+  <span class="t-cyan">commands:</span>
+    <span class="t-amber">test-file-gate:</span>
+      <span class="t-cyan">run:</span> <span class="t-green">bash scripts/check-test-coverage.sh</span>
+    <span class="t-amber">frontend-lint-fix:</span>
+      <span class="t-cyan">glob:</span> <span class="t-green">"frontend/src/**/*.{ts,tsx}"</span>
+      <span class="t-cyan">run:</span> <span class="t-green">cd frontend && npm run lint:fix && git add -u frontend/src/</span>
+      <span class="t-cyan">stage_fixed:</span> <span class="t-green">true</span></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>test-file-gate</h3>
+        <p>运行检查脚本，验证所有组件和路由都有对应测试文件。缺失任何一个，提交直接被拦截。</p>
+      </div>
+      <div class="card">
+        <h3>frontend-lint-fix</h3>
+        <p>当 staged 文件包含 <code>*.ts</code> / <code>*.tsx</code> 时，自动运行 <code>lint:fix</code> 并重新 stage 修复后的文件。格式问题自动修复，不用手动调。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 7: CI ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§7 CI Gates</div>
+    <div class="heading-group">
+      <h2 class="section-heading">GitHub Actions：最后的防线</h2>
+      <p class="heading-dialect"><span class="dialect-tag">合并</span>PR 必须通过所有检查才能合并——不允许"先合并后补测"</p>
+    </div>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr><th>CI Job</th><th>检查内容</th><th>命令</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>test-file-gate</td><td>所有组件/路由的测试文件存在性</td><td><code>bash scripts/check-test-coverage.sh</code></td></tr>
+          <tr><td>frontend-lint-and-unit</td><td>ESLint 检查 + Vitest 单元测试</td><td><code>npm run lint && npm run test -- --run</code></td></tr>
+          <tr><td>backend-unit</td><td>后端业务逻辑单元测试</td><td><code>pytest backend/tests/unit -v</code></td></tr>
+          <tr><td>backend-api-integration</td><td>API 路由集成测试</td><td><code>pytest backend/tests/integration -v</code></td></tr>
+          <tr><td>python-baseline</td><td>仓库基线测试 + 评估测试</td><td><code>pytest tests/ -v && pytest evals/ -v</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">🚫 不允许的例外</div>
+      <div class="analogy-body">
+        规则很简单：<strong>任一 Job 失败，PR 禁止合并</strong>。没有"先合并后补测"，没有"这个 warning 以后再修"。<br><br>
+        如果 CI 红了，要么修代码，要么修测试。不接受第三个选项。
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 8: TEST SKELETON ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§8 Skeleton Tests</div>
+    <div class="heading-group">
+      <h2 class="section-heading">骨架测试：最小成本达到 100% 覆盖</h2>
+      <p class="heading-dialect"><span class="dialect-tag">务实</span>不要求每个测试都有 10 个 case，但每个组件/路由至少有一个骨架</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="color:var(--cyan);">前端骨架测试（Vitest）</h3>
+        <p>最小标准：渲染不报错 + 关键交互 + 一个边界。用 <code>vi.mock</code> mock API 层，避免真实网络请求。15 个组件，36 个测试用例。</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--green);">后端骨架测试（pytest）</h3>
+        <p>最小标准：1 条 2xx 成功路径 + 1 条 4xx/5xx 失败路径。用 <code>httpx.AsyncClient</code> + <code>ASGITransport</code> 直接测 FastAPI app。7 个路由，21 个测试用例。</p>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">前端骨架测试示例 — BrainstormStreamBubble.test.tsx</span>
+      </div>
+      <div class="terminal-body"><span class="t-purple">import</span> { render, screen } <span class="t-purple">from</span> <span class="t-green">'@testing-library/react'</span>;
+<span class="t-purple">import</span> BrainstormStreamBubble <span class="t-purple">from</span> <span class="t-green">'./BrainstormStreamBubble'</span>;
+
+<span class="t-cyan">describe</span>(<span class="t-green">'BrainstormStreamBubble'</span>, () => {
+  <span class="t-cyan">it</span>(<span class="t-green">'renders agent name'</span>, () => {
+    <span class="t-cyan">render</span>(<span class="t-amber">&lt;BrainstormStreamBubble agentName="TestAgent" /&gt;</span>);
+    <span class="t-cyan">expect</span>(screen.<span class="t-cyan">getByText</span>(<span class="t-green">'TestAgent'</span>)).<span class="t-cyan">toBeInTheDocument</span>();
+  });
+
+  <span class="t-cyan">it</span>(<span class="t-green">'renders streaming content when provided'</span>, () => {
+    <span class="t-cyan">render</span>(<span class="t-amber">&lt;BrainstormStreamBubble agentName="Agent" streamingContent="Hello" /&gt;</span>);
+    <span class="t-cyan">expect</span>(screen.<span class="t-cyan">getByText</span>(<span class="t-green">'Hello'</span>)).<span class="t-cyan">toBeInTheDocument</span>();
+  });
+
+  <span class="t-cyan">it</span>(<span class="t-green">'renders without content when streamingContent is empty'</span>, () => {
+    <span class="t-cyan">const</span> { container } = <span class="t-cyan">render</span>(<span class="t-amber">&lt;BrainstormStreamBubble agentName="Agent" /&gt;</span>);
+    <span class="t-cyan">expect</span>(container.<span class="t-cyan">querySelector</span>(<span class="t-green">'.chat-message'</span>)).<span class="t-cyan">toBeInTheDocument</span>();
+  });
+});</div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">后端骨架测试示例 — test_inspirations.py</span>
+      </div>
+      <div class="terminal-body"><span class="t-purple">@pytest.mark.asyncio</span>
+<span class="t-purple">async def</span> <span class="t-cyan">test_list_inspirations_returns_200</span>():
+    <span class="t-purple">async with</span> AsyncClient(transport=ASGITransport(app=app), base_url=<span class="t-green">'http://test'</span>) <span class="t-purple">as</span> client:
+        response = <span class="t-purple">await</span> client.<span class="t-cyan">get</span>(<span class="t-green">'/api/inspirations'</span>)
+    <span class="t-cyan">assert</span> response.status_code == <span class="t-amber">200</span>
+    <span class="t-cyan">assert</span> <span class="t-cyan">isinstance</span>(response.<span class="t-cyan">json</span>(), list)
+
+<span class="t-purple">@pytest.mark.asyncio</span>
+<span class="t-purple">async def</span> <span class="t-cyan">test_create_inspiration_with_empty_name_returns_422</span>():
+    <span class="t-purple">async with</span> AsyncClient(transport=ASGITransport(app=app), base_url=<span class="t-green">'http://test'</span>) <span class="t-purple">as</span> client:
+        response = <span class="t-purple">await</span> client.<span class="t-cyan">post</span>(<span class="t-green">'/api/inspirations'</span>, json={<span class="t-green">'name'</span>: <span class="t-green">''</span>})
+    <span class="t-cyan">assert</span> response.status_code == <span class="t-amber">422</span></div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 9: FILE STRUCTURE ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§9 Structure</div>
+    <div class="heading-group">
+      <h2 class="section-heading">质量管控文件全景</h2>
+      <p class="heading-dialect"><span class="dialect-tag">全貌</span>从脚本到配置到测试——一个完整的质量管控目录长什么样</p>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">质量管控相关文件</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted"># ── 门禁脚本 ──</span>
+<span class="t-cyan">scripts/check-test-coverage.sh</span>     <span class="t-muted"># 测试文件覆盖检查</span>
+
+<span class="t-muted"># ── Git Hooks ──</span>
+<span class="t-cyan">lefthook.yml</span>                       <span class="t-muted"># pre-commit 配置</span>
+<span class="t-cyan">package.json</span>                       <span class="t-muted"># lefthook devDependency (root)</span>
+
+<span class="t-muted"># ── Claude Code 集成 ──</span>
+<span class="t-cyan">.claude/settings.json</span>              <span class="t-muted"># PostToolUse hook 配置</span>
+<span class="t-cyan">.claude/hooks/post-edit-check.sh</span>   <span class="t-muted"># 即时类型诊断脚本</span>
+<span class="t-cyan">.mcp.json</span>                          <span class="t-muted"># Playwright MCP 配置</span>
+
+<span class="t-muted"># ── CI ──</span>
+<span class="t-cyan">.github/workflows/quality-gates.yml</span> <span class="t-muted"># 5 个 CI Job</span>
+
+<span class="t-muted"># ── 测试文件 ──</span>
+<span class="t-green">frontend/src/components/*.test.tsx</span>  <span class="t-muted"># 15 个组件测试 (36 cases)</span>
+<span class="t-green">backend/tests/integration/test_*.py</span> <span class="t-muted"># 7 个路由集测 (21 cases)</span>
+
+<span class="t-muted"># ── 类型检查配置 ──</span>
+<span class="t-amber">frontend/tsconfig.json</span>             <span class="t-muted"># strict: true</span>
+<span class="t-amber">pyproject.toml</span>                     <span class="t-muted"># [tool.mypy] 配置</span>
+<span class="t-amber">src-tauri/Cargo.toml</span>               <span class="t-muted"># cargo check 自动读取</span></div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 10: TRADE-OFFS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§10 Trade-offs</div>
+    <div class="heading-group">
+      <h2 class="section-heading">代价与收益</h2>
+      <p class="heading-dialect"><span class="dialect-tag">诚实</span>质量门禁不是免费的——有收益，也有成本</p>
+    </div>
+
+    <div class="pro-con-grid">
+      <div class="pro-card">
+        <div class="pro-con-title">收益</div>
+        <ul class="pro-con-list">
+          <li><strong>坏代码提交不了</strong> — 测试文件不存在就拦截，不是靠自觉</li>
+          <li><strong>即时反馈</strong> — PostToolUse hook 让你写完就知道类型对不对，不用等 commit</li>
+          <li><strong>覆盖率从 7% 到 100%</strong> — 骨架测试成本低，但保证每个模块都有最低保障</li>
+          <li><strong>三语言统一</strong> — TypeScript、Python、Rust 用同一套门禁逻辑</li>
+          <li><strong>CI 自动化</strong> — PR 必须通过所有检查，不允许"先合并后补测"</li>
+          <li><strong>lint 自动修复</strong> — lefthook pre-commit 自动跑 lint:fix，格式问题不用手动调</li>
+        </ul>
+      </div>
+      <div class="con-card">
+        <div class="pro-con-title">代价</div>
+        <ul class="pro-con-list">
+          <li><strong>每次编辑多 2-10 秒</strong> — PostToolUse hook 运行类型检查，拖慢交互节奏</li>
+          <li><strong>骨架测试不等于有效测试</strong> — "渲染不报错"是最弱的测试，不能替代业务逻辑测试</li>
+          <li><strong>维护成本</strong> — 新增组件/路由必须同步新增测试，否则提交不了</li>
+          <li><strong>cargo check 首次慢</strong> — Rust 编译首次需要 10-30s，有缓存后 ~3s</li>
+          <li><strong>hook 配置复杂度</strong> — 三层防御 + MCP 配置，新成员需要理解整体架构</li>
+          <li><strong>存量代码补齐</strong> — 从 7% 到 100% 需要一次性补齐所有缺失的测试</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 11: ANTI-PATTERNS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§11 Pitfalls</div>
+    <div class="heading-group">
+      <h2 class="section-heading">常见反模式</h2>
+      <p class="heading-dialect"><span class="dialect-tag">避坑</span>知道不该做什么，和知道该做什么一样重要</p>
+    </div>
+
+    <div class="anti-table-wrap">
+      <table class="anti-table">
+        <thead>
+          <tr><th style="width:240px">❌ 反模式</th><th>为什么不好</th><th style="width:240px">✅ 正确做法</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>骨架测试写完就不管了</td>
+            <td>"渲染不报错"是最弱的测试，不能发现业务逻辑 bug</td>
+            <td>骨架是起点，逐步补充交互和边界测试</td>
+          </tr>
+          <tr>
+            <td>hook 失败就阻塞</td>
+            <td>写一半的代码中间状态有类型错误是正常的，阻塞会打断心流</td>
+            <td>PostToolUse 非阻塞（warning），commit/CI 才阻塞</td>
+          </tr>
+          <tr>
+            <td>只加 CI 不加本地检查</td>
+            <td>开发者 push 后才发现问题，反馈循环太长</td>
+            <td>三层都要有：本地 → hook → CI</td>
+          </tr>
+          <tr>
+            <td>测试文件放错目录</td>
+            <td>检查脚本找不到测试文件，误报"缺失"</td>
+            <td>前端同目录 *.test.tsx，后端 tests/integration/</td>
+          </tr>
+          <tr>
+            <td>跳过存量补齐</td>
+            <td>门禁只能管增量，存量裸奔的代码永远不会被检查到</td>
+            <td>一次性补齐所有缺失的骨架测试</td>
+          </tr>
+          <tr>
+            <td>PostToolUse 跑完整测试套件</td>
+            <td>每次编辑跑 36 个测试要 10 秒+，严重影响交互体验</td>
+            <td>PostToolUse 只跑类型检查，完整测试留给 commit/CI</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Quote -->
+  <div class="section fade-in">
+    <div class="quote-panel">
+      <div class="quote-mark">&ldquo;</div>
+      <div class="quote-text">
+        <p>质量门禁的本质不是"检查代码"，而是"让坏代码根本提交不了"。靠人记住规范不如让机器强制执行。</p>
+        <p style="color:var(--muted); font-size:0.95rem; margin-top:10px;">—— 质量门禁体系的第一性原理</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer fade-in">
+    <div class="footer-panel">
+      <div class="section-label">Closing</div>
+      <h2 class="footer-heading">三层防御，任何一层都能独立拦截。坏代码逃不过去。</h2>
+      <p class="heading-dialect"><span class="dialect-tag">记住</span>本地脚本给反馈，Git Hook 拦提交，CI 拦合并——一个都不能少</p>
+      <p class="footer-note">
+        文章版本 1.0 &middot; 2026-05-02 &middot; 适用 Sloth Agent 及所有采用质量门禁体系的项目 &middot;
+        完整配置见 <code style="color:var(--purple);">scripts/check-test-coverage.sh</code>、<code style="color:var(--purple);">lefthook.yml</code>、<code style="color:var(--purple);">.claude/settings.json</code>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const progress = document.getElementById('progress');
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')';
+    };
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    const observer = new IntersectionObserver(
+      (entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
