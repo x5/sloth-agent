@@ -7,7 +7,21 @@ from sqlalchemy.orm import DeclarativeBase
 DB_PATH = os.environ.get("SLOTH_DB_PATH", os.path.join(os.path.dirname(__file__), "..", "sloth.db"))
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    connect_args={"timeout": 15},  # busy-wait up to 15 s before "database is locked"
+)
+
+async def _enable_wal(conn):
+    """Switch SQLite to WAL journal mode for better concurrent access.
+    Best-effort: if the DB is locked by another process, skip silently."""
+    try:
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
+        await conn.execute(text("PRAGMA synchronous=NORMAL"))
+    except Exception:
+        pass  # DB already in use; WAL will be set on next clean startup
+
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -41,4 +55,5 @@ async def _migrate_db():
 async def init_db():
     await _migrate_db()
     async with engine.begin() as conn:
+        await _enable_wal(conn)
         await conn.run_sync(Base.metadata.create_all)
