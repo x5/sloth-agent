@@ -4,7 +4,7 @@
 > Brainstorm Spec: `docs/specs/brainstorm/spec.md`
 > Arch: `docs/design/desktop-app-architecture.md`
 > 日期: 2026-04-25
-> 更新: 2026-04-30
+> 更新: 2026-05-02
 > 状态: IN PROGRESS
 
 ---
@@ -18,7 +18,7 @@
 | Iter-3 | Day 8-14 | Agent Pool 初始化 + Agent 管理 + Right Panel | 5 内置 Agent + Team API + Right Panel 团队面板 | ✅ |
 | Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ✅ |
 | Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ✅ |
-| Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ⬜ |
+| Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ✅ |
 | Iter-7 | Day 24-26 | 读 Tools + 上下文引擎 | ToolRegistry + ToolPermissionGate + ContextWindowManager | ⬜ |
 | Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer | ⬜ |
 | Iter-9 | Day 30-32 | 异步自主模式 | start-async + 断线恢复 + 浏览器通知 | ⬜ |
@@ -1181,7 +1181,7 @@ class SandboxManager:
 
 ### Task 5.0: Messages 表扩展（Alembic 迁移）
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** Message 表新增 5 个字段支持 Brainstorm 讨论模式。Chat 模式下的消息这些字段保持默认值。
 
@@ -1202,7 +1202,7 @@ class SandboxManager:
 
 ### Task 5.1: BrainstormEngine — DecisionStrategy + CoolingTimer
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 讨论引擎核心。包含两轮投票策略和冷却计时器状态机。
 
@@ -1246,7 +1246,7 @@ class DecisionStrategy(ABC):
 
 ### Task 5.2: SSE Discuss 端点
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** SSE 端点接收用户消息，启动 BrainstormEngine，将事件流式推送到前端。单一 SSE 连接复用所有 Agent 事件。
 
@@ -1293,7 +1293,7 @@ error:            {error}
 
 ### Task 5.3: 前端 — 基础 SSE 消费 + JSON 展示
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 前端实现 SSE 消费，在 Brainstorm 会话下以基础气泡展示讨论消息（不做彩色线程，留给 Iter-6）。
 
@@ -1337,7 +1337,7 @@ error:            {error}
 
 ### Task 6.0: 后端 — 持久连接 + 消息队列注入
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** `BrainstormEngine` 由 one-shot `run()` 改为持久 queue-driven 循环。新增 `connect` 持久 SSE 端点和 `inject` 消息注入端点，原 `discuss` 端点废弃。
 
@@ -1426,7 +1426,7 @@ DELETE /api/brainstorm-sessions/{id}/connect → 优雅关闭（设 _abort=True�
 
 ### Task 6.1: 前端 Store — 持久连接模型
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** `brainstormStore` 重构：`startDiscussion` 改为 `connectSession`（建立持久连接），`sendMessage` 只做 POST inject，完全分离连接生命周期和消息发送。
 
@@ -1471,7 +1471,7 @@ replyingToContent: string | null  // 被引用消息预览文本（前 30 字）
 
 ### Task 6.2: 前端 UI — Reply 按钮 + 引用条
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 消息气泡 hover 显示 Reply 按钮，点击后输入框上方出现引用条；发送带 `replyToMessageId`。
 
@@ -1498,7 +1498,7 @@ replyingToContent: string | null  // 被引用消息预览文本（前 30 字）
 
 ### Task 6.3: 前端 UI — 彩色线程竖线
 
-**状态：** ⬜
+**状态：** ✅
 
 **描述：** 每条消息根据 `parent_message_id` 链计算线程根 ID，据此着色竖线。
 
@@ -1855,5 +1855,5 @@ commands:
 
 ---
 
-*Plan 版本: 4.0 — 2026-04-30*
-*变更: Brainstorm 模式全面重规划。旧 Iter-4 stub (Tasks 4.0-4.6) 替换为完整 Iter-4 至 Iter-9 任务，对应 Brainstorm Spec `docs/specs/brainstorm/spec.md`。新增: Iter-4 会话沙箱 (3 tasks), Iter-5 讨论引擎+SSE (3 tasks), Iter-6 彩色线程UI (3 tasks), Iter-7 读Tools+上下文 (3 tasks), Iter-8 写Tools+执行器 (3 tasks), Iter-9 异步自主模式 (3 tasks)。总迭代数从 4 扩展到 9。*
+*Plan 版本: 5.0 — 2026-05-02*
+*变更: Iter-5 + Iter-6 状态更新为 ✅。Iter-5 实际采用多轮循环架构（非 Plan 原始设计的 TwoRoundVoting），以 Spec 为准。Iter-6 实现持久连接模型 + Reply UI + 彩色线程，含 review-driven fixes（CoolingTimer keep_alive、session 切换状态清空、agent 热重载）。*
