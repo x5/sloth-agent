@@ -12,6 +12,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 # Import models so all table metadata is registered on Base before create_all
 import app.models  # noqa: F401
+import app.services.agent as _agent_service
 from app.database import Base
 from app.main import app
 from app.routers import agents, agent_templates, brainstorm, chat, inspirations, llm
@@ -42,9 +43,14 @@ async def setup_test_database():
     for router_module in (agents, agent_templates, brainstorm, chat, inspirations, llm):
         app.dependency_overrides[router_module.get_db] = get_test_db
 
+    # AgentService uses `async_session` directly (module-level import),
+    # bypassing dependency_overrides — patch its reference explicitly.
+    _agent_service.async_session = test_session_factory
+
     yield
 
     app.dependency_overrides.clear()
+    # Engine and session factory go out of scope here; no explicit reset needed.
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
