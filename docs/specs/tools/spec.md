@@ -1,7 +1,10 @@
-# Tool 调佣子系统
+# Tool 调用子系统
 
 > 归档参考: archive/initial-specs/20260416-02-tools-invocation-spec.md
-> 最后更新: 2026-05-01
+> 最后更新: 2026-05-03
+>
+> **本文件描述 CLI Tool 系统（`src/sloth_agent/core/tools/`）。**
+> Desktop Tool System（@desktop_tool 装饰器、function calling、Agent-Tool 绑定）见 `specs/tools/desktop-spec.md`。
 
 ## 概述
 
