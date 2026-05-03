@@ -1,11 +1,27 @@
 # 桌面应用 MVP
 
 > 归档参考: archive/initial-specs/20260425-mvp-desktop-app-spec.md
-> 最后更新: 2026-05-02
+> 最后更新: 2026-05-04
 
 ## 概述
 
 基于 Tauri v2 的桌面应用，让产品经理通过 UI 与 Agent 交互，输入需求文档，Agent 产出可运行原型。
+
+## 架构定位（Iter-7 起）
+
+Desktop Sidecar 引入共享 Context Engine 作为运行时核心能力，不归属于单一业务模式。
+
+- 共享引擎：统一处理上下文裁剪、关键链路保护、预算控制。
+- 首轮接入：Iter-7 在 Brainstorm 流程先接入。
+- 后续接入：Chat 与多 Agent Autonomous 复用同一 Context Engine，仅策略参数不同。
+
+Context Engine 的模块规格见 `docs/specs/context/spec.md`。
+
+模块关系：
+- Context Engine × Memory：摘要与原始消息的双轨可追溯。
+- Context Engine × Session：断线重连与恢复时使用同一上下文快照语义。
+- Context Engine × Observability：统一输出上下文相关指标与 trace。
+- Context Engine × Daemon：后台执行时仍按同一预算与压缩规则构建上下文。
 
 ## 技术栈
 
@@ -52,7 +68,7 @@
 
 ### Brainstorm interrupt 按钮
 - 在 brainstorm mode 下，输入区必须提供一个与 brainstorm 闪电按钮并排的 interrupt icon button，用于中断当前讨论轮次。
-- interrupt button 必须使用“捂嘴”语义 icon，而不是独立红色文字按钮。
+- interrupt button 必须使用明确的“停止发言 / 静音”语义 icon，而不是独立红色文字按钮；当前实现为 speaker-with-X icon。
 - 只有在当前存在 active agent 正在输出时，按钮才必须呈 brainstorm 紫色可点击态。
 - 当 interrupt 已触发或当前无可中断轮次时，按钮必须保持可见，但呈灰色不可点击态。
 - 点击 interrupt 只能中断当前正在进行的 agent 回复 / 当前 round，不能结束 brainstorm mode；brainstorm mode 的开始与结束仍由闪电按钮独立控制。

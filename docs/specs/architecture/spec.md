@@ -1,7 +1,7 @@
 # 架构总览
 
 > 归档参考: archive/initial-specs/00000000-00-architecture-overview.md
-> 最后更新: 2026-05-01
+> 最后更新: 2026-05-04
 
 ## 产品定位
 
@@ -29,6 +29,7 @@ Sloth Agent — 一站式自主开发智能 Agent。输入一份 Plan，输出�
 - **文件系统即真相**：JSON/jsonl 存储，可回溯、可手动编辑
 - **质量保障**：3 道自动门控（lint/type → test/coverage → smoke test）
 - **自适应重规划**：门控失败时触发 replan，最多 N 次重试
+- **上下文优先**：Context Engine 作为共享运行时能力，统一服务 Chat、Brainstorm、Autonomous 等执行模式
 
 ## 系统全景
 
@@ -44,6 +45,21 @@ Orchestrator (Plan 解析 → 流水线调度)
 ```
 
 同时有一套独立的桌面应用（Tauri + React + FastAPI），支持 Inspiration 管理、Agent Pool、团队对话、Brainstorm 模式。
+
+## 共享上下文引擎
+
+Context Engine 是跨模式共享的核心模块，不归属于单一业务流（例如 Brainstorm）。
+
+- 职责：在 token 预算内构建可发送给 LLM 的上下文，并保护关键消息链路。
+- 输入：会话消息、工具结果、模式参数（chat/brainstorm/autonomous）、预算配置。
+- 输出：ModelVisibleContext（可发送）与 RuntimeOnlyContext（仅运行时保留）。
+- 接入：Iter-7 先由 Brainstorm 首轮接入，Chat 与 Autonomous 后续复用同一引擎。
+
+与其他模块关系：
+- Memory：存储原始消息、摘要与工具结果引用。
+- Session：提供 run_id/session_id 生命周期与恢复锚点。
+- Observability：记录 token 预算利用率、压缩率、截断率、上下文构建耗时。
+- Daemon：在后台/断线恢复场景中恢复上下文快照并继续执行。
 
 ## 目录结构
 
@@ -65,6 +81,7 @@ agent-evolve/
 ├── configs/             # YAML 配置
 └── docs/
     ├── specs/           # 源头真相（本目录）
+     │   ├── context/     # 共享上下文引擎（跨 chat/brainstorm/autonomous）
     ├── changes/         # 进行中的 Delta 变更
     ├── archive/         # 历史归档
     └── plans/           # 实现计划

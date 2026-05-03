@@ -4,7 +4,7 @@
 > Brainstorm Spec: `docs/specs/brainstorm/spec.md`
 > Arch: `docs/design/desktop-app-architecture.md`
 > 日期: 2026-04-25
-> 更新: 2026-05-02
+> 更新: 2026-05-03
 > 状态: IN PROGRESS
 
 ---
@@ -19,8 +19,8 @@
 | Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ✅ |
 | Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ✅ |
 | Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ✅ |
-| Iter-7 | Day 24-26 | 读 Tools + 上下文引擎 | ToolRegistry + ToolPermissionGate + ContextWindowManager | ⬜ |
-| Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer | ⬜ |
+| Iter-7 | Day 24-26 | Tool 系统 + 上下文引擎 | path dep 复用 CLI Tool 层 + DesktopToolRunner + Agent-Tool 绑定 + ContextWindowManager | ⬜ |
+| Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer + 受限网络只读工具（websearch/webfetch） | ⬜ |
 | Iter-9 | Day 30-32 | 异步自主模式 | start-async + 断线恢复 + 浏览器通知 | ⬜ |
 
 ---
@@ -1175,7 +1175,7 @@ class SandboxManager:
 
 ---
 
-## Iter-5: 讨论引擎 — 两轮投票 + SSE 流式（3 天）
+## Iter-5: 讨论引擎 — 两轮投票 + SSE 流式（3 天，已完成）
 
 > 后端讨论引擎。多个 Agent 并行发言，冷却计时器自然结束讨论。前端不在此迭代做彩色 UI（留给 Iter-6），只做基础 JSON 流式展示。
 
@@ -1321,7 +1321,7 @@ error:            {error}
 
 ---
 
-## Iter-6: 流体讨论引擎 + 彩色线程 UI（4 天）
+## Iter-6: 流体讨论引擎 + 彩色线程 UI（4 天，已完成）
 
 > **范围扩展（2026-05-02 更新）：** 原计划仅做前端 UI，经 Review 发现后端 Brainstorm 交互存在根本性架构问题（request-response 模型无法支持用户随时插话），故将后端持久连接改造一并纳入 Iter-6。原前端任务保持，Task 6.0 新增后端改造。
 
@@ -1402,10 +1402,10 @@ POST /api/brainstorm-sessions/{id}/inject    → 向 queue 注入一条用户消
 DELETE /api/brainstorm-sessions/{id}/connect → 优雅关闭（设 _abort=True）
 ```
 
-- `connect` 端点创建 `BrainstormEngine` 并注册到 `_active_engines[session_id]`，返回 SSE 流
-- `inject` 端点查找 `_active_engines[session_id]`，调用 `engine.inject()`；若无活跃引擎 → 404
+- `connect` 端点创建 `BrainstormEngine` 并注册到 `_active_connections[session_id]`，返回 SSE 流
+- `inject` 端点查找 `_active_connections[session_id]`，调用 `engine.inject()`；若无活跃连接 → 400
 - 原 `POST /discuss` 和 `DELETE /discuss` 端点保留但标注 deprecated，Iter-7 删除
-- `_active_engines` 改为全局单例（保持原有结构），key 为 session_id
+- `_active_connections` 为持久连接注册表，`_active_engines` 仅保留给 legacy `/discuss` 路径
 
 **新增 SSE 事件**
 
@@ -1447,7 +1447,7 @@ stopDiscussion()       // → 改为调用 disconnectSession
 ```
 
 - `connectSession` 打开 SSE 连接，持续监听 `user_message`, `agent_start`, `agent_token`, `message_done`, `agent_pass`, `round_end`, `heartbeat`, `discussion_end`
-- 连接期间 `discussionConnected: boolean = true`（新状态，取代 `discussionActive`）
+- `discussionConnected` 与 `discussionActive` 共存：前者表示 SSE 连接活跃，后者表示当前有 agent 正在生成响应
 - `injectMessage` 做 `POST /inject`，立即返回（无需等待 SSE 响应）
 - `replyingToId: string | null` 新状态字段，由 UI 设置，`injectMessage` 读取后自动清空
 - `discussionMessages` 仅作为本会话消息增量 buffer，不再 `set({ discussionMessages: [] })` 清空
@@ -1496,14 +1496,14 @@ replyingToContent: string | null  // 被引用消息预览文本（前 30 字）
 
 ---
 
-### Task 6.3: 前端 UI — 彩色线程竖线
+### Task 6.3: 前端 UI — 彩色线程引用预览
 
 **状态：** ✅
 
-**描述：** 每条消息根据 `parent_message_id` 链计算线程根 ID，据此着色竖线。
+**描述：** 每条消息根据 `parent_message_id` 链计算线程根 ID，在消息气泡内顶部渲染带线程色的引用预览。
 
 **文件：**
-- `frontend/src/components/ChatArea.tsx` — 消息渲染处新增竖线
+- `frontend/src/components/ChatArea.tsx` — 消息渲染处新增引用预览块
 - `frontend/src/utils/threadColor.ts` — 新建，颜色计算工具
 
 **实现要点：**
@@ -1511,121 +1511,205 @@ replyingToContent: string | null  // 被引用消息预览文本（前 30 字）
   ```ts
   // 计算消息的线程根 ID（沿 parent_message_id 链找到无 parent 的祖先）
   function getRootId(messageId: string, messages: Message[]): string
-  // 根据根 ID 生成色相（djb2 hash % 360）
+  // 根据根 ID 生成稳定色值（FNV-1a hash → palette index）
   function threadHue(rootId: string): number
-  // 返回 CSS 色值 hsl(hue, 45%, 58%)
+  // 返回固定调色板中的线程 accent color
   function threadColor(rootId: string): string
   ```
-- 无 `parent_message_id` 的消息：无竖线（根消息）
-- 有 `parent_message_id` 的消息：左侧 3px 色彩竖线，颜色 = 线程根的 `threadColor`
-- 人类 reply 消息也显示竖线（与被回复消息同线程色）
-- 竖线仅在 brainstorm 模式显示，chat 模式不显示
+- 无 `parent_message_id` 的消息：无引用预览（根消息）
+- 有 `parent_message_id` 的消息：在气泡内顶部显示引用预览块，左侧 3px 色彩竖线，颜色 = 线程根的 `threadColor`
+- 人类 reply 消息也显示同线程色的引用预览
+- chat 模式不显示 brainstorm 引用预览
 
 **验证：**
-- [ ] 两条无关消息（不同根）竖线颜色不同
-- [ ] 同一 reply 链内所有消息竖线颜色一致
-- [ ] 根消息（无 parent）不显示竖线
-- [ ] chat 模式下所有消息无竖线
+- [ ] 两条无关消息（不同根）引用预览 accent 颜色不同
+- [ ] 同一 reply 链内所有消息引用预览 accent 颜色一致
+- [ ] 根消息（无 parent）不显示引用预览
+- [ ] chat 模式下所有消息无 brainstorm 引用预览
 
 ---
 
-## Iter-7: 读 Tools + 上下文引擎（3 天）
+## Iter-7: Tool 系统 + 上下文引擎（3 天）
 
-> Agent 可以读取项目文件作为讨论依据。引入 ToolPermissionGate 和 ContextWindowManager。
+> Agent 可以读取项目文件作为讨论依据。复用 CLI Tool 层，引入 Agent-Tool 绑定模型和 ContextWindowManager。
+>
+> 变更文档: `docs/changes/iter7-tool-system/`
 
-### Task 7.0: ToolRegistry + ToolPermissionGate
+### 架构概览
 
-**状态：** ⬜
+```
+sloth_agent.core.tools （CLI 已有，backend 通过 path dep 复用）
+├── Tool 基类、ToolRegistry、ToolCategory、ToolResult
+└── builtin/: ReadFileTool, GrepTool, GlobTool
 
-**描述：** 注册读 Tools（read_file, list_directory, grep, read_spec），ToolPermissionGate 强制读→项目目录、写→沙箱目录的路由规则。
+backend/app/services/tools.py （新建，桌面适配层）
+├── DesktopToolRegistry    ← 继承 ToolRegistry，注册读 Tools
+├── DesktopToolRunner      ← 轻量执行器，project_root 路径沙箱
+└── BUILTIN_AGENT_TOOLS    ← agent role → tool 列表
 
-**文件：**
-- `backend/app/services/tools.py` — 新建 ToolRegistry + ToolPermissionGate
+backend/app/models.py
+└── AgentTemplate.tools    ← JSON 字段，绑定该 agent 的工具集合
+```
 
-**实现要点：**
-- ToolRegistry 注册 4 个读 Tools：
-  - `read_file(path: str)` → 读项目根目录下的文件，返回内容
-  - `list_directory(path: str)` → 列项目目录，返回 `[{name, type, size}]`
-  - `grep(pattern: str, path: str)` → 在项目目录搜索，返回匹配行
-  - `read_spec(path: str)` → 读 Markdown 设计文档
-- ToolPermissionGate:
-  - 读 Tools → 路径解析到项目根目录（`os.getcwd()`），禁止 `..` 越界
-  - 写 Tools → 路径解析到沙箱目录（Iter-8 注册）
-  - 所有路径操作前做 `os.path.realpath()` 验证，防止符号链接逃逸
-- Tool 调用格式：System prompt 注入 Tool 列表 JSON → Agent 回复含 `[TOOL_CALL: tool_name, args]` → 引擎解析 → 执行 → 结果注入上下文
+**Agent-Tool 绑定（硬编码初始值）：**
+```
+lead:      [read_file, grep]
+architect: [read_file, list_directory, grep, read_spec]
+engineer:  [read_file, grep]
+reviewer:  [read_file, grep]
+qa:        [read_file, grep]
+```
 
-**验证：**
-- [ ] `read_file("frontend/src/App.tsx")` → 返回项目文件内容
-- [ ] `read_file("../../../etc/passwd")` → 被 ToolPermissionGate 拒绝（路径越界）
-- [ ] 写文件 Tool 未注册 → 调用被拒绝
+---
 
-### Task 7.1: ContextWindowManager — Brainstorm 模式
-
-**状态：** ⬜
-
-**描述：** 引入上下文窗口管理，Brainstorm 模式实现 reply-to 链保护算法。Chat 模式先用现有扁平逻辑，如进度紧张可延后 Chat 模式重构。
-
-**文件：**
-- `backend/app/services/context.py` — 新建 ContextWindowManager
-- `backend/app/services/brainstorm.py` — 修改，BrainstormEngine 集成 ContextWindowManager
-
-**实现要点：**
-- Reply-to 链保护算法:
-  1. 取尾部 max_count 条消息
-  2. 对每条尾部消息，沿 parent_message_id 链回溯，标记保护
-  3. 最终保留: 尾部消息 ∪ 被保护祖先消息
-- Chat 模式（暂不重构）：沿用现有扁平 `messages[-N:]` 截断
-- 集成到 BrainstormEngine: 每轮开始时调用 `protect_reply_chains(messages, max_tokens)` 裁剪上下文
-
-**验证：**
-- [ ] 讨论 100 条消息，窗口设为 20 条 → 尾部 20 条存在
-- [ ] 尾部某条回复的消息链上祖先（超过窗口的消息）被保留 → 上下文完整
-- [ ] 孤立消息（无引用链）超过窗口的被丢弃
-
-### Task 7.2: Agent Tool-call 循环
+### Task 7.0: backend path dependency
 
 **状态：** ⬜
 
-**描述：** Agent system prompt 注入可用 Tools 列表。Agent 在发言中可调用读 Tools。实现 tool_call → 执行 → 结果注入 → 继续生成的循环。每个 Agent 每轮最多 3 次 tool-call（防无限循环）。
+**描述：** 在 `backend/pyproject.toml` 添加 path dependency，使 backend 可直接复用 CLI 的 Tool 基类、模型和内置工具实现。
 
 **文件：**
-- `backend/app/services/brainstorm.py` — 修改 TwoRoundVoting.generate_speeches()
-
-**实现要点：**
-- System prompt 末尾追加 Tool 列表（JSON 格式，含名称、参数、描述）
-- Prompt 指令："你可以使用以下工具读取项目文件。工具调用格式: [TOOL_CALL: tool_name, {"arg": "value"}]"
-- Round 2 发言循环：
-  1. LLM 流式生成
-  2. 检测到 `[TOOL_CALL: ...]` → 暂停生成 → 解析 → ToolPermissionGate 验证 → 执行
-  3. Tool 结果注入上下文 → 继续生成
-  4. 最多 3 个 tool-call，超过强制结束
-- Tool-call 和结果不存储为独立 Message，而是附加在 Agent 消息的 content 中
+- `backend/pyproject.toml` — 添加 `"sloth-agent @ file:///../"`
 
 **验证：**
-- [ ] Agent 在讨论中说"让我看看现有代码" → `[TOOL_CALL: read_file, ...]` → 读取成功
+- [ ] `from sloth_agent.core.tools.tool_registry import Tool, ToolRegistry` 在 backend 中可用
+- [ ] `uv run pytest backend/tests/ -v` 无 import 破坏
+
+---
+
+### Task 7.1: DesktopToolRegistry + DesktopToolRunner
+
+**状态：** ⬜
+
+**描述：** 桌面专属工具适配层。复用 CLI Tool 基类和内置工具，新建轻量 runner 替代 ToolOrchestrator（后者依赖 CLI RunState，不适用于桌面）。
+
+**文件：**
+- `backend/app/services/tools.py` — 新建
+
+**实现要点：**
+- 复用：`Tool`, `ToolRegistry`, `ToolCategory`, `ToolCallRequest`, `ToolResult`（来自 `sloth_agent.core.tools`）
+- 复用内置：`ReadFileTool`, `GrepTool`, `GlobTool`
+- 新增 `ReadSpecTool`（继承 `ReadFileTool`，路径限制到 `docs/specs/`）
+- `DesktopToolRegistry.__init__(project_root: str)` — 注册 4 个读 Tools
+- `DesktopToolRunner.execute(tool_name, args, agent_role) → ToolResult`：
+  - 验证 tool_name 在该 agent_role 的允许列表中
+  - 路径参数用 `os.path.realpath()` 解析，验证必须在 `project_root` 内，禁止 `..` 越界
+  - 执行并返回 `ToolResult`
+- `BUILTIN_AGENT_TOOLS: dict[str, list[str]]` — 各 role 的工具列表
+
+**验证：**
+- [ ] `read_file("frontend/src/App.tsx")` → 返回文件内容
+- [ ] `read_file("../../../etc/passwd")` → 路径越界，返回 `ToolResult(success=False)`
+- [ ] `role=lead` 调用 `list_directory` → 不在列表，被拒绝
+- [ ] 调用未注册 tool → 被拒绝
+
+---
+
+### Task 7.2: AgentTemplate.tools 字段 + seed 更新
+
+**状态：** ⬜
+
+**描述：** `AgentTemplate` 新增 `tools` 字段存储工具绑定列表，builtin agent seed 从 `BUILTIN_AGENT_TOOLS` 填充初始值。
+
+**文件：**
+- `backend/app/models.py` — `AgentTemplate` 添加 `tools: str = "[]"`
+- `backend/app/services/agent.py`（或 seed 入口）— 更新 builtin agent 的 tools 字段
+
+**实现要点：**
+- `tools` 存储为 JSON 字符串（`"[]"` 默认），方便后期 UI 编辑
+- DB migration：`ALTER TABLE agent_templates ADD COLUMN tools TEXT NOT NULL DEFAULT '[]'`（SQLite 直接 drop/recreate 也可）
+- `GET /api/settings/agents/{id}` 响应扩展返回 `tools` 字段（JSON 数组）
+
+**验证：**
+- [ ] 重启后端 → builtin agents 的 tools 字段已填充
+- [ ] `GET /api/settings/agents/{id}` 返回 `tools: ["read_file", "grep"]`
+
+---
+
+### Task 7.3: BrainstormEngine Tool-call 循环
+
+**状态：** ⬜
+
+**描述：** BrainstormEngine 集成 DesktopToolRunner。Agent 发言时若输出 `[TOOL_CALL: ...]` 标记则触发工具调用，结果注入上下文后继续生成，每轮最多 3 次。
+
+**文件：**
+- `backend/app/services/brainstorm.py` — 修改
+
+**实现要点：**
+- 初始化 `DesktopToolRunner`（`project_root` 从 `SLOTH_PROJECT_ROOT` 环境变量读取，fallback `os.getcwd()`）
+- `_build_system_prompt(agent)` 末尾追加工具描述：
+  ```
+  你可以使用以下工具读取项目文件。调用格式：
+  [TOOL_CALL: tool_name, {"arg": "value"}]
+  工具列表：{tools_json}
+  ```
+- 流式生成中检测到 `[TOOL_CALL: ...]`：
+  1. 暂停 stream → 解析 tool_name + args（JSON 解析失败则跳过）
+  2. `DesktopToolRunner.execute()` 执行
+  3. 发出 SSE `{"event": "tool_call", "data": {"tool": ..., "args": ..., "result": ..., "success": bool}}`
+  4. 注入 `[TOOL_RESULT: {result_text}]` 到上下文 → 继续生成
+  5. 超过 3 次 → 强制结束本轮发言
+- Tool-call 记录附加到消息 content，不单独存 Message
+
+**验证：**
+- [ ] Agent 输出 `[TOOL_CALL: read_file, ...]` → 读取成功 → SSE `tool_call` 事件出现
 - [ ] Tool 结果注入上下文 → Agent 基于文件内容继续发言
-- [ ] Agent 尝试第 4 次 tool-call → 引擎阻止，强制结束本轮发言
+- [ ] 第 4 次 tool-call → 被阻止，强制结束本轮
 
-### Task 7.3: 前端 — ToolCallBlock 组件
+---
+
+### Task 7.4: ContextWindowManager
 
 **状态：** ⬜
 
-**描述：** 消息气泡内展示 Agent 的 tool-call 记录。折叠显示，点击展开查看详情。
+**描述：** 引入上下文窗口管理，Brainstorm 模式实现 reply-to 链保护算法，保证 parent_message_id 引用链不被截断。Chat 模式保持现有扁平截断。
 
 **文件：**
-- `frontend/src/components/ToolCallBlock.tsx` — 新建
-- `frontend/src/components/BrainstormMessage.tsx` — 修改，集成 ToolCallBlock
+- `backend/app/services/context.py` — 新建
+- `backend/app/services/brainstorm.py` — 集成
 
 **实现要点：**
-- 解析消息 content 中的 `[TOOL_CALL: ...]` 和结果标记
-- 折叠状态：显示 "📄 读取了 `frontend/src/components/App.tsx`" 或 "🔍 搜索了 `useState` in `frontend/src/`"
-- 展开状态：显示文件内容摘要（前 20 行或匹配行）
-- 样式：bg #f8f9fa, border-left 3px solid #6366f1, border-radius 4px, padding 8px 12px, 12px 字号
+- `protect_reply_chains(messages: list[Message], max_count: int) -> list[Message]`：
+  1. 取尾部 `max_count` 条消息
+  2. 对每条尾部消息，沿 `parent_message_id` 链回溯，标记所有祖先
+  3. 返回：尾部消息 ∪ 被标记祖先（保持时间顺序）
+- 集成到 BrainstormEngine：每轮发言前调用，`max_count=30`
 
 **验证：**
-- [ ] Agent 消息含 tool-call → 气泡内显示折叠块
-- [ ] 点击展开 → 显示读取内容摘要
-- [ ] 多个 tool-call → 每个独立展示
+- [ ] 100 条消息，`max_count=20` → 尾部 20 条存在
+- [ ] 尾部消息的 reply 祖先超出窗口 → 仍被保留
+- [ ] 无引用链的消息超出窗口 → 被丢弃
+
+---
+
+### Task 7.5: 前端 — AgentDetail tools 展示 + ToolCallBlock
+
+**状态：** ⬜
+
+**描述：** AgentDetail 面板新增工具能力展示区（只读 chips）。ToolCallBlock 组件在消息气泡内折叠展示 tool-call 执行记录，数据来源为 SSE `tool_call` 事件。
+
+**文件：**
+- `frontend/src/components/AgentDetail.tsx` — 修改
+- `frontend/src/components/ToolCallBlock.tsx` — 新建
+- `frontend/src/components/BrainstormStreamBubble.tsx` — 修改，集成 ToolCallBlock
+
+**AgentDetail tools 区块：**
+- 在 system prompt 下方添加"工具能力"区块
+- 每个 tool 显示为 chip：`bg: #f0f4ff, color: #4f46e5, border-radius: 4px, font-family: monospace`
+- 无 tools 时不显示该区块
+
+**ToolCallBlock：**
+- 从 `brainstormStore` 读取按 message_id 聚合的 `tool_call` SSE 事件
+- 折叠态：图标（📄/🔍/📁）+ 简短描述，如 "读取了 `frontend/src/App.tsx`"
+- 展开态：result 内容（前 800 字符，超出显示"…已截断"）
+- 成功：`border-left: 3px solid #6366f1`；失败：`border-left: 3px solid #ef4444`
+- `BrainstormStreamBubble` 在消息气泡 content 渲染前插入对应 ToolCallBlock
+
+**验证：**
+- [ ] AgentDetail 显示该 Agent 的 tools chips
+- [ ] Agent 发言触发 tool-call → 气泡内 ToolCallBlock 出现（折叠态）
+- [ ] 点击展开 → 显示 result 内容
+- [ ] tool-call 失败 → 红色边框 + 错误信息
 
 ---
 
@@ -1689,6 +1773,62 @@ commands:
 - [ ] `run_tests()` → 在沙箱目录执行 `npm test`
 - [ ] 尝试执行白名单外命令 → ToolPermissionGate 拦截，返回错误信息
 - [ ] 命令超时 → 进程被 kill，返回超时错误
+
+### Task 8.0b: 受限网络只读工具（websearch/webfetch）
+
+**状态：** ⬜
+
+**描述：** 在不突破安全边界的前提下引入网络检索能力，仅用于补充外部事实，结果必须可追溯。
+
+**文件：**
+- `backend/app/services/tool_defs.py` — 新增 `websearch`、`webfetch`
+- `backend/app/core/network_guard.py` — 新建，网络访问策略校验（协议、域名、地址段）
+- `backend/app/core/tool_engine.py` — 统一错误码映射与审计记录钩子
+- `backend/tests/test_tool_network_guard.py` — 新增网络策略测试
+
+**实现要点：**
+- `websearch(query: str, top_k: int = 5)`：
+  - `top_k` 范围 1-10
+  - 返回结构包含 `title`, `url`, `snippet`, `source` 字段
+  - 最多返回 5 条（默认）
+- `webfetch(url: str)`：
+  - 仅允许 `https://`
+  - 禁止访问回环、本地链路、私网地址（如 `127.0.0.1`, `localhost`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`）
+  - 按 allowlist/denylist 规则校验域名
+  - 连接超时 10s，整体超时 30s
+  - 响应体上限 300KB，超限截断并标记
+  - 仅提取可读文本，忽略二进制内容
+
+**标准错误码（给前端和模型可解析）：**
+- `NETWORK_FORBIDDEN_SCHEME`
+- `NETWORK_FORBIDDEN_HOST`
+- `NETWORK_DNS_RESOLUTION_FAILED`
+- `NETWORK_TIMEOUT`
+- `NETWORK_RESPONSE_TOO_LARGE`
+- `NETWORK_FETCH_FAILED`
+
+**审计字段（每次 tool_call 必填）：**
+- `tool_name`
+- `agent_id`
+- `session_id`
+- `request_url`（webfetch）/`query`（websearch）
+- `resolved_ip`（可解析时）
+- `status_code`（webfetch）
+- `duration_ms`
+- `bytes_received`
+- `result_count`（websearch）
+- `error_code`（失败时）
+- `created_at`
+
+**可执行验收清单：**
+- [ ] `webfetch("http://example.com")` → 拒绝，`error_code=NETWORK_FORBIDDEN_SCHEME`
+- [ ] `webfetch("https://127.0.0.1:8080")` → 拒绝，`error_code=NETWORK_FORBIDDEN_HOST`
+- [ ] `webfetch` 请求超过 30s → 终止并返回 `NETWORK_TIMEOUT`
+- [ ] 响应体超过 300KB → 截断并返回 `NETWORK_RESPONSE_TOO_LARGE`（或 `truncated=true`）
+- [ ] `websearch(query, top_k=20)` → 参数校正或拒绝（最终 `top_k<=10`）
+- [ ] `websearch` 结果每条都包含 `url` 与 `source`，可追溯
+- [ ] 任一网络 tool 失败时，SSE `tool_call.success=false` 且包含 `error_code`
+- [ ] 审计日志中可按 `session_id + agent_id + tool_name` 检索到完整记录
 
 ### Task 8.1: apply API + discussion_end 扩展
 
@@ -1855,5 +1995,5 @@ commands:
 
 ---
 
-*Plan 版本: 5.0 — 2026-05-02*
-*变更: Iter-5 + Iter-6 状态更新为 ✅。Iter-5 实际采用多轮循环架构（非 Plan 原始设计的 TwoRoundVoting），以 Spec 为准。Iter-6 实现持久连接模型 + Reply UI + 彩色线程，含 review-driven fixes（CoolingTimer keep_alive、session 切换状态清空、agent 热重载）。*
+*Plan 版本: 5.2 — 2026-05-03*
+*变更: 对齐 Iter-6 的实际实现。持久连接注册表为 `_active_connections`（非 `_active_engines`），无活跃连接时 `/inject` 返回 400；`discussionConnected` 与 `discussionActive` 共存；线程展示采用消息气泡内引用预览块 + 线程色 accent，而非外层竖线。项目整体仍处于 IN PROGRESS，后续迭代为 Iter-7 至 Iter-9。*
