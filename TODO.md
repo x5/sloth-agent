@@ -18,7 +18,7 @@
 
 ### P0: Brainstorm interrupt 按钮图标化与状态统一
 
-> Spec: `docs/specs/desktop/spec.md`
+> Spec: `docs/specs/desktop/app/spec.md`
 > Change: `docs/changes/brainstorm-interrupt-icon/`
 > 目标: 将 brainstorm 发言中的 interrupt 操作改为与闪电同组的 icon 按钮，并明确可点击/已点击灰态
 
@@ -30,7 +30,7 @@
 
 ### P0: Brainstorm interrupt 行为回归修复
 
-> Spec: `docs/specs/desktop/spec.md`
+> Spec: `docs/specs/desktop/app/spec.md`
 > Change: `docs/changes/fix-brainstorm-interrupt-behavior/`
 > 目标: interrupt 只在 agent 正在回复时可点，且只打断当前 round，不结束 brainstorm mode
 
@@ -41,7 +41,7 @@
 
 ### P0: MVP 桌面版 Iter-1 — 项目外壳 + Inspiration CRUD
 
-> Spec: `docs/specs/20260425-mvp-desktop-app-spec.md`
+> Spec: `docs/specs/desktop/app/spec.md`
 > Plan: `docs/plans/20260425-mvp-desktop-app-plan.md`
 > 规则: 以下 TODO 项与 Plan 中的 Task 1.1-1.3 一一对应
 > 依赖链: `1.1 → 1.2 + 1.3`（1.1 完成后 1.2 和 1.3 可并行）

@@ -1,11 +1,33 @@
 # Sloth Agent 桌面版 MVP 实现计划
 
-> Spec: `docs/specs/desktop/spec.md`
-> Brainstorm Spec: `docs/specs/brainstorm/spec.md`
+> Spec: `docs/specs/desktop/app/spec.md`
+> Brainstorm Spec: `docs/specs/core/brainstorm/spec.md`
 > Arch: `docs/design/desktop-app-architecture.md`
 > 日期: 2026-04-25
-> 更新: 2026-05-03
+> 更新: 2026-05-04
 > 状态: IN PROGRESS
+
+---
+
+## 共享核心迁移说明
+
+> 详细设计见 `docs/specs/architecture/spec.md` — "共享核心层（Shared Core）"
+
+`src/sloth_agent/` 中以下模块为"共享安全（shared-safe）"，Desktop（backend）直接 import，不重建：
+
+| 模块 | 能力 | Desktop 应用位置 |
+|------|------|------------------|
+| `sloth_agent.core.token_counter.TokenCounter` | token 计数（tiktoken + 字符回退） | `backend/app/core/context_engine.py` |
+| `sloth_agent.core.context_window.ContextWindowManager` | 预算截断 + 摘要压缩 + 消息链保护 | `backend/app/core/context_engine.py`（扩展） |
+| `sloth_agent.providers.llm_providers.BaseLLMProvider` + 具体实现 | LLM 调用抽象 | `backend/app/shared/llm_adapter.py`（包装） |
+| `sloth_agent.providers.llm_router.LLMRouter` | 按 agent 路由 + 熔断 | `backend/app/shared/llm_adapter.py`（按需接入） |
+
+**迁移优先级（按 Iter）：**
+- Iter-7（当前）：接入 `ContextWindowManager` + `TokenCounter`；新建 `llm_adapter.py` 包装 `BaseLLMProvider`，精简 `llm.py` 中的重复 httpx 调用。
+- Iter-8 及后：其他共享能力按需接入，原有重复实现逐步删除。
+
+**path dependency 规则：**
+`backend/pyproject.toml` 添加 `"sloth-agent @ file:///../"`，backend 只 import 上表模块，禁止 import `sloth_agent.cli.*` 或 CLI 专属运行时。
 
 ---
 
@@ -19,7 +41,7 @@
 | Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ✅ |
 | Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ✅ |
 | Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ✅ |
-| Iter-7 | Day 24-26 | Tool 系统 + 上下文引擎 | path dep 复用 CLI Tool 层 + DesktopToolRunner + Agent-Tool 绑定 + ContextWindowManager | ⬜ |
+| Iter-7 | Day 24-26 | Tool 系统 + 上下文引擎 | Desktop 独立 Tool 引擎 + Function Calling + lead/fortune 两层工具权限 + 共享 Context Engine（Brainstorm 首轮接入） | ⬜ |
 | Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer + 受限网络只读工具（websearch/webfetch） | ⬜ |
 | Iter-9 | Day 30-32 | 异步自主模式 | start-async + 断线恢复 + 浏览器通知 | ⬜ |
 
@@ -1531,185 +1553,220 @@ replyingToContent: string | null  // 被引用消息预览文本（前 30 字）
 
 ## Iter-7: Tool 系统 + 上下文引擎（3 天）
 
-> Agent 可以读取项目文件作为讨论依据。复用 CLI Tool 层，引入 Agent-Tool 绑定模型和 ContextWindowManager。
+> Agent 可以读取项目文件作为讨论依据。Desktop Tool 引擎独立于 CLI，Context Engine 复用 CLI `ContextWindowManager`（不重建），LLM 调用层通过 `llm_adapter.py` 包装 CLI `BaseLLMProvider`（消除 `llm.py` 中的重复 httpx 代码）。
 >
 > 变更文档: `docs/changes/iter7-tool-system/`
 
-### 架构概览
+### 架构概览（定稿）
 
 ```
-sloth_agent.core.tools （CLI 已有，backend 通过 path dep 复用）
-├── Tool 基类、ToolRegistry、ToolCategory、ToolResult
-└── builtin/: ReadFileTool, GrepTool, GlobTool
+# 复用 CLI 共享核心（已有，添加 path dep 后直接 import）
+sloth_agent.core.token_counter.TokenCounter
+sloth_agent.core.context_window.ContextWindowManager  ← context_engine.py 的基类
+sloth_agent.providers.llm_providers.BaseLLMProvider   ← llm.py 重构目标
 
-backend/app/services/tools.py （新建，桌面适配层）
-├── DesktopToolRegistry    ← 继承 ToolRegistry，注册读 Tools
-├── DesktopToolRunner      ← 轻量执行器，project_root 路径沙箱
-└── BUILTIN_AGENT_TOOLS    ← agent role → tool 列表
-
-backend/app/models.py
-└── AgentTemplate.tools    ← JSON 字段，绑定该 agent 的工具集合
+# Desktop 薄适配层（新建）
+backend/app/
+  shared/
+    llm_adapter.py      # DB config → BaseLLMProvider 实例，统一流式/非流式接口
+    context_adapter.py  # ContextWindowManager → mode=brainstorm/chat 包装
+  core/
+    tool_engine.py      # ToolDef, ToolContext, @desktop_tool, TOOL_POOL（Desktop 专属）
+    context_engine.py   # 继承 ContextWindowManager，补充 diagnostics + mode 参数
+  services/
+    tool_defs.py        # read/read_range/grep/grep_repo/glob/ls_dir
+    context.py          # context_engine 业务入口
+    llm.py              # 精简：仅保留 DB config 查询，httpx 调用移至 llm_adapter.py
+    brainstorm.py       # function calling + ContextEngine（mode=brainstorm）
+  models.py
+    AgentTemplate.tools # JSON 字符串，仅存 agent 个性化追加工具
 ```
 
-**Agent-Tool 绑定（硬编码初始值）：**
-```
-lead:      [read_file, grep]
-architect: [read_file, list_directory, grep, read_spec]
-engineer:  [read_file, grep]
-reviewer:  [read_file, grep]
-qa:        [read_file, grep]
-```
+### Agent-Tool 绑定（两层模型）
+
+1. `ROLE_BASE_TOOLS`（role 基础工具）
+   - `lead`: `read`, `grep`
+   - `fortune`: `read`, `read_range`, `glob`, `grep`, `grep_repo`, `ls_dir`
+2. `AgentTemplate.tools`（agent 个性化追加，默认 `[]`）
+3. 运行时：`effective_tools = ROLE_BASE_TOOLS[role] ∪ AgentTemplate.tools`
 
 ---
 
-### Task 7.0: backend path dependency
+### Task 7.0a: backend path dependency + 共享模块验证（½ 天前置）
 
 **状态：** ⬜
 
-**描述：** 在 `backend/pyproject.toml` 添加 path dependency，使 backend 可直接复用 CLI 的 Tool 基类、模型和内置工具实现。
-
 **文件：**
-- `backend/pyproject.toml` — 添加 `"sloth-agent @ file:///../"`
+- `backend/pyproject.toml`
+
+**实现要点：**
+- 添加 `"sloth-agent @ file:///../"` path dependency
+- 验证以下 import 可用，且不会引入 `typer`/CLI 运行时：
+  ```python
+  from sloth_agent.core.token_counter import TokenCounter
+  from sloth_agent.core.context_window import ContextWindowManager
+  from sloth_agent.providers.llm_providers import BaseLLMProvider
+  ```
 
 **验证：**
-- [ ] `from sloth_agent.core.tools.tool_registry import Tool, ToolRegistry` 在 backend 中可用
 - [ ] `uv run pytest backend/tests/ -v` 无 import 破坏
+- [ ] `uv run python -c "from sloth_agent.core.token_counter import TokenCounter; print('ok')"` 通过
 
 ---
 
-### Task 7.1: DesktopToolRegistry + DesktopToolRunner
+### Task 7.0b: LLM 适配层重构（½ 天）
 
 **状态：** ⬜
 
-**描述：** 桌面专属工具适配层。复用 CLI Tool 基类和内置工具，新建轻量 runner 替代 ToolOrchestrator（后者依赖 CLI RunState，不适用于桌面）。
-
 **文件：**
-- `backend/app/services/tools.py` — 新建
+- `backend/app/shared/llm_adapter.py`（新建）
+- `backend/app/services/llm.py`（精简）
 
 **实现要点：**
-- 复用：`Tool`, `ToolRegistry`, `ToolCategory`, `ToolCallRequest`, `ToolResult`（来自 `sloth_agent.core.tools`）
-- 复用内置：`ReadFileTool`, `GrepTool`, `GlobTool`
-- 新增 `ReadSpecTool`（继承 `ReadFileTool`，路径限制到 `docs/specs/`）
-- `DesktopToolRegistry.__init__(project_root: str)` — 注册 4 个读 Tools
-- `DesktopToolRunner.execute(tool_name, args, agent_role) → ToolResult`：
-  - 验证 tool_name 在该 agent_role 的允许列表中
-  - 路径参数用 `os.path.realpath()` 解析，验证必须在 `project_root` 内，禁止 `..` 越界
-  - 执行并返回 `ToolResult`
-- `BUILTIN_AGENT_TOOLS: dict[str, list[str]]` — 各 role 的工具列表
+- `llm_adapter.py`：从 DB `LLMConfig` 构造对应的 `BaseLLMProvider` 子类实例，暴露统一 `async chat(messages) → str` 和 `async chat_stream(messages) → AsyncIterator[str]` 接口
+- `llm.py`：仅保留 `_get_default_llm_config` / `_get_llm_config_for_model` / `seed_default_llm`，删除重复的 `_chat_openai` / `_stream_openai` / `_chat_anthropic` / `_stream_anthropic` 实现
+- `brainstorm.py` 改用 `LLMAdapter`（不再直接持有 httpx 调用代码）
 
 **验证：**
-- [ ] `read_file("frontend/src/App.tsx")` → 返回文件内容
-- [ ] `read_file("../../../etc/passwd")` → 路径越界，返回 `ToolResult(success=False)`
-- [ ] `role=lead` 调用 `list_directory` → 不在列表，被拒绝
-- [ ] 调用未注册 tool → 被拒绝
+- [ ] Brainstorm 流式生成仍正常工作（现有测试不回归）
+- [ ] `backend/app/services/llm.py` 行数减少 ≥ 50%
+- [ ] `uv run pytest backend/tests/ -v` 全通过
 
 ---
 
-### Task 7.2: AgentTemplate.tools 字段 + seed 更新
+### Task 7.0: Tool 引擎核心（½ 天）
 
 **状态：** ⬜
 
-**描述：** `AgentTemplate` 新增 `tools` 字段存储工具绑定列表，builtin agent seed 从 `BUILTIN_AGENT_TOOLS` 填充初始值。
-
 **文件：**
-- `backend/app/models.py` — `AgentTemplate` 添加 `tools: str = "[]"`
-- `backend/app/services/agent.py`（或 seed 入口）— 更新 builtin agent 的 tools 字段
+- `backend/app/core/tool_engine.py`（新建）
 
 **实现要点：**
-- `tools` 存储为 JSON 字符串（`"[]"` 默认），方便后期 UI 编辑
-- DB migration：`ALTER TABLE agent_templates ADD COLUMN tools TEXT NOT NULL DEFAULT '[]'`（SQLite 直接 drop/recreate 也可）
-- `GET /api/settings/agents/{id}` 响应扩展返回 `tools` 字段（JSON 数组）
+- 定义 `ToolDef` / `ToolContext` / `ToolSecurityError`
+- 实现 `TOOL_POOL` 与 `@desktop_tool` 自动注册
+- 实现 `_resolve_safe_path(project_root, user_path)` 路径沙箱
+- Schema 从函数注解自动生成（JSON Schema）
 
 **验证：**
-- [ ] 重启后端 → builtin agents 的 tools 字段已填充
-- [ ] `GET /api/settings/agents/{id}` 返回 `tools: ["read_file", "grep"]`
+- [ ] 装饰器注册成功，`TOOL_POOL` 可检索
+- [ ] 越界路径访问被拒绝（`ToolSecurityError`）
 
 ---
 
-### Task 7.3: BrainstormEngine Tool-call 循环
+### Task 7.1: 内置只读工具实现（½ 天）
 
 **状态：** ⬜
 
-**描述：** BrainstormEngine 集成 DesktopToolRunner。Agent 发言时若输出 `[TOOL_CALL: ...]` 标记则触发工具调用，结果注入上下文后继续生成，每轮最多 3 次。
-
 **文件：**
-- `backend/app/services/brainstorm.py` — 修改
+- `backend/app/services/tool_defs.py`（新建）
 
 **实现要点：**
-- 初始化 `DesktopToolRunner`（`project_root` 从 `SLOTH_PROJECT_ROOT` 环境变量读取，fallback `os.getcwd()`）
-- `_build_system_prompt(agent)` 末尾追加工具描述：
-  ```
-  你可以使用以下工具读取项目文件。调用格式：
-  [TOOL_CALL: tool_name, {"arg": "value"}]
-  工具列表：{tools_json}
-  ```
-- 流式生成中检测到 `[TOOL_CALL: ...]`：
-  1. 暂停 stream → 解析 tool_name + args（JSON 解析失败则跳过）
-  2. `DesktopToolRunner.execute()` 执行
-  3. 发出 SSE `{"event": "tool_call", "data": {"tool": ..., "args": ..., "result": ..., "success": bool}}`
-  4. 注入 `[TOOL_RESULT: {result_text}]` 到上下文 → 继续生成
-  5. 超过 3 次 → 强制结束本轮发言
-- Tool-call 记录附加到消息 content，不单独存 Message
+- 实现 6 个只读工具：`read`, `read_range`, `grep`, `grep_repo`, `glob`, `ls_dir`
+- 所有工具使用 `@desktop_tool` 定义并自动注册
+- 工具输出受上限约束（行数/条目数/字符数）
+- Iter-7 不包含 `websearch`/`webfetch`（延后 Iter-8）
 
 **验证：**
-- [ ] Agent 输出 `[TOOL_CALL: read_file, ...]` → 读取成功 → SSE `tool_call` 事件出现
-- [ ] Tool 结果注入上下文 → Agent 基于文件内容继续发言
-- [ ] 第 4 次 tool-call → 被阻止，强制结束本轮
+- [ ] 6 个工具均可在沙箱内执行
+- [ ] 越界路径、非法参数、超限结果均可解释地失败/截断
 
 ---
 
-### Task 7.4: ContextWindowManager
+### Task 7.2: AgentTemplate.tools 字段与 seed（½ 天）
 
 **状态：** ⬜
 
-**描述：** 引入上下文窗口管理，Brainstorm 模式实现 reply-to 链保护算法，保证 parent_message_id 引用链不被截断。Chat 模式保持现有扁平截断。
-
 **文件：**
-- `backend/app/services/context.py` — 新建
-- `backend/app/services/brainstorm.py` — 集成
+- `backend/app/models.py`
+- `backend/app/services/agent.py`
 
 **实现要点：**
-- `protect_reply_chains(messages: list[Message], max_count: int) -> list[Message]`：
-  1. 取尾部 `max_count` 条消息
-  2. 对每条尾部消息，沿 `parent_message_id` 链回溯，标记所有祖先
-  3. 返回：尾部消息 ∪ 被标记祖先（保持时间顺序）
-- 集成到 BrainstormEngine：每轮发言前调用，`max_count=30`
+- `AgentTemplate` 新增 `tools: str`，默认 `"[]"`
+- 语义：仅存 agent 追加能力，不重复存 role 基础能力
+- `GET /api/settings/agents/{id}` 返回解析后的 tools 列表
 
 **验证：**
-- [ ] 100 条消息，`max_count=20` → 尾部 20 条存在
-- [ ] 尾部消息的 reply 祖先超出窗口 → 仍被保留
-- [ ] 无引用链的消息超出窗口 → 被丢弃
+- [ ] 内置 agent 默认 `tools=[]`
+- [ ] 运行时可正确合并 role + agent 两层工具
 
 ---
 
-### Task 7.5: 前端 — AgentDetail tools 展示 + ToolCallBlock
+### Task 7.3: BrainstormEngine Function Calling 集成（1 天）
 
 **状态：** ⬜
 
-**描述：** AgentDetail 面板新增工具能力展示区（只读 chips）。ToolCallBlock 组件在消息气泡内折叠展示 tool-call 执行记录，数据来源为 SSE `tool_call` 事件。
-
 **文件：**
-- `frontend/src/components/AgentDetail.tsx` — 修改
-- `frontend/src/components/ToolCallBlock.tsx` — 新建
-- `frontend/src/components/BrainstormStreamBubble.tsx` — 修改，集成 ToolCallBlock
+- `backend/app/services/brainstorm.py`
 
-**AgentDetail tools 区块：**
-- 在 system prompt 下方添加"工具能力"区块
-- 每个 tool 显示为 chip：`bg: #f0f4ff, color: #4f46e5, border-radius: 4px, font-family: monospace`
-- 无 tools 时不显示该区块
-
-**ToolCallBlock：**
-- 从 `brainstormStore` 读取按 message_id 聚合的 `tool_call` SSE 事件
-- 折叠态：图标（📄/🔍/📁）+ 简短描述，如 "读取了 `frontend/src/App.tsx`"
-- 展开态：result 内容（前 800 字符，超出显示"…已截断"）
-- 成功：`border-left: 3px solid #6366f1`；失败：`border-left: 3px solid #ef4444`
-- `BrainstormStreamBubble` 在消息气泡 content 渲染前插入对应 ToolCallBlock
+**实现要点：**
+- 所有 provider 统一走原生 OpenAI function calling（`tools=` + `tool_calls`）
+- 白名单验证：仅允许 `effective_tools` 内工具调用
+- Tool 执行结果作为 `role="tool"` 消息回注继续生成
+- 每轮最多 3 次 tool-call，超限截断
+- 发出 SSE `tool_call` 事件给前端 ToolCallBlock
 
 **验证：**
-- [ ] AgentDetail 显示该 Agent 的 tools chips
-- [ ] Agent 发言触发 tool-call → 气泡内 ToolCallBlock 出现（折叠态）
-- [ ] 点击展开 → 显示 result 内容
-- [ ] tool-call 失败 → 红色边框 + 错误信息
+- [ ] 触发 `tool_calls` 时能执行并续写回答
+- [ ] 非白名单调用返回 `success=false` 事件
+- [ ] 第 4 次 tool-call 被阻止
+
+---
+
+### Task 7.4: Context Engine（继承 CLI ContextWindowManager，½ 天）
+
+**状态：** ⬜
+
+**文件：**
+- `backend/app/core/context_engine.py`（扩展 CLI 模块，非重建）
+- `backend/app/services/context.py`（业务入口）
+- `backend/app/services/brainstorm.py`（首轮集成）
+
+**实现要点：**
+- `ContextEngine` 继承 `sloth_agent.core.context_window.ContextWindowManager`
+- `TokenCounter` 直接 import `sloth_agent.core.token_counter.TokenCounter`，不重建
+- 在继承基础上扩展三段输出结构：
+  - `model_visible_context`
+  - `runtime_only_context`
+  - `diagnostics`（token 利用率、压缩率、截断率）
+- `protect_reply_chains` 祖先链保护：在 CLI `_fit_history` 基础上补充 `parent_message_id` 回溯逻辑
+- 超预算降级策略复用 CLI `ContextWindowManager` 的摘要压缩，补充可解释错误码
+- Iter-7 仅接入 Brainstorm（`mode="brainstorm"`），Chat/Autonomous 后续直接复用
+
+**验证：**
+- [ ] `backend/tests/test_context_engine.py` 纯逻辑测试通过
+- [ ] `backend/tests/test_brainstorm_context_integration.py` 集成测试通过
+- [ ] 相同输入 + policy 构建结果稳定（确定性）
+
+---
+
+### Task 7.5: 前端 Tool 展示与 ToolCallBlock（½ 天）
+
+**状态：** ⬜
+
+**文件：**
+- `frontend/src/components/AgentDetail.tsx`
+- `frontend/src/components/ToolCallBlock.tsx`
+- `frontend/src/components/BrainstormStreamBubble.tsx`
+
+**实现要点：**
+- AgentDetail 显示 `effective_tools`（只读 chips）
+- ToolCallBlock 订阅 `tool_call` 事件并按消息聚合
+- 成功/失败状态可视化，支持折叠查看结果预览
+
+**验证：**
+- [ ] AgentDetail 展示 role+agent 合并后的工具能力
+- [ ] tool-call 记录在消息气泡内可查看
+
+---
+
+### Iter-7 验收标准（汇总）
+
+- [ ] `TOOL_POOL` 含 6 个本地只读工具
+- [ ] `lead` 无法调用 `glob` / `grep_repo`（白名单生效）
+- [ ] Brainstorm 模式可完成 function calling 循环并展示 `tool_call` SSE
+- [ ] Context Engine 为共享模块（`core/context_engine.py`），非 Brainstorm 专属
+- [ ] `ContextEngine.build(...)` 三段输出 + diagnostics 可解释
+- [ ] `uv run pytest backend/tests/ -v` 全通过
 
 ---
 
@@ -1991,7 +2048,7 @@ commands:
 - **冷却计时器自然结束**：不依赖硬编码轮数限制，Agent 沉默触发冷却 → 确认 → 结束
 - **命令白名单，非任意 shell**：受限执行器只执行 `tool-whitelist.yaml` 中定义的命令
 - **架构可扩展**：DecisionStrategy ABC 支持未来替换投票策略；ToolRegistry 支持增量注册
-- **ContextWindowManager 延至 Iter-7**：从原计划 Iter-5 后移，与读 Tools 一起交付，避免 Iter-5 过载
+- **共享 Context Engine 延至 Iter-7**：从原计划 Iter-5 后移，与读 Tools 一起交付，避免 Iter-5 过载
 
 ---
 

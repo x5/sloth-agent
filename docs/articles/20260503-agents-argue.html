@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <title>Agents 居然吵起来了 — 多智能体讨论的原理与实现</title>
+  <meta name="description" content="深入浅出讲解什么是 AI Agent，如何让多个 Agent 围绕一个话题展开讨论、辩论、相互质疑，以及 Sloth Agent 是如何通过 SSE 流式传输、冷却计时器、持久连接等技术将这一切呈现在聊天界面中的。" />
+  <style>
+    :root {
+      --bg: #0B0F19;
+      --card: #151B2B;
+      --purple: #8B5CF6;
+      --purple-soft: rgba(139,92,246,0.12);
+      --purple-glow: rgba(139,92,246,0.25);
+      --cyan: #06B6D4;
+      --cyan-soft: rgba(6,182,212,0.12);
+      --green: #22c55e;
+      --green-soft: rgba(34,197,94,0.12);
+      --amber: #F59E0B;
+      --amber-soft: rgba(245,158,11,0.12);
+      --red: #EF4444;
+      --red-soft: rgba(239,68,68,0.12);
+      --pink: #EC4899;
+      --pink-soft: rgba(236,72,153,0.12);
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+      --muted-dim: #64748B;
+      --border: rgba(255,255,255,0.06);
+      --border-accent: rgba(139,92,246,0.25);
+      --radius-card: 16px;
+      --radius-panel: 24px;
+      --shadow-base: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-hover: 0 8px 40px rgba(139,92,246,0.12);
+      --font-mono: "JetBrains Mono", "Noto Sans SC", monospace;
+      --font-heading: "JetBrains Mono", "Noto Sans SC", sans-serif;
+      --font-body: "Inter", "Noto Sans SC", sans-serif;
+      --font-sc: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+      --max-w: 1200px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font-body); line-height: 1.6;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), transparent 80%);
+      z-index: 0;
+    }
+    .progress-bar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, #7c3aed, var(--purple), #a78bfa); transform-origin: left; transform: scaleX(0); z-index: 100; }
+    .topbar { position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: rgba(11,15,25,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); max-width: var(--max-w); margin: 0 auto; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; letter-spacing: 0.14em; color: var(--text); }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 8px var(--purple-glow), 0 0 0 3px rgba(139,92,246,0.15); }
+    .topbar-date { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.08em; }
+    .section { max-width: var(--max-w); margin: 0 auto; padding: 64px 24px; }
+    .section-label { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: var(--purple); margin-bottom: 12px; }
+    .section-heading { font-family: var(--font-heading); font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 700; line-height: 1.25; color: var(--text); margin: 0; }
+    .heading-group { display: flex; flex-direction: column; gap: 6px; }
+    .heading-dialect { font-family: var(--font-sc); font-size: clamp(0.88rem, 1.8vw, 1.05rem); font-weight: 500; color: var(--amber); line-height: 1.5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .dialect-tag { flex-shrink: 0; padding: 1px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; color: var(--amber); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); letter-spacing: 0.04em; white-space: nowrap; }
+    .hero { text-align: center; padding-top: 48px; }
+    .hero-icon { width: 96px; height: 96px; margin: 0 auto 24px; display: block; }
+    .hero-title { font-family: var(--font-heading); font-size: clamp(2.4rem, 6vw, 4.5rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--purple) 50%, var(--pink) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 20px; }
+    .hero-subtitle { font-family: var(--font-sc); font-size: clamp(1rem, 2vw, 1.25rem); font-weight: 400; color: var(--muted); max-width: 56ch; margin: 0 auto 24px; line-height: 2; }
+    .hero-subtitle strong { color: var(--text); font-weight: 600; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
+    .pill.purple { border-color: var(--border-accent); color: var(--purple); }
+    .pill.cyan { border-color: rgba(6,182,212,0.25); color: var(--cyan); }
+    .pill.green { border-color: rgba(34,197,94,0.25); color: var(--green); }
+    .pill.amber { border-color: rgba(245,158,11,0.25); color: var(--amber); }
+    .pill.pink { border-color: rgba(236,72,153,0.25); color: var(--pink); }
+    .diagram-svg { width: 100%; height: auto; margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); box-shadow: var(--shadow-base); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; display: grid; grid-template-columns: 1fr; align-content: start; gap: 14px; box-shadow: var(--shadow-base); transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+    .card:hover { transform: translateY(-3px); border-color: var(--border-accent); box-shadow: var(--shadow-hover); }
+    .card-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--purple-soft); border: 1px solid var(--border-accent); }
+    .card-icon svg { width: 20px; height: 20px; stroke: var(--purple); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .card-icon.cyan { background: var(--cyan-soft); border-color: rgba(6,182,212,0.25); }
+    .card-icon.cyan svg { stroke: var(--cyan); }
+    .card-icon.green { background: var(--green-soft); border-color: rgba(34,197,94,0.25); }
+    .card-icon.green svg { stroke: var(--green); }
+    .card-icon.amber { background: var(--amber-soft); border-color: rgba(245,158,11,0.25); }
+    .card-icon.amber svg { stroke: var(--amber); }
+    .card-icon.red { background: var(--red-soft); border-color: rgba(239,68,68,0.25); }
+    .card-icon.red svg { stroke: var(--red); }
+    .card-icon.pink { background: var(--pink-soft); border-color: rgba(236,72,153,0.25); }
+    .card-icon.pink svg { stroke: var(--pink); }
+    .card h3 { font-family: var(--font-heading); font-size: 1rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .card p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .cmp-table-wrap { margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-base); }
+    .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .cmp-table thead th { background: rgba(139,92,246,0.08); font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600; color: var(--text); padding: 18px 20px; text-align: left; }
+    .cmp-table tbody td { padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.6; vertical-align: top; }
+    .cmp-table tbody td:first-child { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; color: var(--purple); white-space: nowrap; width: 140px; }
+    .cmp-table tbody td:nth-child(2) { color: var(--text); }
+    .cmp-table tbody tr:hover td { background: rgba(139,92,246,0.04); }
+    .terminal { background: #0a0d14; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; margin-top: 32px; }
+    .terminal-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ef4444; }
+    .terminal-dot.yellow { background: #F59E0B; }
+    .terminal-dot.green { background: #22c55e; }
+    .terminal-title { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); margin-left: 8px; }
+    .terminal-body { padding: 20px; font-family: var(--font-mono); font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+    .t-purple { color: #a78bfa; }
+    .t-cyan { color: var(--cyan); }
+    .t-green { color: var(--green); }
+    .t-amber { color: var(--amber); }
+    .t-red { color: var(--red); }
+    .t-pink { color: var(--pink); }
+    .t-muted { color: var(--muted-dim); }
+    .t-white { color: var(--text); }
+    .quote-panel { background: var(--card); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 32px; margin-top: 64px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
+    .quote-mark { font-family: var(--font-mono); font-size: 4rem; font-weight: 700; color: var(--purple); line-height: 0.8; }
+    .quote-text { font-family: var(--font-sc); font-size: 1.15rem; font-weight: 500; color: var(--text); line-height: 1.7; }
+    .analogy-panel { background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(6,182,212,0.04)); border: 1px solid var(--border-accent); border-radius: var(--radius-panel); padding: 28px 32px; margin-top: 32px; }
+    .analogy-title { font-family: var(--font-sc); font-size: 1.05rem; font-weight: 700; color: var(--amber); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .analogy-body { font-family: var(--font-sc); font-size: 0.95rem; color: var(--muted); line-height: 1.8; }
+    .analogy-body strong { color: var(--text); }
+    .pro-con-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .pro-card, .con-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 24px; }
+    .pro-card { border-top: 3px solid var(--green); }
+    .con-card { border-top: 3px solid var(--red); }
+    .pro-con-title { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+    .pro-card .pro-con-title { color: var(--green); }
+    .con-card .pro-con-title { color: var(--red); }
+    .pro-con-list { list-style: none; display: grid; gap: 12px; }
+    .pro-con-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+    .pro-con-list li::before { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; width: 20px; text-align: center; }
+    .pro-card .pro-con-list li::before { content: "+"; color: var(--green); }
+    .con-card .pro-con-list li::before { content: "-"; color: var(--red); }
+    .pro-con-list li strong { color: var(--text); }
+    .anti-table-wrap { margin-top: 32px; border-radius: var(--radius-panel); border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-base); }
+    .anti-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .anti-table thead th { background: rgba(239,68,68,0.06); font-family: var(--font-heading); font-size: 0.9rem; font-weight: 600; color: var(--text); padding: 16px 20px; text-align: left; border-bottom: 1px solid rgba(239,68,68,0.15); }
+    .anti-table tbody td { padding: 14px 20px; border-top: 1px solid var(--border); color: var(--muted); line-height: 1.6; vertical-align: top; }
+    .anti-table tbody td:first-child { color: var(--red); font-weight: 600; white-space: nowrap; }
+    .anti-table tbody td:last-child { color: var(--green); }
+    .anti-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+    .layer-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+    .layer-badge.l1 { background: var(--cyan-soft); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+    .layer-badge.l2 { background: var(--purple-soft); color: var(--purple); border: 1px solid var(--border-accent); }
+    .layer-badge.l3 { background: var(--green-soft); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .footer { max-width: var(--max-w); margin: 0 auto; padding: 0 24px 64px; }
+    .footer-panel { background: linear-gradient(135deg, #0d1117 0%, var(--card) 50%, #111827 100%); border: 1px solid var(--border); border-radius: var(--radius-panel); padding: 40px; display: grid; gap: 24px; box-shadow: var(--shadow-base); }
+    .footer-heading { font-family: var(--font-heading); font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 700; line-height: 1.25; color: var(--text); }
+    .footer-note { font-family: var(--font-mono); font-size: 11px; color: var(--muted-dim); padding-top: 16px; border-top: 1px solid var(--border); }
+    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+    .bubble-demo { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-panel); padding: 28px; margin-top: 32px; display: grid; gap: 16px; }
+    .bubble { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px 16px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
+    .bubble-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .bubble-name { font-family: var(--font-mono); font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .bubble-text { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+    .bubble-quote { border-left: 3px solid; padding-left: 10px; margin-bottom: 8px; font-size: 0.8rem; color: var(--muted-dim); }
+    .typing-dots { display: inline-flex; gap: 3px; }
+    .typing-dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--muted-dim); animation: bounce 1.4s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+    @media (max-width: 980px) { .grid-2, .grid-3, .pro-con-grid { grid-template-columns: 1fr; } .cmp-table-wrap, .anti-table-wrap { overflow-x: auto; } .cmp-table, .anti-table { min-width: 600px; } }
+    @media (max-width: 720px) { .section { padding: 48px 16px; } .topbar { flex-direction: column; gap: 8px; align-items: flex-start; } .footer-panel { padding: 24px; } .quote-panel { padding: 24px; } }
+  </style>
+</head>
+<body>
+  <div class="progress-bar" id="progress"></div>
+
+  <header class="topbar">
+    <div class="brand"><svg width="20" height="20" viewBox="100 80 880 840" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><g transform="translate(512,512) scale(1.48,1.48) translate(-722,-657)"><path fill="#ffffff" d="M 444.18 743.32 C 444.98 741.15 445.15 738.02 445.64 735.91 Q 448.89 721.82 452.21 710.96 Q 458.39 690.73 469.00 671.08 Q 492.00 628.52 528.54 599.12 Q 564.42 570.26 609.43 563.66 Q 630.12 560.63 648.20 562.88 Q 694.15 568.62 723.38 604.28 A 0.82 0.81 44.6 0 0 724.64 604.28 C 746.18 577.51 777.86 562.85 812.02 562.05 C 856.69 561.00 897.63 578.20 930.22 608.29 C 969.28 644.37 996.00 692.99 1003.54 745.65 A 0.27 0.27 0.0 0 0 1004.07 745.64 Q 1006.92 720.60 1005.80 694.04 Q 1003.28 634.07 976.03 580.12 C 945.88 520.41 894.58 471.75 833.15 446.69 Q 781.67 425.69 725.74 425.56 C 657.69 425.40 592.40 447.82 541.19 491.93 C 474.03 549.78 437.12 633.62 442.22 722.73 Q 442.84 733.47 443.79 743.27 A 0.20 0.20 0.0 0 0 444.18 743.32 Z"/><path fill="#192d4c" d="M 722.94 754.71 C 739.39 754.72 771.24 759.82 771.23 782.51 C 771.22 805.21 739.37 810.28 722.92 810.27 C 706.46 810.27 674.61 805.17 674.62 782.47 C 674.63 759.78 706.48 754.70 722.94 754.71 Z"/></g></svg>SLOTH AGENT &middot; BRAINSTORM</div>
+    <div class="topbar-date">2026-05-03 &middot; Engineering Deep Dive</div>
+  </header>
+
+  <!-- ==================== HERO ==================== -->
+  <section class="section hero">
+    <svg class="hero-icon" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="30" cy="48" r="14" fill="none" stroke="#8B5CF6" stroke-width="2.5"/>
+      <circle cx="30" cy="48" r="5" fill="#8B5CF6" opacity="0.4"/>
+      <circle cx="66" cy="32" r="14" fill="none" stroke="#EC4899" stroke-width="2.5"/>
+      <circle cx="66" cy="32" r="5" fill="#EC4899" opacity="0.4"/>
+      <circle cx="66" cy="64" r="14" fill="none" stroke="#06B6D4" stroke-width="2.5"/>
+      <circle cx="66" cy="64" r="5" fill="#06B6D4" opacity="0.4"/>
+      <path d="M 42 42 Q 52 34 54 36" fill="none" stroke="rgba(139,92,246,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <path d="M 54 40 Q 58 54 54 58" fill="none" stroke="rgba(236,72,153,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <path d="M 44 54 Q 52 56 54 58" fill="none" stroke="rgba(6,182,212,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+    </svg>
+    <h1 class="hero-title">Agents 居然吵起来了</h1>
+    <p class="hero-subtitle">
+      <strong>让 AI 不再是独白，而是对话</strong><br>
+      三个 Agent，一个话题，多轮辩论——<br>
+      他们相互质疑、补充、反驳，直到<strong>再也无话可说</strong>
+    </p>
+    <div class="hero-pills">
+      <span class="pill purple">多智能体讨论</span>
+      <span class="pill pink">实时流式辩论</span>
+      <span class="pill cyan">SSE 持久连接</span>
+      <span class="pill amber">自然收敛机制</span>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 1: WHAT IS AN AGENT ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§1 What is an Agent</div>
+    <div class="heading-group">
+      <h2 class="section-heading">到底什么是 Agent？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">基础</span>Agent = 角色 + 记忆 + 工具 + 行动——像一个有专长的同事</p>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">🏢 公司会议类比</div>
+      <div class="analogy-body">
+        想象你是一家公司的 CEO，面临一个战略决策。你可以<strong>自己一个人想</strong>，也可以<strong>叫上 CTO、CFO、COO 一起开会</strong>。<br><br>
+        <strong>一个人想的问题</strong>：你只能看到自己专业领域内的东西。你是技术出身，可能忽略了财务风险；你是市场出身，可能低估了技术难度。单一视角，必然有盲区。<br><br>
+        <strong>团队开会的好处</strong>：CTO 说"这个技术上可行但需要 3 个月"，CFO 说"3 个月的 burn rate 我们扛不住"，COO 说"可以先做 MVP，6 周上线，边跑边迭代"。<strong>不同视角碰撞，才能逼近最优解</strong>。<br><br>
+        一个 Agent 就是这样一个<strong>有专长的数字同事</strong>——它有明确的角色定位、专业领域和思考方式。
+      </div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h3>角色（Role）</h3>
+        <p>每个 Agent 有一个明确的角色定义——"你是资深后端架构师"、"你是前端性能优化专家"。这个角色决定了它的<strong>思考框架和表达方式</strong>。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon cyan">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h3>上下文（Context）</h3>
+        <p>Agent 能看到<strong>完整的对话历史</strong>——谁说了什么、什么时候说的。它不是凭空发言，而是基于前面的讨论做出反应。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>行动（Action）</h3>
+        <p>Agent 不只是说话，还能<strong>调用工具</strong>——读写文件、执行代码、搜索信息。讨论不仅仅是"嘴炮"，还能落地执行。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 2: WHY MULTI-AGENT ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§2 Why Multi-Agent</div>
+    <div class="heading-group">
+      <h2 class="section-heading">为什么需要多个 Agent 一起讨论？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">动机</span>单一视角有盲区，多角度碰撞才能发现"你不知道你不知道什么"</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-icon red">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3>单 Agent 的局限</h3>
+        <p>即使用最长的 system prompt，一个 Agent 也只能有一套思维框架。它可能在自己不擅长的领域<strong>自信地给出错误答案</strong>——而且没人纠正它。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>多 Agent 协作的优势</h3>
+        <p>不同的 Agent 有不同的<strong>知识边界和思维模式</strong>。当架构师提出一个方案，安全专家会指出漏洞，产品经理会质疑用户体验——这种碰撞是单人思考无法模拟的。</p>
+      </div>
+    </div>
+
+    <div class="bubble-demo">
+      <div class="bubble">
+        <div class="bubble-avatar" style="background:#8B5CF6;">A1</div>
+        <div>
+          <div class="bubble-name" style="color:#a78bfa;">后端架构师</div>
+          <div class="bubble-text">建议用微服务架构拆分——每个服务独立部署，扩展性好。</div>
+        </div>
+      </div>
+      <div class="bubble">
+        <div class="bubble-avatar" style="background:#EC4899;">A2</div>
+        <div>
+          <div class="bubble-name" style="color:#f472b6;">安全专家</div>
+          <div class="bubble-quote" style="border-color:#a78bfa;">"建议用微服务架构拆分"</div>
+          <div class="bubble-text"><strong style="color:#EF4444;">我不同意。</strong>微服务之间通信会增加攻击面。如果你们坚持走这条路，至少要先做服务间 mTLS，每个服务独立鉴权。</div>
+        </div>
+      </div>
+      <div class="bubble">
+        <div class="bubble-avatar" style="background:#06B6D4;">A3</div>
+        <div>
+          <div class="bubble-name" style="color:#22d3ee;">产品经理</div>
+          <div class="bubble-text">两位说的都对。但我们只有 4 周时间。同意安全专家的 mTLS 方案，但建议先只拆 2 个核心服务，其余保持单体——<strong>渐进式拆分</strong>。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 3: HOW AGENTS TALK ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§3 Architecture</div>
+    <div class="heading-group">
+      <h2 class="section-heading">怎么让 Agents 吵起来？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">核心</span>顺序发言 → 完整上下文 → 多轮迭代 → 自然收敛——不是群聊，是圆桌会议</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Multi-Agent Round Flow">
+      <defs>
+        <pattern id="ma-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/></pattern>
+        <marker id="ma-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/></marker>
+        <marker id="ma-arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
+      </defs>
+      <rect width="1000" height="420" fill="#0B0F19"/><rect width="1000" height="420" fill="url(#ma-grid)"/>
+
+      <!-- User input -->
+      <rect x="30" y="158" width="180" height="60" rx="10" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="2"/>
+      <text x="120" y="183" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" fill="#22c55e">用户发起话题</text>
+      <text x="120" y="203" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#64748B">"微服务还是单体？"</text>
+      <line x1="210" y1="188" x2="250" y2="188" stroke="#22c55e" stroke-width="2" marker-end="url(#ma-arr-g)"/>
+
+      <!-- Round 1 -->
+      <rect x="255" y="28" width="220" height="320" rx="14" fill="rgba(139,92,246,0.04)" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="365" y="54" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#8B5CF6">ROUND 1</text>
+
+      <rect x="270" y="70" width="190" height="52" rx="8" fill="rgba(139,92,246,0.08)" stroke="rgba(139,92,246,0.2)" stroke-width="1"/>
+      <text x="365" y="90" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#a78bfa">Agent 1: 架构师</text>
+      <text x="365" y="108" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"微服务，高内聚低耦合"</text>
+
+      <rect x="270" y="130" width="190" height="52" rx="8" fill="rgba(236,72,153,0.08)" stroke="rgba(236,72,153,0.2)" stroke-width="1"/>
+      <text x="365" y="150" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#f472b6">Agent 2: 安全专家</text>
+      <text x="365" y="168" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"微服务增加攻击面"</text>
+
+      <rect x="270" y="190" width="190" height="52" rx="8" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+      <text x="365" y="210" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#22d3ee">Agent 3: 产品经理</text>
+      <text x="365" y="228" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"时间不够，渐进式拆分"</text>
+
+      <!-- Round separator -->
+      <line x1="365" y1="248" x2="365" y2="268" stroke="rgba(139,92,246,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="365" y="262" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#64748B">下一轮</text>
+
+      <rect x="270" y="272" width="190" height="52" rx="8" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.15)" stroke-width="1"/>
+      <text x="365" y="292" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#64748B">Agent 1 回应...</text>
+      <text x="365" y="310" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"好，那先拆 2 个核心服务"</text>
+
+      <line x1="475" y1="188" x2="515" y2="188" stroke="#8B5CF6" stroke-width="2" marker-end="url(#ma-arr)"/>
+
+      <!-- Round 2+ -->
+      <rect x="520" y="28" width="220" height="320" rx="14" fill="rgba(139,92,246,0.04)" stroke="#8B5CF6" stroke-width="1.5"/>
+      <text x="630" y="54" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#8B5CF6">ROUND 2</text>
+
+      <rect x="535" y="70" width="190" height="52" rx="8" fill="rgba(139,92,246,0.08)" stroke="rgba(139,92,246,0.2)" stroke-width="1"/>
+      <text x="630" y="90" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#a78bfa">Agent 1: 架构师</text>
+      <text x="630" y="108" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"接受，补充 API Gateway 方案"</text>
+
+      <rect x="535" y="130" width="190" height="52" rx="8" fill="rgba(236,72,153,0.08)" stroke="rgba(236,72,153,0.2)" stroke-width="1"/>
+      <text x="630" y="150" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#f472b6">Agent 2: 安全专家</text>
+      <text x="630" y="168" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"PASS"</text>
+
+      <rect x="535" y="190" width="190" height="52" rx="8" fill="rgba(6,182,212,0.08)" stroke="rgba(6,182,212,0.2)" stroke-width="1"/>
+      <text x="630" y="210" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#22d3ee">Agent 3: 产品经理</text>
+      <text x="630" y="228" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">"PASS"</text>
+
+      <!-- Agreed badge -->
+      <rect x="565" y="265" width="130" height="30" rx="15" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+      <text x="630" y="285" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#22c55e">讨论自然收敛</text>
+
+      <line x1="740" y1="188" x2="780" y2="188" stroke="#8B5CF6" stroke-width="2" marker-end="url(#ma-arr)"/>
+
+      <!-- Result -->
+      <rect x="785" y="148" width="185" height="70" rx="12" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="2"/>
+      <text x="878" y="173" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#22c55e">共识输出</text>
+      <text x="878" y="195" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#64748B">渐进式拆分 + mTLS</text>
+
+      <!-- Bottom annotation -->
+      <text x="500" y="385" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#94A3B8">关键设计：Agent 按顺序发言，每个人都能看到前面的人说了什么——像圆桌会议，不是各自发邮件</text>
+      <text x="500" y="408" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#64748B">MAX_ROUNDS=8, 每轮每人最多发言 120 词, 无话可说时回复 "PASS"</text>
+    </svg>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        </div>
+        <h3>顺序发言</h3>
+        <p>Agent 不是并行发言（那会导致各说各话），而是<strong>一个接一个</strong>。后面的人能看到前面所有人的发言，产生真正的"对话感"。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon amber">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3>多轮迭代</h3>
+        <p>不是一轮就结束。每轮结束后，下一轮重新开始——直到所有人无话可说（PASS）或达到最大轮数（8 轮）。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <h3>自然收敛</h3>
+        <p>不设固定轮数。当所有 Agent 在某一轮都选择沉默时，讨论自然结束——就像真实会议中大家达成共识后的安静。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 4: SSE STREAMING ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§4 Streaming</div>
+    <div class="heading-group">
+      <h2 class="section-heading">SSE 流式传输：一字一字"现场直播"</h2>
+      <p class="heading-dialect"><span class="dialect-tag">实时</span>Server-Sent Events 让每个 Agent 的思考过程逐字呈现，不是等它想完再一次性贴出来</p>
+    </div>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr><th>SSE 事件类型</th><th>触发时机</th><th>携带数据</th><th>前端行为</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>agent_start</code></td><td>Agent 开始生成回复</td><td>agent_id, agent_name, agent_number</td><td>创建流式气泡，显示头像和名字</td></tr>
+          <tr><td><code>agent_token</code></td><td>LLM 每输出一个 token</td><td>token 文本片段</td><td>追加到气泡内容，光标闪烁</td></tr>
+          <tr><td><code>message_done</code></td><td>Agent 发言完成并存入数据库</td><td>完整内容、message_id、round</td><td>锁定气泡，显示完整消息</td></tr>
+          <tr><td><code>agent_pass</code></td><td>Agent 回复 "PASS"</td><td>agent_id, agent_name</td><td>跳过该 Agent，不显示气泡</td></tr>
+          <tr><td><code>discussion_end</code></td><td>所有轮次结束</td><td>总消息数、总轮数</td><td>显示结束分隔线</td></tr>
+          <tr><td><code>user_message</code></td><td>用户消息写入数据库确认</td><td>message_id, content</td><td>替换临时 ID 为真实 ID</td></tr>
+          <tr><td><code>heartbeat</code></td><td>空闲 30 秒</td><td>无</td><td>保持连接存活，无 UI 变化</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">SSE 数据流示例 — 一个 Agent 的完整发言过程</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted">event: agent_start</span>
+data: {"agent_id":"a1","agent_name":"后端架构师","agent_number":1}
+
+<span class="t-muted">event: agent_token</span>
+data: {"token":"我"}
+
+<span class="t-muted">event: agent_token</span>
+data: {"token":"建议"}
+
+<span class="t-muted">event: agent_token</span>
+data: {"token":"采用"}
+
+<span class="t-muted">event: agent_token</span>
+data: {"token":"渐进式"}
+
+<span class="t-muted">event: agent_token</span>
+data: {"token":"拆分"}
+
+<span class="t-muted">...</span>
+
+<span class="t-muted">event: message_done</span>
+data: {"agent_id":"a1","message_id":"msg_abc","full_content":"我建议采用渐进式拆分...","round":2}</div>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">📺 直播 vs 录播</div>
+      <div class="analogy-body">
+        SSE 的价值在于<strong>即时性</strong>。如果等 Agent 全部想完再一次性显示，用户要盯着空白屏幕 10-30 秒——体验极差。<br><br>
+        逐字流式输出就像看直播：你知道 Agent 正在"思考"，能看到它的思维过程逐步展开。这种<strong>渐进式信息披露</strong>让等待变得可以接受，甚至有趣。
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 5: COOLING TIMER ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§5 Convergence</div>
+    <div class="heading-group">
+      <h2 class="section-heading">冷却计时器：让讨论自然收敛</h2>
+      <p class="heading-dialect"><span class="dialect-tag">精巧</span>不是靠固定轮数结束，而是用一个两阶段状态机判断"大家是不是真的没话说了"</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cooling Timer State Machine">
+      <defs>
+        <pattern id="ct-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/></pattern>
+        <marker id="ct-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/></marker>
+      </defs>
+      <rect width="1000" height="380" fill="#0B0F19"/><rect width="1000" height="380" fill="url(#ct-grid)"/>
+
+      <!-- State: RUNNING -->
+      <rect x="370" y="30" width="260" height="90" rx="16" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="2.5"/>
+      <text x="500" y="62" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="15" font-weight="700" fill="#22c55e">RUNNING</text>
+      <text x="500" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#94A3B8">Agent 正在发言</text>
+      <text x="500" y="100" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#64748B">每次发言 → 重置空闲计时器</text>
+
+      <!-- Transition: idle >= cooldown -->
+      <line x1="540" y1="120" x2="590" y2="160" stroke="#F59E0B" stroke-width="2" marker-end="url(#ct-arr)"/>
+      <text x="575" y="135" font-family="JetBrains Mono,monospace" font-size="9" fill="#F59E0B">空闲 &ge; 冷却时间</text>
+
+      <!-- State: COOLING_DOWN -->
+      <rect x="595" y="160" width="260" height="90" rx="16" fill="rgba(245,158,11,0.08)" stroke="#F59E0B" stroke-width="2.5"/>
+      <text x="725" y="192" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="15" font-weight="700" fill="#F59E0B">COOLING_DOWN</text>
+      <text x="725" y="212" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#94A3B8">所有 Agent 都 PASS 了？</text>
+      <text x="725" y="230" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#64748B">再等一会，确认不是"在思考"</text>
+
+      <!-- Transition back: new speech -->
+      <path d="M 595 205 L 530 205 L 530 75 L 555 75" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="545" y="195" font-family="JetBrains Mono,monospace" font-size="9" fill="#22c55e">有新发言 → 回到 RUNNING</text>
+
+      <!-- Transition: idle >= cooldown + confirmation -->
+      <line x1="855" y1="250" x2="855" y2="290" stroke="#EF4444" stroke-width="2" marker-end="url(#ct-arr)"/>
+      <text x="870" y="275" font-family="JetBrains Mono,monospace" font-size="9" fill="#EF4444">冷却 + 确认时间已过</text>
+
+      <!-- State: ENDED -->
+      <rect x="595" y="290" width="260" height="70" rx="16" fill="rgba(239,68,68,0.06)" stroke="#EF4444" stroke-width="2"/>
+      <text x="725" y="320" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="15" font-weight="700" fill="#EF4444">ENDED</text>
+      <text x="725" y="342" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#94A3B8">讨论结束，连接保持等待下一轮</text>
+
+      <!-- Safety valve annotation -->
+      <rect x="50" y="60" width="240" height="55" rx="10" fill="rgba(139,92,246,0.04)" stroke="rgba(139,92,246,0.15)" stroke-width="1"/>
+      <text x="170" y="82" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#a78bfa">安全阀 1: MAX_ROUNDS = 8</text>
+      <text x="170" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#64748B">最多 8 轮，防止死循环</text>
+
+      <rect x="50" y="300" width="240" height="55" rx="10" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.15)" stroke-width="1"/>
+      <text x="170" y="322" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#f87171">安全阀 2: max_messages = 1000</text>
+      <text x="170" y="342" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#64748B">总消息数上限，防止无限膨胀</text>
+    </svg>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="color:var(--amber);">两阶段确认的意义</h3>
+        <p>为什么不是"全部 PASS → 立即结束"？因为 Agent 生成回复需要时间（5-30 秒）。如果 Agent 2 在 Agent 1 发言期间恰好处于"无话可说"状态，直接结束会<strong>误杀正在生成的回复</strong>。</p>
+        <p style="margin-top:8px;">冷却期给了一个缓冲窗口——"等一下，万一有人在打字呢"。</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--green);">为什么需要 CONFIRMING？</h3>
+        <p>单次冷却可能不够。COOLING_DOWN 阶段如果又有新发言，立刻回到 RUNNING。只有<strong>连续两段沉默</strong>（冷却期 + 确认期都无人发言），才判定讨论真正结束。</p>
+        <p style="margin-top:8px;">这就像会议主持人问"还有人有补充吗？"——等 3 秒，再问一次——没人吭声，散会。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 6: UI PRESENTATION ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§6 UI</div>
+    <div class="heading-group">
+      <h2 class="section-heading">聊天界面如何呈现多 Agent 讨论？</h2>
+      <p class="heading-dialect"><span class="dialect-tag">交互</span>流式气泡、线程颜色、引用预览、队列管理——不只是"聊天"，是"会议直播"</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon purple">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>BrainstormStreamBubble</h3>
+        <p>实时流式气泡组件。Agent 发言时显示编号头像、名字、逐字增长的内容、闪烁光标。无内容时显示<strong>思考动画</strong>（三个跳动的点）。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon cyan">
+          <svg viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </div>
+        <h3>引用预览</h3>
+        <p>当 Agent 回复某条特定消息时，气泡上方显示被引用内容的<strong>彩色边框预览</strong>——像邮件客户端的引用折叠。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon amber">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3>消息队列</h3>
+        <p>系统忙时（Agent 正在发言），用户消息进入队列。角标显示排队数量，队列中的消息<strong>逐个处理</strong>，每处理完一个触发一轮新讨论。</p>
+      </div>
+    </div>
+
+    <div class="analogy-panel">
+      <div class="analogy-title">🎨 线程着色：让对话关系一目了然</div>
+      <div class="analogy-body">
+        多轮讨论中，消息之间形成复杂的引用关系（A 回复 B，C 回复 A 的回复……）。为了让用户能<strong>视觉追踪讨论脉络</strong>，每条引用链使用 FNV-1a 哈希算法为根消息生成一个<strong>确定性颜色</strong>。<br><br>
+        同一条讨论线内的所有消息使用同一个色系（蓝、青、绿、紫 6 色调色板），不同讨论线用不同颜色。用户扫一眼就能看出"这几条消息在讨论同一个话题"。
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 7: PERSISTENT CONNECTION ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§7 Connection</div>
+    <div class="heading-group">
+      <h2 class="section-heading">持久连接：一个连接撑起整场会议</h2>
+      <p class="heading-dialect"><span class="dialect-tag">架构</span>不是每次发言都新建连接——一个 SSE 连接持续到会议结束，心跳保活</p>
+    </div>
+
+    <svg class="diagram-svg" viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Persistent Connection Architecture">
+      <defs>
+        <pattern id="pc-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="0.5"/></pattern>
+        <marker id="pc-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8B5CF6"/></marker>
+        <marker id="pc-arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/></marker>
+      </defs>
+      <rect width="1000" height="300" fill="#0B0F19"/><rect width="1000" height="300" fill="url(#pc-grid)"/>
+
+      <!-- Frontend -->
+      <rect x="30" y="40" width="200" height="220" rx="14" fill="rgba(139,92,246,0.06)" stroke="#8B5CF6" stroke-width="2"/>
+      <text x="130" y="70" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" font-weight="700" fill="#8B5CF6">前端 (Browser)</text>
+      <text x="130" y="95" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#64748B">Fetch API</text>
+      <text x="130" y="115" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#64748B">ReadableStream reader</text>
+      <text x="130" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#94A3B8">Zustand Store</text>
+      <text x="130" y="170" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#94A3B8">→ brainstormStore</text>
+
+      <!-- Backend -->
+      <rect x="500" y="40" width="230" height="220" rx="14" fill="rgba(6,182,212,0.06)" stroke="#06B6D4" stroke-width="2"/>
+      <text x="615" y="70" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" font-weight="700" fill="#06B6D4">后端 (FastAPI)</text>
+      <text x="615" y="95" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#64748B">StreamingResponse</text>
+      <text x="615" y="115" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#64748B">text/event-stream</text>
+      <text x="615" y="150" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#94A3B8">BrainstormEngine</text>
+      <text x="615" y="170" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="10" fill="#94A3B8">→ asyncio.Queue</text>
+
+      <!-- Connection arrows -->
+      <line x1="230" y1="110" x2="495" y2="110" stroke="#8B5CF6" stroke-width="2.5" marker-end="url(#pc-arr)"/>
+      <text x="362" y="98" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#a78bfa">POST /connect (SSE)</text>
+      <text x="362" y="113" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748B">建立持久连接，一直保持打开</text>
+
+      <line x1="230" y1="170" x2="495" y2="170" stroke="#22c55e" stroke-width="2" marker-end="url(#pc-arr-g)"/>
+      <text x="362" y="158" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#22c55e">POST /inject (HTTP 202)</text>
+      <text x="362" y="173" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748B">轻量注入，立即返回，不阻塞</text>
+
+      <!-- Heartbeat -->
+      <path d="M 362 225 Q 362 250 460 250" fill="none" stroke="rgba(245,158,11,0.4)" stroke-width="1.5" stroke-dasharray="6,4"/>
+      <text x="460" y="268" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#F59E0B">每 30s 心跳保活</text>
+
+      <!-- Bottom note -->
+      <text x="500" y="290" text-anchor="middle" font-family="Noto Sans SC,sans-serif" font-size="11" fill="#64748B">旧方案：每次发消息新建 SSE 连接 → 浪费。新方案：一个连接全生命周期 → 高效。</text>
+    </svg>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-icon red">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h3>旧方案：One-Shot SSE</h3>
+        <p>每条用户消息创建一个新的 SSE 连接，Agent 说完就断开。问题：连接建立有开销（HTTP 握手、数据库连接池获取），频繁建连断连浪费资源。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h3>新方案：Persistent Connection</h3>
+        <p>一个 SSE 连接从会话开始持续到结束。用户消息通过 <code>POST /inject</code> 注入（返回 202 立即释放），后端通过 <code>asyncio.Queue</code> 接收并触发 Agent 轮次。心跳事件每 30 秒发送，防止代理层超时断连。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 8: ABORT ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§8 Control</div>
+    <div class="heading-group">
+      <h2 class="section-heading">中断机制：用户可以随时"闭嘴"</h2>
+      <p class="heading-dialect"><span class="dialect-tag">控制权</span>两级中断——静音当前发言 vs 结束整个讨论——用户始终握有控制权</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-icon amber">
+          <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </div>
+        <h3>abort_round（静音当前轮）</h3>
+        <p>用户点击"闭嘴"按钮，中断<strong>当前正在发言的 Agent</strong>。本轮其余 Agent 跳过，直接进入下一轮或收敛判断。不会结束整个会话，用户可以继续发消息。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon red">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+        </div>
+        <h3>abort（结束会话）</h3>
+        <p>用户关闭头脑风暴模式时触发。中断所有 Agent，关闭持久连接，清理状态。在数据库中写入一条"会话结束"的系统消息，保留完整讨论记录。</p>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">中断实现：asyncio.Queue 哨兵模式</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted"># abort() 被调用时，向队列注入一条空消息作为"哨兵"</span>
+<span class="t-purple">async def</span> <span class="t-cyan">abort</span>(self):
+    self._abort = <span class="t-green">True</span>
+    <span class="t-purple">await</span> self.message_queue.<span class="t-cyan">put</span>(<span class="t-green">""</span>)  <span class="t-muted"># 唤醒阻塞在 queue.get() 的协程</span>
+
+<span class="t-muted"># 引擎主循环检测到哨兵后立即退出</span>
+msg = <span class="t-purple">await asyncio</span>.<span class="t-cyan">wait_for</span>(queue.<span class="t-cyan">get</span>(), timeout=<span class="t-amber">30</span>)
+<span class="t-purple">if</span> self._abort:
+    <span class="t-purple">break</span>  <span class="t-muted"># 退出 while 循环，结束 SSE 流</span></div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 9: DATA MODEL ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§9 Data Model</div>
+    <div class="heading-group">
+      <h2 class="section-heading">数据模型：三个核心实体撑起整个讨论</h2>
+      <p class="heading-dialect"><span class="dialect-tag">模型</span>Agent 模板 → 会话实例 → 消息记录——清晰的分层设计</p>
+    </div>
+
+    <div class="cmp-table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr><th>实体</th><th>作用</th><th>关键字段</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>AgentTemplate</code></td><td>定义 Agent 的"原型"——角色、模型、系统提示词</td><td>name, role, system_prompt, default_model, auto_join</td></tr>
+          <tr><td><code>InspirationAgent</code></td><td>模板的实例化——在具体会话中为 Agent 分配模型和名称</td><td>template_id (FK), inspiration_id (FK), model, status</td></tr>
+          <tr><td><code>BrainstormSession</code></td><td>一次多 Agent 讨论的"房间"</td><td>title, status, max_messages, cooldown_seconds, sandbox_path</td></tr>
+          <tr><td><code>Message</code></td><td>讨论中的每一条消息——用户发言或 Agent 回复</td><td>role, content, agent_id, round, parent_message_id, brainstorm_session_id</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot red"></span><span class="terminal-dot yellow"></span><span class="terminal-dot green"></span>
+        <span class="terminal-title">关键设计：parent_message_id 构建回复链</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted">-- 查询某条消息的完整回复链</span>
+<span class="t-cyan">SELECT</span> * <span class="t-cyan">FROM</span> messages
+<span class="t-cyan">WHERE</span> brainstorm_session_id = <span class="t-green">'sess_abc'</span>
+<span class="t-cyan">ORDER BY</span> created_at;
+
+<span class="t-muted">-- 每条消息的 parent_message_id 指向它所回复的消息</span>
+<span class="t-muted">-- NULL = 顶层消息（用户发起的新话题）</span>
+<span class="t-muted">-- 非 NULL = 对某条特定消息的回复</span>
+
+<span class="t-white">id</span>          <span class="t-white">parent</span>      <span class="t-white">agent</span>        <span class="t-white">round</span>
+msg_001     NULL        用户          -
+msg_002     msg_001     Agent 1      1
+msg_003     msg_001     Agent 2      1      <span class="t-muted">← 也回复用户消息</span>
+msg_004     msg_003     Agent 3      1      <span class="t-muted">← 回复 Agent 2</span>
+msg_005     msg_001     Agent 1      2      <span class="t-muted">← 第二轮开始</span></div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 10: TRADE-OFFS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§10 Trade-offs</div>
+    <div class="heading-group">
+      <h2 class="section-heading">代价与收益</h2>
+      <p class="heading-dialect"><span class="dialect-tag">诚实</span>多 Agent 讨论不是魔法——有显著的收益，也有不可忽视的成本</p>
+    </div>
+
+    <div class="pro-con-grid">
+      <div class="pro-card">
+        <div class="pro-con-title">收益</div>
+        <ul class="pro-con-list">
+          <li><strong>多视角碰撞</strong> — 架构师、安全专家、产品经理从各自领域提出观点，发现单一视角遗漏的盲区</li>
+          <li><strong>自然收敛机制</strong> — 不是硬编码"讨论 3 轮"，而是让对话自然走向共识或分歧</li>
+          <li><strong>实时流式体验</strong> — SSE 逐字传输，用户能看到 Agent "正在思考"，而不是干等 30 秒</li>
+          <li><strong>持久连接架构</strong> — 一个连接撑起整场会议，避免频繁建连断连的开销</li>
+          <li><strong>线程着色</strong> — FNV-1a 哈希为每条讨论线生成确定性颜色，视觉上追踪对话脉络</li>
+          <li><strong>用户始终握有控制权</strong> — 两级中断机制，可以静音当前发言或结束整个讨论</li>
+        </ul>
+      </div>
+      <div class="con-card">
+        <div class="pro-con-title">代价</div>
+        <ul class="pro-con-list">
+          <li><strong>响应延迟</strong> — 3 个 Agent × 每轮 10-30 秒 = 一轮讨论 30-90 秒。多轮可能数分钟</li>
+          <li><strong>Token 消耗巨大</strong> — 每个 Agent 的上下文包含完整对话历史，3 个 Agent × 8 轮 = 大量 token</li>
+          <li><strong>可能陷入循环</strong> — Agent 之间可能来回重复相同论点，需要冷却计时器强制收敛</li>
+          <li><strong>连接管理复杂</strong> — 持久 SSE 连接 + 心跳 + 优雅断开 + 断线重连，比普通 HTTP 请求复杂得多</li>
+          <li><strong>前端状态管理</strong> — 流式 token 拼接、临时 ID 替换、消息队列、中断处理——Store 逻辑量大</li>
+          <li><strong>不是所有场景都适用</strong> — 简单问答用多 Agent 讨论是杀鸡用牛刀，反而拖慢体验</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SECTION 11: ANTI-PATTERNS ==================== -->
+  <section class="section fade-in">
+    <div class="section-label">§11 Pitfalls</div>
+    <div class="heading-group">
+      <h2 class="section-heading">常见反模式</h2>
+      <p class="heading-dialect"><span class="dialect-tag">避坑</span>知道不该做什么，和知道该做什么一样重要</p>
+    </div>
+
+    <div class="anti-table-wrap">
+      <table class="anti-table">
+        <thead>
+          <tr><th style="width:240px">❌ 反模式</th><th>为什么不好</th><th style="width:240px">✅ 正确做法</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Agent 并行发言</td>
+            <td>各说各的，看不到别人的观点，失去"对话"的意义</td>
+            <td>顺序发言，后面的 Agent 能看到前面所有人的内容</td>
+          </tr>
+          <tr>
+            <td>固定轮数结束</td>
+            <td>讨论可能已经无话可说还在强行继续，或者关键共识还没达成就被截断</td>
+            <td>冷却计时器 + PASS 机制，让讨论自然收敛</td>
+          </tr>
+          <tr>
+            <td>每次发消息新建 SSE 连接</td>
+            <td>HTTP 握手开销、数据库连接池压力、代理层重连延迟</td>
+            <td>持久连接 + inject 端点，一个连接全生命周期</td>
+          </tr>
+          <tr>
+            <td>所有 Agent 用同一个 system prompt</td>
+            <td>同质化输出，三个 Agent 说一样的话——浪费 token</td>
+            <td>每个 Agent 有独立角色定义和思维框架</td>
+          </tr>
+          <tr>
+            <td>前端不做消息队列</td>
+            <td>用户在 Agent 发言期间连续发消息，导致状态混乱</td>
+            <td>队列缓冲，逐个处理，显示排队计数</td>
+          </tr>
+          <tr>
+            <td>心跳间隔太短</td>
+            <td>每次心跳唤醒事件循环，增加空闲时的 CPU 开销</td>
+            <td>30 秒心跳，平衡保活需求和资源消耗</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Quote -->
+  <div class="section fade-in">
+    <div class="quote-panel">
+      <div class="quote-mark">&ldquo;</div>
+      <div class="quote-text">
+        <p>多 Agent 讨论的本质不是"让 AI 代替人思考"，而是"用多个视角碰撞出单人想不到的方案"。好的讨论不是 Agent 们在奉承你，而是他们在相互质疑中逼近真相。</p>
+        <p style="color:var(--muted); font-size:0.95rem; margin-top:10px;">—— 多 Agent 讨论的第一性原理</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer fade-in">
+    <div class="footer-panel">
+      <div class="section-label">Closing</div>
+      <h2 class="footer-heading">三个 Agent，一个话题，多轮辩论——直到再也无话可说。</h2>
+      <p class="heading-dialect"><span class="dialect-tag">记住</span>Agent 不是黑盒——角色定义给灵魂，顺序发言给秩序，冷却计时器给节奏，SSE 流式给体验</p>
+      <p class="footer-note">
+        文章版本 1.0 &middot; 2026-05-03 &middot; 基于 Sloth Agent v0.5.4 的 Brainstorm 模块实现 &middot;
+        核心代码见 <code style="color:var(--purple);">backend/app/services/brainstorm.py</code>、<code style="color:var(--purple);">frontend/src/stores/brainstormStore.ts</code>、<code style="color:var(--purple);">frontend/src/components/BrainstormStreamBubble.tsx</code>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const progress = document.getElementById('progress');
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = maxScroll > 0 ? scrollTop / maxScroll : 0;
+      progress.style.transform = 'scaleX(' + Math.min(1, Math.max(0, ratio)) + ')';
+    };
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    const observer = new IntersectionObserver(
+      (entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

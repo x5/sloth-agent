@@ -386,19 +386,22 @@ uv run sloth logs --level INFO --limit 50
 
 | 模块 | 文档 | 状态 |
 |------|------|------|
-| 总体架构 | [architecture-overview](docs/specs/00000000-00-architecture-overview.md) | ✅ 含路线图 |
-| #01 Phase-Role Arch | [spec](docs/specs/20260416-01-phase-role-architecture-spec.md) | ✅ Runner/NextStep 已实现 |
-| #02 Tools Invocation | [spec](docs/specs/20260416-02-tools-invocation-spec.md) | ✅ ToolRegistry/Executor 已实现 |
-| #04 Memory Management | [spec](docs/specs/20260416-04-memory-management-spec.md) | ✅ FS MemoryStore 已实现 |
-| #06 Skill Management | [spec](docs/specs/20260416-06-skill-management-spec.md) | ✅ SKILL.md 加载已实现 |
-| #13 Session Lifecycle | [spec](docs/specs/20260416-13-session-lifecycle-spec.md) | ✅ Git Checkpoint 已实现 |
-| #20 LLM Routing | [spec](docs/specs/20260417-20-llm-router-spec.md) | ✅ LLMRouter 已实现 |
-| #21 Eval Framework | [spec](docs/specs/20260417-21-eval-framework-spec.md) | ✅ smoke test 已实现 |
-| #07 Chat Mode | [spec](docs/specs/20260416-07-chat-mode-spec.md) | ✅ REPL + 自主模式 + 技能触发 |
-| #08 Observability | [spec](docs/specs/20260416-08-observability-logging-spec.md) | 🚧 待开发 |
-| #09 Error Recovery | [spec](docs/specs/20260416-09-error-handling-recovery-spec.md) | 🚧 待开发 |
-| #12 Cost & Budget | [spec](docs/specs/20260416-12-cost-budget-spec.md) | ✅ CostTracker + 预算限额 |
-| #18 Installation | [spec](docs/specs/20260416-18-installation-onboarding-spec.md) | ✅ 安装脚本 + 卸载命令 + 配置向导 |
+| 总体架构 & 治理 | [architecture/spec.md](docs/specs/architecture/spec.md) | ✅ 含路线图 |
+| CLI Runtime | [cli/runtime/spec.md](docs/specs/cli/runtime/spec.md) | ✅ Runner/NextStep 已实现 |
+| Core Tools | [core/tools/spec.md](docs/specs/core/tools/spec.md) | ✅ ToolRegistry/Executor 已实现 |
+| Core Memory | [core/memory/spec.md](docs/specs/core/memory/spec.md) | ✅ FS MemoryStore 已实现 |
+| Core Skills | [core/skills/spec.md](docs/specs/core/skills/spec.md) | ✅ SKILL.md 加载已实现 |
+| Core Session | [core/session/spec.md](docs/specs/core/session/spec.md) | ✅ Git Checkpoint 已实现 |
+| Core LLM | [core/llm/spec.md](docs/specs/core/llm/spec.md) | ✅ LLMRouter 已实现 |
+| CLI Eval | [cli/eval/spec.md](docs/specs/cli/eval/spec.md) | ✅ smoke test 已实现 |
+| Core Chat | [core/chat/spec.md](docs/specs/core/chat/spec.md) | ✅ REPL + 自主模式 + 技能触发 |
+| Core Observability | [core/observability/spec.md](docs/specs/core/observability/spec.md) | 🚧 待开发 |
+| Core Errors | [core/errors/spec.md](docs/specs/core/errors/spec.md) | 🚧 待开发 |
+| Core Cost | [core/cost/spec.md](docs/specs/core/cost/spec.md) | ✅ CostTracker + 预算限额 |
+| CLI Onboarding | [cli/onboarding/spec.md](docs/specs/cli/onboarding/spec.md) | ✅ 安装脚本 + 卸载命令 + 配置向导 |
+| Desktop App | [desktop/app/spec.md](docs/specs/desktop/app/spec.md) | 🚧 Tauri MVP 开发中 |
+| Desktop Daemon | [desktop/daemon/spec.md](docs/specs/desktop/daemon/spec.md) | 🚧 Sidecar 开发中 |
+| Desktop Tools | [desktop/adapters/tools.md](docs/specs/desktop/adapters/tools.md) | 🚧 开发中 |
 
 ### 指南
 

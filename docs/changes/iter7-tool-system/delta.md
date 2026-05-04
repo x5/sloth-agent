@@ -1,11 +1,11 @@
 # Delta: Iter-7 Tool 系统 — 装饰器模式 + Agent-Tool 绑定（修订版）
 
-> 关联模块: specs/tools/spec.md, specs/tools/desktop-spec.md（新建）
+> 关联模块: core/tools/spec.md, desktop/adapters/tools.md（已创建）
 > 日期: 2026-05-05（修订）
 
 ---
 
-## MODIFIED Requirements — specs/tools/spec.md
+## MODIFIED Requirements — core/tools/spec.md
 
 ### 新增章节：Desktop Tool System（装饰器模式设计）
 
@@ -134,7 +134,7 @@ Context Engine 是 Desktop Sidecar 的共享运行时能力，不隶属于单一
 
 ---
 
-## NEW — specs/tools/desktop-spec.md
+## NEW — desktop/adapters/tools.md
 
 新建文件，包含 Desktop Tool System 完整规格：
 - @desktop_tool 装饰器模式与 ToolDef/ToolContext 数据结构
@@ -146,7 +146,7 @@ Context Engine 是 Desktop Sidecar 的共享运行时能力，不隶属于单一
 
 并与共享 Context Engine 设计保持边界一致：Context Engine 为跨模式公用能力，Brainstorm 仅首轮接入方。
 
-详见 `specs/tools/desktop-spec.md`。
+详见 `docs/specs/desktop/adapters/tools.md`。
 
 ---
 

@@ -62,7 +62,7 @@ describe("ChatArea divider rendering", () => {
       stopBrainstorm: vi.fn(),
       startDiscussion: vi.fn(),
       stopDiscussion: vi.fn(),
-      connectSession: vi.fn(),
+      connectSession: vi.fn().mockResolvedValue(undefined),
       disconnectSession: vi.fn(),
       injectMessage: vi.fn(),
       setReplyingTo: vi.fn(),
@@ -168,5 +168,74 @@ describe("ChatArea divider rendering", () => {
     const interruptButton = await screen.findByRole("button", { name: "Interrupt Brainstorm" });
     expect(interruptButton).toBeDisabled();
     expect(interruptButton.className).toContain("chatarea__tool-btn--muted");
+  });
+
+  it("renders reply buttons and quoted preview for brainstorm reply chains", async () => {
+    const setReplyingTo = vi.fn();
+    brainstormState = {
+      ...brainstormState,
+      brainstormMode: true,
+      discussionConnected: true,
+      activeId: "sess-1",
+      setReplyingTo,
+    };
+    agentState = {
+      ...agentState,
+      teamMembers: [{ id: "agent-1", role: "lead", status: "idle", name: "Reviewer" }],
+    };
+    getMessagesMock.mockResolvedValue([
+      {
+        id: "m1",
+        inspiration_id: "insp-1",
+        agent_id: "agent-1",
+        role: "agent",
+        content: "Need stronger auth",
+        created_at: "2026-05-02T00:00:00.000Z",
+        agent_name: "Reviewer",
+        agent_number: 1,
+        agent_model: null,
+        mode: "brainstorm",
+        brainstorm_session_id: "sess-1",
+        parent_message_id: null,
+        round: 1,
+        intent: null,
+        truncated: false,
+      },
+      {
+        id: "m2",
+        inspiration_id: "insp-1",
+        agent_id: null,
+        role: "human",
+        content: "Agree, start with login",
+        created_at: "2026-05-02T00:01:00.000Z",
+        agent_name: null,
+        agent_number: null,
+        agent_model: null,
+        mode: "brainstorm",
+        brainstorm_session_id: "sess-1",
+        parent_message_id: "m1",
+        round: 1,
+        intent: null,
+        truncated: false,
+      },
+    ]);
+
+    render(<ChatArea />);
+
+    // "Need stronger auth" appears twice: once as m1's message body, once as the quote
+    // preview inside m2's reply bubble.
+    const authInstances = await screen.findAllByText("Need stronger auth");
+    expect(authInstances.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Agree, start with login")).toBeTruthy();
+    // "Reviewer" appears twice: once as agent-name on m1, once as quote-author in m2's preview.
+    const reviewerInstances = screen.getAllByText("Reviewer");
+    expect(reviewerInstances.length).toBeGreaterThanOrEqual(2);
+
+    const replyButtons = screen.getAllByTitle("Reply");
+    expect(replyButtons).toHaveLength(2);
+
+    fireEvent.click(replyButtons[0]);
+
+    expect(setReplyingTo).toHaveBeenCalledWith("m1", 'Reviewer · "Need stronger auth"');
   });
 });

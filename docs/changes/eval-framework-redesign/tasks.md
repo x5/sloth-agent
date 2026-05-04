@@ -30,4 +30,4 @@
 
 - [ ] 编写 eval 模块自身的单元测试
 - [ ] 用 L1 任务做端到端验证
-- [ ] 更新 docs/specs/eval/spec.md — 合并 delta 条款
+- [ ] 更新 docs/specs/cli/eval/spec.md — 合并 delta 条款

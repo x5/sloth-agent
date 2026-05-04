@@ -1,7 +1,7 @@
 # 变更提案: Evals 评估框架重新设计
 
 > 日期: 2026-05-02
-> 影响模块: specs/eval/spec.md
+> 影响模块: cli/eval/spec.md
 
 ## 动机
 
