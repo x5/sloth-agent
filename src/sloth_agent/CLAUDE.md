@@ -6,7 +6,10 @@
 
 1. 先确认模块已在 `docs/specs/` 注册。
 2. 如新增模块，先更新 `docs/specs/architecture/spec.md`。
-3. 先读取对应 `docs/specs/<module>/spec.md` 再实现。
+3. 先读取对应 spec 再实现：
+   - Core 模块：`docs/specs/core/<module>/spec.md`
+   - CLI 模块：`docs/specs/cli/<module>/spec.md`
+   - Desktop 模块：`docs/specs/desktop/<module>/spec.md`
 
 ## 开发流程
 

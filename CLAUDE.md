@@ -18,7 +18,10 @@
 
 ## 开发流程（最小闭环）
 
-1. 确认影响模块并阅读对应 `docs/specs/<module>/spec.md`
+1. 确认影响模块并阅读对应 spec：
+   - Core：`docs/specs/core/<module>/spec.md`
+   - CLI：`docs/specs/cli/<module>/spec.md`
+   - Desktop：`docs/specs/desktop/<module>/spec.md`
 2. 在 `docs/changes/<change-name>/` 建立 `proposal.md`、`delta.md`、`tasks.md`
 3. 按 `tasks.md` 实现并同步测试
 4. 合并 `delta.md` 回模块 spec

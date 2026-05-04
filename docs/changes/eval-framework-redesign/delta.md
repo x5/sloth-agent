@@ -1,6 +1,6 @@
 # Delta: Evals 评估框架重新设计
 
-> 关联模块: specs/eval/spec.md
+> 关联模块: cli/eval/spec.md
 
 ## ADDED Requirements
 

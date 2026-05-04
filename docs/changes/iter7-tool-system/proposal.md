@@ -1,7 +1,7 @@
 # 变更提案: Iter-7 Tool 系统 — 装饰器模式 + Agent-Tool 绑定（重新设计）
 
 > 日期: 2026-05-05（修订）
-> 影响模块: specs/tools/spec.md, specs/tools/desktop-spec.md, plans/20260425-mvp-desktop-app-plan.md
+> 影响模块: core/tools/spec.md, desktop/adapters/tools.md, plans/20260425-mvp-desktop-app-plan.md
 
 ## 动机
 

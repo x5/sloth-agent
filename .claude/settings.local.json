@@ -168,5 +168,9 @@
       "Bash(cat .lefthook.yml)",
       "Bash(lefthook version *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "playwright"
+  ],
+  "enableAllProjectMcpServers": true
 }
