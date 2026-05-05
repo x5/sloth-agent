@@ -1,5 +1,7 @@
 from sqlalchemy import select
 
+from sloth_agent.core.agents.role_tools import ROLE_BASE_TOOLS
+
 from ..database import async_session
 from ..models import AgentTemplate, InspirationAgent
 
@@ -282,6 +284,13 @@ class AgentService:
                 .order_by(InspirationAgent.joined_at.asc())
             )
             return list(result.scalars().all())
+
+    @staticmethod
+    def get_effective_tools(role: str, agent_tools: list[str] | None = None) -> list[str]:
+        """Compute the union of role base tools + agent-specific extras."""
+        base = ROLE_BASE_TOOLS.get(role, [])
+        extras = agent_tools or []
+        return list(dict.fromkeys(base + extras))  # deduplicate, preserve order
 
     @staticmethod
     async def get_default_agent(inspiration_id: str) -> InspirationAgent | None:

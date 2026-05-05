@@ -138,6 +138,28 @@ export default function AgentDetail() {
             <span className="detail-field__label">Auto-join</span>
             <span className="detail-field__value">{template.auto_join ? "Yes" : "No"}</span>
           </div>
+          <div className="detail-field">
+            <span className="detail-field__label">Tools</span>
+            <div className="detail-field__tools">
+              {(template.effective_tools || []).length > 0 ? (
+                (template.effective_tools || []).map((t: string) => {
+                  const isRoleBase = (template.role_tools || []).includes(t);
+                  const chipClass = isRoleBase
+                    ? "tool-chip tool-chip--role"
+                    : "tool-chip tool-chip--agent";
+                  return (
+                    <span key={t} className={chipClass}>
+                      {t}
+                    </span>
+                  );
+                })
+              ) : (
+                <span style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
+                  No tools available
+                </span>
+              )}
+            </div>
+          </div>
           <div className="detail-field detail-field--top">
             <span className="detail-field__label">System Prompt</span>
             <SystemPromptView text={template.system_prompt} />

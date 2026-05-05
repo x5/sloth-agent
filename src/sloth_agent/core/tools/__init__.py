@@ -20,6 +20,14 @@ from sloth_agent.core.tools.tool_registry import (
     ToolMetadata,
     ToolRegistry,
 )
+from sloth_agent.core.tools.decorators import (
+    ToolContext,
+    ToolDef,
+    ToolPool,
+    ToolSecurityError,
+    resolve_safe_path,
+    tool,
+)
 
 __all__ = [
     "Tool",
@@ -38,4 +46,10 @@ __all__ = [
     "BashTool",
     "GitTool",
     "SearchTool",
+    "tool",
+    "ToolDef",
+    "ToolContext",
+    "ToolSecurityError",
+    "resolve_safe_path",
+    "ToolPool",
 ]

@@ -10,16 +10,30 @@ Core flow:
 """
 
 import asyncio
+import json as json_mod
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import AsyncIterator
 
 from sqlalchemy import select, text
 
+from sloth_agent.core.tools import ToolPool
+from sloth_agent.core.tools.builtin import readonly_fs  # noqa: F401
+from sloth_agent.core.brainstorm.tool_loop import (
+    DoneEvent,
+    TextTokenEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+    run_tool_loop,
+)
+from sloth_agent.core.tools.decorators import ToolContext as CoreToolContext
+
 from ..database import async_session
 from ..models import AgentTemplate, BrainstormSession, InspirationAgent, Message
+from .agent import AgentService
+from .context import build_brainstorm_context, db_messages_to_dicts
 from .llm import LLMService
 
 
@@ -32,6 +46,7 @@ class AgentInfo:
     role: str
     model: str
     system_prompt: str = ""
+    effective_tools: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -227,7 +242,7 @@ class BrainstormEngine:
         await self._get_queue().put((content, reply_to))
 
     async def _load_agents(self) -> list[AgentInfo]:
-        """Load team agents with their template system prompts."""
+        """Load team agents with their template system prompts and tools."""
         async with async_session() as db:
             result = await db.execute(
                 select(InspirationAgent, AgentTemplate)
@@ -243,6 +258,10 @@ class BrainstormEngine:
                 role=template.role if template else "expert",
                 model=agent.model,
                 system_prompt=template.system_prompt if template else "",
+                effective_tools=AgentService.get_effective_tools(
+                    template.role if template else "expert",
+                    json_mod.loads(template.tools) if template and template.tools else [],
+                ),
             )
             for agent, template in rows
         ]
@@ -321,6 +340,79 @@ class BrainstormEngine:
             row = result.scalar_one_or_none()
             return (row or 0) + 1
 
+    async def _get_sandbox_path(self) -> str:
+        """Get the sandbox path for this session."""
+        async with async_session() as db:
+            result = await db.execute(
+                select(BrainstormSession).where(BrainstormSession.id == self.session_id)
+            )
+            session = result.scalar_one_or_none()
+            if session and session.sandbox_path:
+                return session.sandbox_path
+        return "."
+
+    async def _agent_turn_with_tools(
+        self,
+        agent: AgentInfo,
+        messages: list[dict],
+    ) -> AsyncIterator[SSEEvent]:
+        """Run an agent turn using run_tool_loop. Yields SSEEvents including tool_call/tool_result."""
+        try:
+            adapter = await self.llm.get_adapter(agent.model)
+
+            context_result = build_brainstorm_context(
+                agent.system_prompt or "You are a helpful expert.",
+                messages,
+                model=agent.model,
+            )
+
+            tool_ctx = CoreToolContext(
+                project_root=await self._get_sandbox_path(),
+                session_id=self.session_id,
+                agent_id=agent.id,
+            )
+
+            async def llm_call(msgs, tools_schema):
+                return await adapter.chat_with_tools(msgs, tools_schema if tools_schema else None)
+
+            async for event in run_tool_loop(
+                messages=context_result.model_visible_context,
+                effective_tools=agent.effective_tools,
+                tool_pool=ToolPool.get(),
+                ctx=tool_ctx,
+                llm_call=llm_call,
+                max_iterations=3,
+            ):
+                if isinstance(event, TextTokenEvent):
+                    yield SSEEvent(event="agent_token", data={
+                        "agent_id": agent.id,
+                        "agent_name": agent.name,
+                        "token": event.token,
+                    })
+                elif isinstance(event, ToolCallEvent):
+                    yield SSEEvent(event="tool_call", data={
+                        "agent_id": agent.id,
+                        "tool_name": event.tool_name,
+                        "arguments": event.arguments,
+                    })
+                elif isinstance(event, ToolResultEvent):
+                    yield SSEEvent(event="tool_result", data={
+                        "agent_id": agent.id,
+                        "tool_name": event.tool_name,
+                        "success": event.success,
+                        "output": event.output[:500],
+                        "error_code": event.error_code,
+                    })
+                elif isinstance(event, DoneEvent):
+                    pass
+
+        except Exception as e:
+            yield SSEEvent(event="agent_token", data={
+                "agent_id": agent.id,
+                "agent_name": agent.name,
+                "token": f"[Error: {agent.name} tool turn failed — {str(e)[:100]}]",
+            })
+
     async def _run_rounds(
         self,
         user_msg_id: str,
@@ -381,24 +473,37 @@ class BrainstormEngine:
                     {"role": "user", "content": user_content},
                 ]
 
+                has_tools = bool(agent.effective_tools)
+
                 full_content = ""
-                try:
-                    async for token in self.llm.chat_stream(agent.model, messages):
+                if has_tools:
+                    async for event in self._agent_turn_with_tools(
+                        agent, messages
+                    ):
+                        if isinstance(event, SSEEvent):
+                            if event.event == "agent_token":
+                                full_content += event.data.get("token", "")
+                            yield event
                         if self._abort or self._abort_round:
                             break
-                        full_content += token
+                else:
+                    try:
+                        async for token in self.llm.chat_stream(agent.model, messages):
+                            if self._abort or self._abort_round:
+                                break
+                            full_content += token
+                            yield SSEEvent(event="agent_token", data={
+                                "agent_id": agent.id,
+                                "agent_name": agent.name,
+                                "token": token,
+                            })
+                    except Exception as e:
+                        full_content = f"[Error: {agent.name} failed — {str(e)[:100]}]"
                         yield SSEEvent(event="agent_token", data={
                             "agent_id": agent.id,
                             "agent_name": agent.name,
-                            "token": token,
+                            "token": full_content,
                         })
-                except Exception as e:
-                    full_content = f"[Error: {agent.name} failed — {str(e)[:100]}]"
-                    yield SSEEvent(event="agent_token", data={
-                        "agent_id": agent.id,
-                        "agent_name": agent.name,
-                        "token": full_content,
-                    })
 
                 if self._abort or self._abort_round:
                     break

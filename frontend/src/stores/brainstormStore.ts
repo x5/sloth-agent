@@ -2,7 +2,7 @@
 
 import * as api from "../api/client";
 import { BACKEND } from "../api/client";
-import type { BrainstormSession, Message } from "../api/client";
+import type { BrainstormSession, Message, ToolCallEntry } from "../api/client";
 
 import { useAgentStore } from "./agentStore";
 
@@ -72,25 +72,35 @@ function _handleSSEEvent(
         truncated: false,
       };
 
-      set((s) => ({
-        discussionMessages: [...s.discussionMessages, msg],
-        activeAgentId: null,
-        activeAgentName: null,
-        activeAgentNumber: null,
-        activeParentMessageId: null,
-        streamingContent: "",
-      }));
+      set((s) => {
+        const calls = { ...s.agentToolCalls };
+        delete calls[agentId];
+        return {
+          discussionMessages: [...s.discussionMessages, msg],
+          activeAgentId: null,
+          activeAgentName: null,
+          activeAgentNumber: null,
+          activeParentMessageId: null,
+          streamingContent: "",
+          agentToolCalls: calls,
+        };
+      });
       break;
     }
     case "discussion_end": {
       useAgentStore.getState().setAllAgentStatus("idle");
       // In persistent mode the connection stays open — only mark agents as idle
-      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
+      set({ discussionActive: false, activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "", agentToolCalls: {} });
       break;
     }
     case "agent_pass": {
       useAgentStore.getState().setAgentStatus(data.agent_id as string, "idle");
-      set({ activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "" });
+      // Clear tool calls for this agent
+      set((s) => {
+        const calls = { ...s.agentToolCalls };
+        delete calls[data.agent_id as string];
+        return { activeAgentId: null, activeAgentName: null, activeAgentNumber: null, activeParentMessageId: null, streamingContent: "", agentToolCalls: calls };
+      });
       break;
     }
     case "max_reached": {
@@ -140,6 +150,40 @@ function _handleSSEEvent(
           msgs.push(msg);
         }
         return { discussionMessages: msgs, discussionActive: true };
+      });
+      break;
+    }
+    case "tool_call": {
+      const agentId = data.agent_id as string;
+      const tool: ToolCallEntry = {
+        tool_name: data.tool_name as string,
+        arguments: (data.arguments as Record<string, unknown>) || {},
+      };
+      set((s) => ({
+        agentToolCalls: {
+          ...s.agentToolCalls,
+          [agentId]: [...(s.agentToolCalls[agentId] || []), tool],
+        },
+      }));
+      break;
+    }
+    case "tool_result": {
+      const agentId = data.agent_id as string;
+      const toolName = data.tool_name as string;
+      set((s) => {
+        const calls = [...(s.agentToolCalls[agentId] || [])];
+        for (let i = calls.length - 1; i >= 0; i--) {
+          if (calls[i].tool_name === toolName && calls[i].success === undefined) {
+            calls[i] = {
+              ...calls[i],
+              success: data.success as boolean,
+              output: data.output as string,
+              error_code: data.error_code as string | null,
+            };
+            break;
+          }
+        }
+        return { agentToolCalls: { ...s.agentToolCalls, [agentId]: calls } };
       });
       break;
     }
@@ -220,6 +264,9 @@ interface BrainstormState {
   replyingToId: string | null;
   replyingToContent: string | null;
 
+  // Iter-7: tool call tracking
+  agentToolCalls: Record<string, ToolCallEntry[]>;
+
   // High-level actions
   fetchAll: (inspirationId: string) => Promise<void>;
   startBrainstorm: (inspirationId: string) => Promise<void>;
@@ -262,6 +309,9 @@ export const useBrainstormStore = create<BrainstormState>((set, get) => ({
   discussionConnected: false,
   replyingToId: null,
   replyingToContent: null,
+
+  // Iter-7
+  agentToolCalls: {},
 
   fetchAll: async (inspirationId: string) => {
     set({ loading: true });
