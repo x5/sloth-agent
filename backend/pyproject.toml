@@ -11,6 +11,7 @@ dependencies = [
     "cairosvg>=2.9.0",
     "httpx>=0.28.1",
     "python-dotenv>=1.0",
+    "sloth-agent",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +27,9 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
@@ -34,3 +38,6 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
+
+[tool.uv.sources]
+sloth-agent = { path = "..", editable = true }

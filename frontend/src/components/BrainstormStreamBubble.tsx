@@ -1,3 +1,6 @@
+import type { ToolCallEntry } from "../api/client";
+
+import ToolCallBlock from "./ToolCallBlock";
 
 interface ParentMsgPreview {
   agent_name: string | null;
@@ -11,9 +14,10 @@ interface Props {
   streamingContent?: string;
   parentMsg?: ParentMsgPreview | null;
   quoteAccent?: string | null;
+  toolCalls?: ToolCallEntry[];
 }
 
-export default function BrainstormStreamBubble({ agentName, agentNumber, agentColor, streamingContent, parentMsg, quoteAccent }: Props) {
+export default function BrainstormStreamBubble({ agentName, agentNumber, agentColor, streamingContent, parentMsg, quoteAccent, toolCalls }: Props) {
   const color = agentColor || "#94A3B8";
   const hasContent = streamingContent && streamingContent.length > 0;
 
@@ -64,6 +68,9 @@ export default function BrainstormStreamBubble({ agentName, agentNumber, agentCo
             </span>
           )}
         </div>
+        {toolCalls && toolCalls.length > 0 && (
+          <ToolCallBlock toolCalls={toolCalls} />
+        )}
       </div>
     </div>
   );

@@ -244,7 +244,19 @@ export interface AgentTemplate {
   default_model: string;
   auto_join: boolean;
   system_prompt: string;
+  tools: string[];
+  role_tools: string[];
+  agent_tools: string[];
+  effective_tools: string[];
   created_at: string;
+}
+
+export interface ToolCallEntry {
+  tool_name: string;
+  arguments: Record<string, unknown>;
+  success?: boolean;
+  output?: string;
+  error_code?: string | null;
 }
 
 export interface Message {
@@ -263,6 +275,7 @@ export interface Message {
   round: number;
   intent: string | null;
   truncated: boolean;
+  tool_calls?: ToolCallEntry[];
 }
 
 export interface BrainstormSession {

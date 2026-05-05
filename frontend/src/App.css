@@ -3921,3 +3921,136 @@ body {
    Brainstorm Streaming — removed (matches chat: no typewriter effect)
    ======================================== */
 
+/* ========================================
+   Tool Chips (Agent Detail)
+   ======================================== */
+
+.detail-field__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.tool-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.tool-chip--role {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.tool-chip--agent {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.tool-chip--empty {
+  color: var(--text-muted, #9ea7b0);
+  font-size: 0.82rem;
+}
+
+/* ========================================
+   Tool Call Block (Brainstorm)
+   ======================================== */
+
+.tool-call-block {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-default, #e0e0e0);
+  padding-top: 8px;
+}
+
+.tool-call-item {
+  border-radius: 8px;
+  background: #f9f9f9;
+  margin-bottom: 6px;
+  overflow: hidden;
+  border-left: 3px solid #6366f1;
+}
+
+.tool-call-item--pending {
+  border-left-color: #f59e0b;
+}
+
+.tool-call-item--failed {
+  border-left-color: #ef4444;
+}
+
+.tool-call-item__header {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  padding: 6px 10px;
+  width: 100%;
+  border: none;
+  background: none;
+  font-size: 12px;
+  text-align: left;
+}
+
+.tool-call-item__icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tool-call-item__name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.tool-call-item__chevron {
+  font-size: 10px;
+  color: #9ea7b0;
+}
+
+.tool-call-item__body {
+  padding: 10px;
+  background: #fff;
+  border-top: 1px solid #eee;
+}
+
+.tool-call-item__section {
+  margin-bottom: 8px;
+}
+
+.tool-call-item__section:last-child {
+  margin-bottom: 0;
+}
+
+.tool-call-item__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ea7b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tool-call-item__json,
+.tool-call-item__result {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 11px;
+  background: #f5f5f5;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+}
+
+.tool-call-item__error {
+  font-size: 11px;
+  color: #ef4444;
+  font-weight: 500;
+}
+

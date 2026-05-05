@@ -43,6 +43,7 @@ class AgentTemplate(Base):
     default_model: Mapped[str] = mapped_column(String(100), nullable=False)
     auto_join: Mapped[bool] = mapped_column(Boolean, default=False)
     system_prompt: Mapped[str] = mapped_column(Text, default="")
+    tools: Mapped[str] = mapped_column(String(500), default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
