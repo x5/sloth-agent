@@ -49,9 +49,17 @@
 | Iter-4 | Day 15-17 | Brainstorm 会话沙箱 | SandboxManager + BrainstormSession CRUD + 前端列表 | ✅ |
 | Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ✅ |
 | Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ✅ |
-| Iter-7 | Day 24-26 | Tool 系统 + 上下文引擎 | `core` 层：@tool 装饰器 + 6 只读工具 + ROLE_BASE_TOOLS + run_tool_loop + ContextEngine；Desktop 薄适配层接线 | ⬜ |
-| Iter-8 | Day 27-29 | 写 Tools + 受限执行器 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer + 受限网络只读工具（websearch/webfetch） | ⬜ |
-| Iter-9 | Day 30-32 | 异步自主模式 | start-async + 断线恢复 + 浏览器通知 | ⬜ |
+| Iter-7 | Day 24-26 | Tool 系统 + 上下文引擎 | `core` 层：@tool 装饰器 + 6 只读工具 + ROLE_BASE_TOOLS + run_tool_loop + ContextEngine；Desktop 薄适配层接线 | ✅ |
+| Iter-8 | Day 27-31 | 写 Tools + Toolset 抽象 + Agent 对象模型 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer + 受限网络工具 + **Phase A: Pydantic schema + BaseToolset + AgentConfig + model 继承链** | ⬜ |
+| Iter-9 | Day 32-35 | 异步自主模式 + Hooks 系统 | start-async + 断线恢复 + 浏览器通知 + **Phase B: HookManager(8 种 HookPoint) + tool/agent hook 接入** | ⬜ |
+| Iter-10 | Day 36-40 | events 全量 + Agent 树 + transfer | **EventBus(CloudEvents/通配符订阅/持久化/DLQ) + EventHandler + WorkflowRule + AgentTreeManager + TransferToAgentTool** | ⬜ |
+| Iter-11 | Day 41-45 | coordination 全量 + delta state + Runner | **Coordinator(TaskDAG) + LaneManager + MessageBus + WorktreeManager + 失败恢复 + Session delta state + Runner 重构** | ⬜ |
+
+> **变更来源:** `docs/changes/adk-optimization/` — Google ADK 对标分析。
+> Iter-8~9 在原计划基础上叠加 Phase A/B，Iter-10~11 为全新规划。
+> 详细任务见 `docs/changes/adk-optimization/tasks.md`
+
+---
 
 ---
 
