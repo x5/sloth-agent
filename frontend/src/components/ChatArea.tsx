@@ -96,6 +96,7 @@ export default function ChatArea() {
   const activeParentMessageId = useBrainstormStore((s) => s.activeParentMessageId);
   const discussionMessages = useBrainstormStore((s) => s.discussionMessages);
   const streamingContent = useBrainstormStore((s) => s.streamingContent);
+  const agentToolCalls = useBrainstormStore((s) => s.agentToolCalls);
   const replyingToId = useBrainstormStore((s) => s.replyingToId);
   const replyingToContent = useBrainstormStore((s) => s.replyingToContent);
   const [interruptRequested, setInterruptRequested] = useState(false);
@@ -559,6 +560,7 @@ export default function ChatArea() {
                   streamingContent={streamingContent}
                   parentMsg={streamParentMsg}
                   quoteAccent={streamThreadAccent}
+                  toolCalls={agentToolCalls[activeAgentId] || []}
                 />
               );
             })()}

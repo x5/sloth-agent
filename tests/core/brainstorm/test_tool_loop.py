@@ -221,3 +221,42 @@ class TestRunToolLoop:
 
         schemas = _tools_to_openai_schema(["missing"], ToolPool.get())
         assert len(schemas) == 0
+
+    async def test_async_tool_awaits_and_returns_real_result(self):
+        @tool(name="async_echo", description="Async echo tool")
+        async def async_echo_fn(text: str, ctx: ToolContext) -> str:
+            """Async echo.
+
+            :param text: Text to echo
+            """
+            return f"async_echo: {text}"
+
+        calls = 0
+
+        async def llm_call(messages, tools_schema):
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                return {"content": "", "tool_calls": []}
+            return {
+                "content": "",
+                "tool_calls": [{"name": "async_echo", "arguments": {"text": "hello"}}],
+            }
+
+        ctx = ToolContext(project_root=".")
+        events = []
+        async for event in run_tool_loop(
+            messages=[{"role": "user", "content": "use async_echo"}],
+            effective_tools=["async_echo"],
+            tool_pool=ToolPool.get(),
+            ctx=ctx,
+            llm_call=llm_call,
+        ):
+            events.append(event)
+
+        results = [e for e in events if isinstance(e, ToolResultEvent)]
+        assert len(results) == 1
+        assert results[0].success is True
+        assert results[0].output == "async_echo: hello"
+        # Must NOT be a coroutine string
+        assert "coroutine" not in results[0].output.lower()

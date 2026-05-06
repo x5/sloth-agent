@@ -78,12 +78,7 @@ class LLMAdapter:
 
         resp = await self._provider.chat(llm_msgs, model=self._config.model, **kwargs)
 
-        # Try to extract tool_calls from the underlying response
-        tool_calls: list[dict] = []
-        content = resp.content
-
-        # If the provider returned usage data with tool_calls, extract them
-        if resp.usage and "tool_calls" in resp.usage:
-            tool_calls = resp.usage["tool_calls"]
-
-        return {"content": content, "tool_calls": tool_calls}
+        return {
+            "content": resp.content,
+            "tool_calls": resp.tool_calls if hasattr(resp, "tool_calls") else [],
+        }
