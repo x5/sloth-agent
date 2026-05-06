@@ -135,7 +135,10 @@ async def run_tool_loop(
 
             # Execute tool
             try:
-                result = tool_def.fn(**args, ctx=ctx)
+                if tool_def.is_async:
+                    result = await tool_def.fn(**args, ctx=ctx)
+                else:
+                    result = tool_def.fn(**args, ctx=ctx)
             except Exception as e:
                 yield ToolResultEvent(
                     tool_name=name,

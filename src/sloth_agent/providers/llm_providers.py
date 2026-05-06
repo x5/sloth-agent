@@ -25,10 +25,45 @@ class LLMMessage:
 class LLMResponse:
     """Represents a response from LLM."""
 
-    def __init__(self, content: str, model: str, usage: dict | None = None):
+    def __init__(
+        self,
+        content: str,
+        model: str,
+        usage: dict | None = None,
+        tool_calls: list[dict] | None = None,
+    ):
         self.content = content
         self.model = model
         self.usage = usage or {}
+        self.tool_calls = tool_calls or []
+
+
+def _extract_tool_calls(data: dict) -> list[dict]:
+    """Extract tool_calls from choices[0].message.tool_calls (OpenAI format)."""
+    import json as _json_mod
+
+    try:
+        msg = data["choices"][0]["message"]
+        raw = msg.get("tool_calls") or []
+        result = []
+        for tc in raw:
+            func = tc.get("function", {})
+            args = func.get("arguments", "{}")
+            if isinstance(args, str):
+                try:
+                    args = _json_mod.loads(args)
+                except Exception:
+                    pass
+            result.append(
+                {
+                    "id": tc.get("id", ""),
+                    "name": func.get("name", ""),
+                    "arguments": args,
+                }
+            )
+        return result
+    except (KeyError, IndexError, TypeError):
+        return []
 
 
 class BaseLLMProvider(ABC):
@@ -82,6 +117,7 @@ class DeepSeekProvider(BaseLLMProvider):
                 content=data["choices"][0]["message"]["content"],
                 model=model,
                 usage=data.get("usage", {}),
+                tool_calls=_extract_tool_calls(data),
             )
 
     async def chat_stream(
@@ -144,6 +180,7 @@ class QwenProvider(BaseLLMProvider):
                 content=data["output"]["choices"][0]["message"]["content"],
                 model=model,
                 usage=data.get("usage", {}),
+                tool_calls=_extract_tool_calls(data["output"]),
             )
 
     async def chat_stream(self, messages, model: str = "qwen-turbo", **kwargs) -> AsyncIterator[str]:
@@ -183,6 +220,7 @@ class KimiProvider(BaseLLMProvider):
                 content=data["choices"][0]["message"]["content"],
                 model=model,
                 usage=data.get("usage", {}),
+                tool_calls=_extract_tool_calls(data),
             )
 
     async def chat_stream(self, messages, model: str = "moonshot-v1-8k", **kwargs) -> AsyncIterator[str]:
@@ -243,6 +281,7 @@ class MiniMaxProvider(BaseLLMProvider):
                 content=data["choices"][0]["message"]["content"],
                 model=model,
                 usage=data.get("usage", {}),
+                tool_calls=_extract_tool_calls(data),
             )
 
     async def chat_stream(self, messages, model: str = "MiniMax-Text-01", **kwargs) -> AsyncIterator[str]:
@@ -282,6 +321,7 @@ class GLMProvider(BaseLLMProvider):
                 content=data["choices"][0]["message"]["content"],
                 model=model,
                 usage=data.get("usage", {}),
+                tool_calls=_extract_tool_calls(data),
             )
 
     async def chat_stream(self, messages, model: str = "glm-4", **kwargs) -> AsyncIterator[str]:

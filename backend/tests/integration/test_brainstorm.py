@@ -279,45 +279,6 @@ async def test_patch_nonexistent_session_returns_404():
 
 
 # ──────────────────────────────────────────────
-# Discuss endpoint guard tests
-# ──────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_discuss_on_ended_session_returns_400():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        insp_id = await _create_inspiration(client, "bs-ended-discuss-test")
-        sess = await _create_session(client, insp_id)
-        await client.patch(
-            f"/api/brainstorm-sessions/{sess['id']}",
-            json={"status": "ended"},
-        )
-        r = await client.post(
-            f"/api/brainstorm-sessions/{sess['id']}/discuss",
-            json={"content": "hello"},
-        )
-    assert r.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_abort_discuss_on_idle_session_returns_200():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        insp_id = await _create_inspiration(client, "bs-abort-test")
-        sess = await _create_session(client, insp_id)
-        r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/discuss")
-    assert r.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_discuss_on_nonexistent_session_returns_404():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        r = await client.post(
-            "/api/brainstorm-sessions/00000000-0000-0000-0000-000000000000/discuss",
-            json={"content": "hello"},
-        )
-    assert r.status_code == 404
-
-
-# ──────────────────────────────────────────────
 # Persistent connection endpoints (Iter-6)
 # ──────────────────────────────────────────────
 

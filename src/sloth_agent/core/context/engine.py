@@ -60,8 +60,12 @@ class ContextEngine(ContextWindowManager):
         Returns ContextResult with:
         - model_visible_context: what the LLM sees
         - runtime_only_context: diagnostic info not sent to LLM
-        - diagnostics: token stats
+        - diagnostics: token stats, budget, truncation, fallback flags
         """
+        import time
+
+        t0 = time.monotonic()
+
         working = list(messages)
         if self.policy.protect_threads:
             working = self._protect_reply_chains(working)
@@ -79,19 +83,33 @@ class ContextEngine(ContextWindowManager):
                 user_msg = m.get("content", "")
                 break
 
+        budget_in = len(working)
+        original_tokens = self._safe_count_messages(working)
+
         fitted = self.build_messages(system_prompt, history, tool_msgs, user_msg)
 
-        total_tokens = self.token_counter.count_messages(fitted)
-        original_tokens = self.token_counter.count_messages(working)
+        budget_out = len(fitted)
+        total_tokens = self._safe_count_messages(fitted)
+        truncation_count = budget_in - budget_out
+
+        t1 = time.monotonic()
+        build_latency_ms = round((t1 - t0) * 1000, 2)
+
+        token_estimation_fallback = self.token_counter._encoder is None
 
         diagnostics = {
-            "token_utilization": round(total_tokens / max(self.available, 1) * 100, 1),
+            "budget_in": budget_in,
+            "budget_out": budget_out,
             "total_tokens": total_tokens,
             "available_tokens": self.available,
+            "token_utilization": round(total_tokens / max(self.available, 1) * 100, 1),
             "compression_ratio": round(
                 1 - total_tokens / max(original_tokens, 1), 3
             ),
-            "truncation_ratio": round(1 - len(fitted) / max(len(working), 1), 3),
+            "truncation_count": truncation_count,
+            "truncation_ratio": round(1 - budget_out / max(budget_in, 1), 3),
+            "build_latency_ms": build_latency_ms,
+            "token_estimation_fallback": token_estimation_fallback,
             "mode": self.policy.mode,
         }
 
@@ -101,6 +119,13 @@ class ContextEngine(ContextWindowManager):
             runtime_only_context=[],
             diagnostics=diagnostics,
         )
+
+    def _safe_count_messages(self, messages: list[dict]) -> int:
+        """Count tokens with fallback — returns 0 on failure instead of raising."""
+        try:
+            return self.token_counter.count_messages(messages)
+        except Exception:
+            return 0
 
     def _protect_reply_chains(self, messages: list[dict]) -> list[dict]:
         """Ensure ancestor chains of reply messages are not truncated.
