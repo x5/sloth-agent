@@ -55,6 +55,12 @@
 | Iter-10 | Day 38-43 | events 全量 + Agent 树 + transfer + eval | **EventBus(CloudEvents/通配符订阅/持久化/DLQ) + EventHandler + WorkflowRule + AgentTreeManager + TransferToAgentTool + eval: Agent 协作评估** | ⬜ |
 | Iter-11 | Day 44-49 | coordination 全量 + delta state + Agent-as-Tool + YAML + rewind + eval | **Coordinator(TaskDAG) + LaneManager + MessageBus + WorktreeManager + 失败恢复 + Session delta state + Runner 重构 + Agent-as-Tool + YAML from_config + Session rewind + eval: 编排效率评估** | ⬜ |
 | Iter-12+ | 待定 | eval 体系化 + memory + errors + cost + observability + sandbox + plugin + pipeline + A2A | 长期记忆、错误处理体系、费用追踪、OpenTelemetry、容器沙箱、PluginManager、processor管道、A2A adapter | ⬜ |
+| Iter-12 | Day 50-54 | Memory Foundation | **Ingest pipeline + Consolidation tiers (Working→Episodic→Semantic) + Confidence scoring (Ebbinghaus) + Hybrid search (BM25+vector) + Context injection** | ⬜ |
+| Iter-13 | Day 55-59 | Memory Advanced | **Knowledge graph (entity+relations+graph traversal) + Supersession + Crystallization (Brainstorm→digest→wiki) + Procedural memory + Self-healing/lint + Event-driven automation** | ⬜ |
+| Iter-14+ | 待定 | eval 体系化 + errors + cost + observability + sandbox + plugin + pipeline + A2A | 剩余 Iter-12+ 候选池模块 | ⬜ |
+
+> **变更来源:** `docs/changes/memory-architecture/` — Memory 架构重设计（参考 ADK BaseMemoryService + Karpathy LLM Wiki + agentmemory）。Memory 分两队 Iter (12 Foundation + 13 Advanced)。
+> 原 Iter-12+ 候选池中 eval/errors/cost/observability/sandbox/plugin/pipeline/A2A 后移到 Iter-14+。
 
 > **变更来源:** `docs/changes/adk-optimization/` — Google ADK 对标分析。
 > Iter-8~9 在原计划基础上叠加 Phase A/B，Iter-10~11 为全新规划，Iter-12+ 为候选池。
