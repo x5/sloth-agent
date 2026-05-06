@@ -54,13 +54,13 @@
 | Iter-9 | Day 33-37 | 异步自主模式 + Hooks 系统 + eval | start-async + 断线恢复 + 浏览器通知 + **Phase B: HookManager(8 种 HookPoint) + tool/agent hook 接入 + eval: 自主讨论质量评估** | ⬜ |
 | Iter-10 | Day 38-43 | events 全量 + Agent 树 + transfer + eval | **EventBus(CloudEvents/通配符订阅/持久化/DLQ) + EventHandler + WorkflowRule + AgentTreeManager + TransferToAgentTool + eval: Agent 协作评估** | ⬜ |
 | Iter-11 | Day 44-49 | coordination 全量 + delta state + Agent-as-Tool + YAML + rewind + eval | **Coordinator(TaskDAG) + LaneManager + MessageBus + WorktreeManager + 失败恢复 + Session delta state + Runner 重构 + Agent-as-Tool + YAML from_config + Session rewind + eval: 编排效率评估** | ⬜ |
-| Iter-12+ | 待定 | eval 体系化 + memory + errors + cost + observability + sandbox + plugin + pipeline + A2A | 长期记忆、错误处理体系、费用追踪、OpenTelemetry、容器沙箱、PluginManager、processor管道、A2A adapter | ⬜ |
 | Iter-12 | Day 50-54 | Memory Foundation | **Ingest pipeline + Consolidation tiers (Working→Episodic→Semantic) + Confidence scoring (Ebbinghaus) + Hybrid search (BM25+vector) + Context injection** | ⬜ |
 | Iter-13 | Day 55-59 | Memory Advanced | **Knowledge graph (entity+relations+graph traversal) + Supersession + Crystallization (Brainstorm→digest→wiki) + Procedural memory + Self-healing/lint + Event-driven automation** | ⬜ |
-| Iter-14+ | 待定 | eval 体系化 + errors + cost + observability + sandbox + plugin + pipeline + A2A | 剩余 Iter-12+ 候选池模块 | ⬜ |
+| Iter-14+ | 待定 | eval 体系化 + errors + cost + observability + sandbox + plugin + pipeline + A2A | 剩余候选池模块 | ⬜ |
 
-> **变更来源:** `docs/changes/memory-architecture/` — Memory 架构重设计（参考 ADK BaseMemoryService + Karpathy LLM Wiki + agentmemory）。Memory 分两队 Iter (12 Foundation + 13 Advanced)。
-> 原 Iter-12+ 候选池中 eval/errors/cost/observability/sandbox/plugin/pipeline/A2A 后移到 Iter-14+。
+> **变更来源（2026-05-07）:**
+> - `docs/changes/adk-optimization/` — ADK 对标分析，Iter-8~14+ 路线图
+> - `docs/changes/memory-architecture/` — Memory 架构重设计（参考 ADK + Karpathy LLM Wiki + agentmemory），Iter-12+13 两队
 
 > **变更来源:** `docs/changes/adk-optimization/` — Google ADK 对标分析。
 > Iter-8~9 在原计划基础上叠加 Phase A/B，Iter-10~11 为全新规划，Iter-12+ 为候选池。
@@ -2253,7 +2253,49 @@ commands:
 
 ---
 
-## Iter-12+ 候选池
+---
+
+## Iter-12: Memory Foundation（5 天）
+
+> **变更来源:** `docs/changes/memory-architecture/`
+> 参考: ADK BaseMemoryService、Karpathy LLM Wiki、agentmemory
+
+### 核心交付
+
+1. **Memory 数据库**：SQLite FTS5 全文索引 + chromadb collection + Episodic/Semantic ORM
+2. **Ingest Pipeline**：session 结束 → LLM 生成摘要/key_points/entities → 写入 Episodic Memory
+3. **Consolidation**：从 Episodic 提取跨 session 事实 → 写入 Semantic Memory → 更新索引
+4. **Confidence Scoring**：Ebbinghaus 遗忘曲线，按 fact 类型不同衰减速率（架构 0.01/天、bug 0.1/天）
+5. **Hybrid Search**：BM25 (FTS5) + vector (chromadb) → RRF 融合，top_k=10
+6. **Context Injection**：Agent prompt 自动注入 `[Relevant Memory]` block（含 confidence 标注）
+7. **Memory API**：`POST /api/memory/sessions/{id}/ingest`、`POST /api/memory/consolidate`、`GET /api/memory/search`
+
+### 关键设计决策
+
+- Memory 独立数据库（`memory/chroma/` + `memory/fts.db`），不混入业务 DB
+- Embedding 先用 all-MiniLM-L6-v2（本地轻量），预留 API 切换
+- Iter-12 手动触发（API call），Iter-13 接 hooks 自动化
+- 不替代现有 `Message` 表，memory 是额外的索引层
+
+---
+
+## Iter-13: Memory Advanced（5 天）
+
+> **变更来源:** `docs/changes/memory-architecture/`
+
+### 核心交付
+
+1. **Knowledge Graph**：实体提取 + 类型化关系（uses/depends_on/contradicts/caused）+ networkx 图遍历
+2. **Supersession**：新声明可 supersede 旧声明，旧记录保留完整 provenance chain
+3. **Crystallization**：Brainstorm 讨论 → LLM 生成 structured digest → wiki + facts + graph update
+4. **Procedural Memory**：从重复 tool_call 序列提取 workflow/pattern → 匹配 trigger → 自动建议
+5. **Self-Healing**：lint（broken refs/orphan entities/stale facts）→ auto-fix + 定时 decay→archive
+6. **Event-Driven**：接入 Iter-9 hooks（on_session_end→auto-ingest）+ Iter-10 EventBus（session.completed→ingest）+ 定时 consolidation
+7. **扩展 API**：graph/traverse、crystallize、procedures、lint、stats
+
+---
+
+## Iter-14+ 候选池
 
 > **新增（2026-05-07）：** ADK 对标 Phase E。
 > 按收益排序，实施时按 delta 流程创建独立变更。
@@ -2261,14 +2303,13 @@ commands:
 | # | 模块 | spec | 核心交付 | 约天数 |
 |---|------|------|---------|--------|
 | 1 | `eval/` 体系化 | 5971B | UserSimulator + LLM-as-judge + rubric + trajectory evaluator | 3 |
-| 2 | `memory/` 长期记忆 | 993B | BaseMemoryService + 向量检索 + 跨 session 召回 | 2 |
-| 3 | `errors/` 错误处理 | 1134B | CircuitBreaker + 重试接入 Desktop、统一错误码 | 1 |
-| 4 | `cost/` 费用追踪 | 961B | BudgetAwareRouter 接入 Desktop、费用 dashboard | 1 |
-| 5 | `observability/` | 370B | OpenTelemetry tracing + metrics + 调用链 | 2 |
-| 6 | `sandbox/` 容器 | 526B | ContainerCodeExecutor、GkeCodeExecutor | 2 |
-| 7 | `skills/` 插件 | 1161B | PluginManager + 第三方插件加载 | 2 |
-| 8 | `runtime/` processor | 2430B | 12+ 可组合 processor 管道 | 2 |
-| 9 | `coordination/` A2A | §2.3 | A2A adapter + agent card 发布 | 2 |
+| 2 | `errors/` 错误处理 | 1134B | CircuitBreaker + 重试接入 Desktop、统一错误码 | 1 |
+| 3 | `cost/` 费用追踪 | 961B | BudgetAwareRouter 接入 Desktop、费用 dashboard | 1 |
+| 4 | `observability/` | 370B | OpenTelemetry tracing + metrics + 调用链 | 2 |
+| 5 | `sandbox/` 容器 | 526B | ContainerCodeExecutor、GkeCodeExecutor | 2 |
+| 6 | `skills/` 插件 | 1161B | PluginManager + 第三方插件加载 | 2 |
+| 7 | `runtime/` processor | 2430B | 12+ 可组合 processor 管道 | 2 |
+| 8 | `coordination/` A2A | §2.3 | A2A adapter + agent card 发布 | 2 |
 
 ---
 
@@ -2299,4 +2340,4 @@ commands:
 ---
 
 *Plan 版本: 5.2 — 2026-05-03*
-*变更: v5.3 — 2026-05-07 扩展 Iter-8~11 覆盖 ADK 对标 Phase A~D + eval + Iter-12+ 候选池。新增 Iter-10 (events 全量 + Agent 树 + transfer)、Iter-11 (coordination 全量 + delta state + Agent-as-Tool + YAML + rewind)、Iter-12+ (eval 体系化 + memory + errors + cost + observability + sandbox + plugin + pipeline + A2A)。详细变更见 `docs/changes/adk-optimization/`。*
+*变更: v5.4 — 2026-05-07 新增 Memory 架构重设计（Iter-12 Foundation + Iter-13 Advanced），参考 ADK + Karpathy LLM Wiki + agentmemory。四层 consolidation pipeline (Working→Episodic→Semantic→Procedural) + hybrid search + confidence scoring + knowledge graph + crystallization。Iter-14+ 候选池（eval 体系化 + errors + cost + observability + sandbox + plugin + pipeline + A2A）。详细变更见 `docs/changes/adk-optimization/` 和 `docs/changes/memory-architecture/`。*
