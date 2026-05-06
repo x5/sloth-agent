@@ -383,3 +383,153 @@ CheckpointManager — specs/core/coordination/spec.md §8.2
 StuckDetector — specs/core/coordination/spec.md §8.3
 - N 秒无 tool call → nudge → kill → escalate
 ```
+
+### REQ-COORD-007: Agent-as-Tool（Iter-11）
+
+```
+AgentTool（core/agents/agent_tool.py）
+- 将子 agent 包装为 FunctionTool
+- FunctionDeclaration 的 name = agent.name, description = agent.description
+- 调用时：创建简易 Runner → run_async(child_agent, session, args) → 返回结果文本
+- skip_summarization: bool = False（是否跳过 LLM 摘要）
+- 与 transfer 的区别：transfer 移交控制权，AgentTool 拿结果回来继续
+```
+
+### REQ-LLM-022: YAML 配置加载 from_config()（Iter-11）
+
+```
+AgentConfig.from_yaml(path: str) → AgentConfig（新增在 core/agents/agent_model.py）
+- 解析 YAML → 验证 Pydantic schema → 构造 AgentConfig 树
+- sub_agents 支持 config_path（引用另一个 YAML）或 code（引用 Python 变量）
+- tools 支持 name（ADK 内置名）、fully.qualified.path（用户定义）、name + args（带参数）
+- 与现有 DB AgentTemplate 共存，不替代
+
+用例：
+- 版本控制：agent 配置和代码一起进 git
+- CI 自动化：跑 eval 不需要先启动 Desktop 配 agent
+- 团队共享：导出 YAML → 别人 import → 同样的 agent 行为
+```
+
+### REQ-SESSION-006: Session rewind（Iter-11）
+
+```
+Runner.rewind_async(session_id, target_invocation_id) → Session
+- 计算逆向 state delta（从当前状态回退到目标 invocation 前）
+- 计算逆向 artifact delta（删除目标 invocation 产生的文件）
+- 用于调试、重放、"回到那个时间点"功能
+- 依赖 delta state（REQ-SESSION-005）
+```
+
+---
+
+## ADDED Requirements — eval/spec.md（跨 Iter-7~12+）
+
+### REQ-EVAL-001: 工具能力评估（Iter-7 后补充，Iter-8）
+
+```
+Eval: Read-Only Tool Accuracy
+- 测试集：20 个文件操作场景（读文件、搜索、glob 匹配等）
+- 指标：工具选择正确率、参数正确率、路径安全（无越界）
+- 格式：pytest 脚本，可 CI 运行
+
+Eval: Write Tool Safety（Iter-8）
+- 测试集：15 个写操作场景（写文件、打补丁、执行白名单命令）
+- 指标：文件写入正确性、越界拒绝率、命令白名单拦截率
+- 格式：pytest 脚本
+```
+
+### REQ-EVAL-002: 讨论质量评估（Iter-9）
+
+```
+Eval: Brainstorm Discussion Quality
+- 测试集：10 个讨论场景（技术决策、方案对比、风险评估）
+- 指标：讨论不跑题率、关键点覆盖率、结论一致性、token 效率
+- 方法：LLM-as-judge（用大模型给讨论质量打分 1-5）
+```
+
+### REQ-EVAL-003: Agent 协作评估（Iter-10）
+
+```
+Eval: Agent Transfer & Collaboration
+- 测试集：8 个多 Agent 协作场景
+- 指标：transfer 正确率、子 agent 结果利用率、无循环 transfer
+```
+
+### REQ-EVAL-004: 编排效率评估（Iter-11）
+
+```
+Eval: Coordination Efficiency
+- 测试集：5 个并行任务 DAG
+- 指标：并行执行时间 < 串行时间 N%、冲突检测准确率、失败恢复成功率
+```
+
+### REQ-EVAL-005: eval 体系化（Iter-12+）
+
+```
+参考 ADK evaluation/ 模块（~47 文件）
+
+- UserSimulator：模拟多轮用户交互，测试 Agent 对话流程
+- LLM-as-judge：大模型评分（response_match、tool_trajectory、hallucinations）
+- RubricBasedEvaluator：基于评分标准的评估
+- SafetyEvaluator：安全评估
+- TrajectoryEvaluator：执行轨迹评估
+- 所有 evaluator 通过 EventBus 订阅评估事件
+```
+
+---
+
+## ADDED Requirements — Iter-12+ 候选模块
+
+### REQ-MEM-001: 长期记忆（Iter-12+）
+
+```
+参考 ADK BaseMemoryService + VertexAiMemoryBankService
+关联 specs/memory/spec.md (993B)
+
+- BaseMemoryService: add_session_to_memory / add_memory / search_memory
+- 向量检索（复用现有 chromadb 依赖）
+- 跨 session 召回：用户提到"上次讨论的那个 bug"→ 自动检索历史
+```
+
+### REQ-ERRORS-001: 错误处理体系接入 Desktop（Iter-12+）
+
+```
+关联 specs/errors/spec.md (1134B)
+core 层已有 circuit_breaker.py + circuit_manager.py，未接入 Desktop
+
+- 将 CircuitBreaker 接入 LLMAdapter（LLM 调用自动熔断）
+- 将重试策略接入 run_tool_loop（工具执行自动重试）
+- 错误码标准化（API 返回统一 error_code）
+```
+
+### REQ-COST-001: 费用追踪接入 Desktop（Iter-12+）
+
+```
+关联 specs/cost/spec.md (961B)
+core 层已有 budget_router.py + cost/tracker.py，未接入 Desktop
+
+- BudgetAwareRouter 接入 LLMAdapter（自动模型降级）
+- Dashboard 展示按 agent/inspiration 的费用拆分
+- 预算预警（通过 EventBus 发布 budget.warning/exceeded 事件）
+```
+
+### REQ-OBS-001: 可观测性（Iter-12+）
+
+```
+关联 specs/observability/spec.md (370B)
+
+- OpenTelemetry tracing：每个 Agent.run() 生成 span
+- Tool 调用、LLM 调用自动打点
+- metrics：token 消耗、工具调用次数、讨论轮次
+- 通过 EventBus 发布 health.unhealthy / health.recovered 事件
+```
+
+### REQ-SANDBOX-001: 容器沙箱（Iter-12+）
+
+```
+关联 specs/sandbox/spec.md (526B)
+
+- ContainerCodeExecutor：Docker 容器执行代码（参考 ADK ContainerCodeExecutor）
+- GkeCodeExecutor：K8s Pod 执行代码
+- 比 Iter-8 文件级隔离更强的安全保证
+```
