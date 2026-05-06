@@ -51,12 +51,23 @@
 - apply-file / apply-all API + discussion_end 扩展
 - 前端 SandboxFileViewer 组件
 
+### Task A.5: Eval — 工具读写能力评估（½ 天）
+
+**文件：** `evals/test_tool_read_capability.py` (new)、`evals/test_tool_write_capability.py` (new)
+
+- 读工具 eval（补充 Iter-7）：20 个场景，验证 read/grep/glob/grep_repo 正确选择和执行
+- 写工具 eval：15 个场景，验证写文件正确性、越界拒绝率、白名单拦截率
+- 指标：工具选择正确率 ≥ 90%、路径安全 100%（零越界）
+
+**验证：** `uv run pytest evals/test_tool_*_capability.py -v` 通过
+
 ### Iter-8 验收标准
 
 - [ ] Pydantic schema 替代手动 `_py_to_json_type`
 - [ ] `BaseToolset.get_tools(ctx)` 动态发现
 - [ ] `AgentConfig.canonical_model` 继承链
 - [ ] 写工具 + apply API 可用
+- [ ] eval: 读工具正确率 ≥ 90%、写工具路径安全 100%
 - [ ] 原有 148 测试全通过
 
 ---
@@ -97,12 +108,23 @@
 - start-async + status API
 - 前端断线恢复 + 浏览器通知
 
+### Task B.4: Eval — 自主讨论质量评估（½ 天）
+
+**文件：** `evals/test_brainstorm_quality.py` (new)
+
+- 10 个讨论场景（技术决策、方案对比、风险评估）
+- LLM-as-judge：用大模型给讨论质量打分 1-5
+- 指标：不跑题率 ≥ 80%、关键点覆盖率 ≥ 70%、结论一致性
+
+**验证：** `uv run pytest evals/test_brainstorm_quality.py -v` 通过
+
 ### Iter-9 验收标准
 
 - [ ] 8 种 HookPoint 均可注册/触发
 - [ ] Tool hook 可跳过/覆盖执行
 - [ ] Agent hook 可在 LLM 调用前后拦截
 - [ ] 异步讨论运行正常、断线恢复可用
+- [ ] eval: 讨论不跑题率 ≥ 80%、关键点覆盖率 ≥ 70%
 - [ ] 原有测试全通过
 
 ---
@@ -169,6 +191,13 @@
 - 执行后设 `ToolContext.actions.transfer_to_agent`
 - `run_tool_loop` 检测 transfer action → 跳出循环
 
+### Task E.5: Eval — Agent 协作评估（½ 天）
+
+**文件：** `evals/test_agent_collaboration.py` (new)
+
+- 8 个多 Agent 协作场景（transfer、Agent-as-Tool、多轮 relay）
+- 指标：transfer 正确率 ≥ 95%、子 agent 结果利用率 ≥ 80%、无循环 transfer
+
 ### Iter-10 验收标准
 
 - [ ] EventBus pub/sub + 通配符匹配 + 持久化回放
@@ -176,6 +205,7 @@
 - [ ] WorkflowRule 声明式触发
 - [ ] Agent 树：build/find/walk/validate
 - [ ] transfer 工具：LLM 可选范围受限、transfer action 正确传递
+- [ ] eval: transfer 正确率 ≥ 95%、无循环 transfer
 
 ---
 
@@ -248,6 +278,40 @@
 - 命名空间约定：app:* / user:* / temp:* / agent:*
 - `commit()` / `rollback()`
 
+### Task CO.6: Agent-as-Tool（½ 天）
+
+**文件：** `src/sloth_agent/core/agents/agent_tool.py` (new)
+
+- `AgentTool(BaseTool)`：包装子 agent 为工具
+- FunctionDeclaration：name=agent.name, description=agent.description
+- `run_async(args, tool_context)`：创建简易 Runner → run_async(child, session, args) → 返回文本
+- `skip_summarization` 选项
+
+### Task CO.7: YAML 配置加载（½ 天）
+
+**文件：** `src/sloth_agent/core/agents/agent_model.py` (扩展)
+
+- `AgentConfig.from_yaml(path) → AgentConfig`
+- sub_agents 支持 `config_path`（引用 YAML）和 `code`（引用 Python 变量）
+- tools 支持 name / fully.qualified.path / name+args 三种写法
+- 与 DB AgentTemplate 共存
+
+### Task D.1: Session delta state + rewind（1 天）
+
+**文件：** `src/sloth_agent/core/session/state.py` (new)
+
+- `State` delta-tracking dict：`_base`(持久化) + `_delta`(增量)
+- 命名空间约定：app:* / user:* / temp:* / agent:*
+- `commit()` / `rollback()`
+- `Runner.rewind_async(session_id, target_invocation_id)` → Session
+
+### Task CO.8: Eval — 编排效率评估（½ 天）
+
+**文件：** `evals/test_coordination_efficiency.py` (new)
+
+- 5 个并行任务 DAG 场景
+- 指标：并行时间 < 串行 N%、冲突检测准确率 ≥ 90%、失败恢复成功率 ≥ 80%
+
 ### Iter-11 验收标准
 
 - [ ] Coordinator 按 DAG 拓扑执行，层内并行
@@ -256,5 +320,26 @@
 - [ ] WorktreeManager 创建/清理 worktree
 - [ ] 失败 L1/L2/L3 三级恢复
 - [ ] Runner 替代 BrainstormEngine 直接调度
-- [ ] Session delta state commit/rollback
+- [ ] Agent-as-Tool：子 agent 作为工具可调用、结果正确返回
+- [ ] YAML config：从 YAML 加载 Agent 树 → 构造等价于代码配置
+- [ ] Session delta state commit/rollback + rewind
+- [ ] eval: 并行效率达标、冲突检测准确率 ≥ 90%
 - [ ] 原有测试全通过
+
+---
+
+## Phase E: Iter-12+ 候选（eval 体系化 + 长期记忆 + errors + cost + observability + sandbox + plugin + pipeline + A2A）
+
+> 以下为概要，不做详细 task 拆分。实施时按 delta 流程创建独立变更。
+
+| # | 模块 | 核心交付 | 约天数 |
+|---|------|---------|--------|
+| 1 | `eval/` 体系化 | UserSimulator + LLM-as-judge + RubricBasedEvaluator + TrajectoryEvaluator | 3 天 |
+| 2 | `memory/` | BaseMemoryService + 向量检索 + 跨 session 召回 | 2 天 |
+| 3 | `errors/` | CircuitBreaker + 重试策略接入 Desktop | 1 天 |
+| 4 | `cost/` | BudgetAwareRouter 接入 Desktop + 费用 dashboard | 1 天 |
+| 5 | `observability/` | OpenTelemetry tracing + metrics + 调用链 | 2 天 |
+| 6 | `sandbox/` | ContainerCodeExecutor + GkeCodeExecutor | 2 天 |
+| 7 | `skills/` | PluginManager + 第三方插件加载 | 2 天 |
+| 8 | `runtime/` | 12+ 可组合 processor 管道 | 2 天 |
+| 9 | `coordination/` A2A | A2A adapter + agent card 发布 | 2 天 |
