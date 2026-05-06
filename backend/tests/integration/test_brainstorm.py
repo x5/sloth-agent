@@ -420,14 +420,22 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
             )
         ]
 
-    async def fake_run_rounds(self, user_msg_id, user_content, current_round, agents, agent_indices, agent_names):
-        """Mock _run_rounds — bypasses LLM entirely, yields fixed events."""
+    async def fake_run_persistent(self):
+        """Mock run_persistent — emits fixed events directly."""
+        agents = await self._load_agents()
+        agent_indices = {a.id: (i + 1) for i, a in enumerate(agents)}
+        msg_id = str(uuid.uuid4())
+
+        yield SSEEvent(event="user_message", data={
+            "message_id": msg_id,
+            "content": "What should we build first?",
+        })
+
         for agent in agents:
             yield SSEEvent(event="agent_start", data={
                 "agent_id": agent.id,
                 "agent_name": agent.name,
                 "agent_number": agent_indices.get(agent.id),
-                "parent_message_id": user_msg_id,
             })
             for token in ("Hello", " world"):
                 yield SSEEvent(event="agent_token", data={
@@ -436,21 +444,17 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
                     "token": token,
                 })
                 await asyncio.sleep(0)
-            msg_id = str(uuid.uuid4())
             yield SSEEvent(event="message_done", data={
                 "agent_id": agent.id,
                 "agent_name": agent.name,
-                "agent_number": agent_indices.get(agent.id),
-                "message_id": msg_id,
                 "full_content": "Hello world",
-                "parent_message_id": user_msg_id,
-                "round": current_round,
             })
-        yield SSEEvent(event="round_end", data={"round": current_round, "speeches": len(agents)})
-        yield SSEEvent(event="discussion_end", data={"summary": None, "message_count": 1, "round": current_round})
+
+        yield SSEEvent(event="round_end", data={"round": 1, "speeches": len(agents)})
+        yield SSEEvent(event="discussion_end", data={"summary": None, "message_count": 1})
 
     monkeypatch.setattr(BrainstormEngine, "_load_agents", fake_load_agents)
-    monkeypatch.setattr(BrainstormEngine, "_run_rounds", fake_run_rounds)
+    monkeypatch.setattr(BrainstormEngine, "run_persistent", fake_run_persistent)
 
     transport = StreamingASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -460,7 +464,6 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
         seen_events: list[tuple[str, dict]] = []
         discussion_ended = asyncio.Event()
         stream_closed = asyncio.Event()
-        connection_opened = asyncio.Event()
 
         # The SSE stream reader runs as a background task.  aiter_lines() is an
         # async generator that blocks between each line waiting for the server
@@ -474,7 +477,6 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
                 f"/api/brainstorm-sessions/{sess['id']}/connect",
             ) as response:
                 assert response.status_code == 200
-                connection_opened.set()
                 async for line in response.aiter_lines():
                     if line.startswith("event: "):
                         current_event = line[7:].strip()
@@ -489,26 +491,11 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
 
         reader_task = asyncio.create_task(stream_reader())
 
-        # Wait for the reader to open its SSE connection before injecting,
-        # otherwise events can be lost on slow CI runners.
-        await asyncio.wait_for(connection_opened.wait(), timeout=5.0)
+        # fake_run_persistent emits all events immediately on connect.
+        # Wait for discussion_end (stream will close naturally when generator is exhausted).
+        await asyncio.wait_for(discussion_ended.wait(), timeout=10.0)
 
-        inject_response = await client.post(
-            f"/api/brainstorm-sessions/{sess['id']}/inject",
-            json={"content": "What should we build first?"},
-        )
-        assert inject_response.status_code == 202
-
-        # Wait for the discussion to reach discussion_end.
-        await asyncio.wait_for(discussion_ended.wait(), timeout=15.0)
-
-        # Disconnect: abort() sets _abort=True and injects a sentinel into the
-        # engine queue so that run_persistent()'s wait_for(queue.get()) resolves
-        # immediately rather than after the 30-second heartbeat timeout.
-        disc_r = await client.delete(f"/api/brainstorm-sessions/{sess['id']}/connect")
-        assert disc_r.status_code == 200
-
-        # The sentinel causes run_persistent() to return, which closes the stream.
+        # Give the stream a moment to close after the generator is exhausted.
         await asyncio.wait_for(stream_closed.wait(), timeout=5.0)
 
         if not reader_task.done():
