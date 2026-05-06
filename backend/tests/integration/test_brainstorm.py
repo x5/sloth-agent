@@ -436,6 +436,7 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
         seen_events: list[tuple[str, dict]] = []
         discussion_ended = asyncio.Event()
         stream_closed = asyncio.Event()
+        connection_opened = asyncio.Event()
 
         # The SSE stream reader runs as a background task.  aiter_lines() is an
         # async generator that blocks between each line waiting for the server
@@ -449,6 +450,7 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
                 f"/api/brainstorm-sessions/{sess['id']}/connect",
             ) as response:
                 assert response.status_code == 200
+                connection_opened.set()
                 async for line in response.aiter_lines():
                     if line.startswith("event: "):
                         current_event = line[7:].strip()
@@ -463,8 +465,9 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
 
         reader_task = asyncio.create_task(stream_reader())
 
-        # Yield once so the reader task establishes its connection before inject.
-        await asyncio.sleep(0)
+        # Wait for the reader to open its SSE connection before injecting,
+        # otherwise events can be lost on slow CI runners.
+        await asyncio.wait_for(connection_opened.wait(), timeout=5.0)
 
         inject_response = await client.post(
             f"/api/brainstorm-sessions/{sess['id']}/inject",
