@@ -50,13 +50,14 @@
 | Iter-5 | Day 18-20 | 讨论引擎 — 两轮投票 + SSE | BrainstormEngine + DecisionStrategy + CoolingTimer | ✅ |
 | Iter-6 | Day 21-24 | 持久连接 + Reply + 彩色线程 | queue-driven Engine + connect/inject 端点 + Reply UI + 线程竖线 | ✅ |
 | Iter-7 | Day 24-26 | Tool 系统 + 上下文引擎 | `core` 层：@tool 装饰器 + 6 只读工具 + ROLE_BASE_TOOLS + run_tool_loop + ContextEngine；Desktop 薄适配层接线 | ✅ |
-| Iter-8 | Day 27-31 | 写 Tools + Toolset 抽象 + Agent 对象模型 | 写 Tools + tool-whitelist.yaml + SandboxFileViewer + 受限网络工具 + **Phase A: Pydantic schema + BaseToolset + AgentConfig + model 继承链** | ⬜ |
-| Iter-9 | Day 32-35 | 异步自主模式 + Hooks 系统 | start-async + 断线恢复 + 浏览器通知 + **Phase B: HookManager(8 种 HookPoint) + tool/agent hook 接入** | ⬜ |
-| Iter-10 | Day 36-40 | events 全量 + Agent 树 + transfer | **EventBus(CloudEvents/通配符订阅/持久化/DLQ) + EventHandler + WorkflowRule + AgentTreeManager + TransferToAgentTool** | ⬜ |
-| Iter-11 | Day 41-45 | coordination 全量 + delta state + Runner | **Coordinator(TaskDAG) + LaneManager + MessageBus + WorktreeManager + 失败恢复 + Session delta state + Runner 重构** | ⬜ |
+| Iter-8 | Day 27-32 | 写 Tools + Toolset 抽象 + Agent 对象模型 + eval | 写 Tools + tool-whitelist.yaml + SandboxFileViewer + 受限网络工具 + **Phase A: Pydantic schema + BaseToolset + AgentConfig + model 继承链 + eval: 读/写工具能力评估** | ⬜ |
+| Iter-9 | Day 33-37 | 异步自主模式 + Hooks 系统 + eval | start-async + 断线恢复 + 浏览器通知 + **Phase B: HookManager(8 种 HookPoint) + tool/agent hook 接入 + eval: 自主讨论质量评估** | ⬜ |
+| Iter-10 | Day 38-43 | events 全量 + Agent 树 + transfer + eval | **EventBus(CloudEvents/通配符订阅/持久化/DLQ) + EventHandler + WorkflowRule + AgentTreeManager + TransferToAgentTool + eval: Agent 协作评估** | ⬜ |
+| Iter-11 | Day 44-49 | coordination 全量 + delta state + Agent-as-Tool + YAML + rewind + eval | **Coordinator(TaskDAG) + LaneManager + MessageBus + WorktreeManager + 失败恢复 + Session delta state + Runner 重构 + Agent-as-Tool + YAML from_config + Session rewind + eval: 编排效率评估** | ⬜ |
+| Iter-12+ | 待定 | eval 体系化 + memory + errors + cost + observability + sandbox + plugin + pipeline + A2A | 长期记忆、错误处理体系、费用追踪、OpenTelemetry、容器沙箱、PluginManager、processor管道、A2A adapter | ⬜ |
 
 > **变更来源:** `docs/changes/adk-optimization/` — Google ADK 对标分析。
-> Iter-8~9 在原计划基础上叠加 Phase A/B，Iter-10~11 为全新规划。
+> Iter-8~9 在原计划基础上叠加 Phase A/B，Iter-10~11 为全新规划，Iter-12+ 为候选池。
 > 详细任务见 `docs/changes/adk-optimization/tasks.md`
 
 ---
@@ -1940,8 +1941,10 @@ def get_effective_tools(role: str, agent_tools: list[str]) -> list[str]:
 
 ---
 
-## Iter-8: 写 Tools + 受限执行器（3 天）
+## Iter-8: 写 Tools + 受限执行器 + Toolset 抽象 + Agent 对象模型 + eval（5 天）
 
+> **范围扩展（2026-05-07）：** 原计划仅做写工具，现叠加 ADK 对标 Phase A（Pydantic schema、BaseToolset、AgentConfig、model 继承链）和工具能力 eval。
+> 新增任务详情：`docs/changes/adk-optimization/tasks.md` § Phase A
 > Agent 的讨论结论落地为沙箱中的代码文件、文档、测试用例。用户审查后手动应用到项目。
 
 ### Task 8.0: 写 Tools 注册 + tool-whitelist.yaml
@@ -2116,8 +2119,10 @@ commands:
 
 ---
 
-## Iter-9: 异步自主模式（3 天）
+## Iter-9: 异步自主模式 + Hooks 系统 + eval（5 天）
 
+> **范围扩展（2026-05-07）：** 原计划仅做异步自主模式，现叠加 ADK 对标 Phase B（HookManager、8 种 HookPoint、tool/agent hook 接入）和讨论质量 eval。
+> 新增任务详情：`docs/changes/adk-optimization/tasks.md` § Phase B
 > 用户提一个问题后离线，Agent 自主讨论并产出结果。BrainstormEngine 从"SSE 驱动"重构为"生成即写 DB"模式。
 
 ### Task 9.0: BrainstormEngine — 生成即写 DB 重构
@@ -2196,6 +2201,71 @@ commands:
 
 ---
 
+## Iter-10: events 全量 + Agent 树 + transfer + eval（6 天）
+
+> **新增（2026-05-07）：** ADK 对标 Phase C。
+> 详细任务：`docs/changes/adk-optimization/tasks.md` § Phase C + Iter-10
+> 关联 spec: `specs/core/events/spec.md`（15KB）、`specs/coordination/spec.md` § Agent 树
+
+### 核心交付
+
+1. **EventBus 基建**：CloudEvents 事件模型 + 31 种事件类型 + 通配符订阅 + 同步/异步双队列 + JSONL 持久化 + DLQ + 背压控制
+2. **EventHandler 处理器**：AutoReportHandler、BudgetAlertHandler、HookAdapter（EventBus ↔ HookManager 桥接）
+3. **WorkflowRule 声明式规则**：trigger(通配符) + action + condition + cooldown
+4. **AgentTreeManager**：build_tree / find_agent / walk_depth_first / validate（循环引用 + 重名检测）
+5. **TransferToAgentTool**：LLM 可见的 transfer 工具，agent_name enum 防幻觉
+6. **Agent-as-Tool**（基础）：Transfer 做完后封装为工具模式
+7. **eval: Agent 协作评估**：8 个多 Agent 场景，验证 transfer 正确性
+
+### 关键设计决策
+
+- EventBus 禁止 handler 中 publish（防级联风暴）
+- 有界队列 maxsize=256 + drop-oldest 背压
+- Agent 树与现有平铺 Team 共存（渐进迁移）
+
+---
+
+## Iter-11: coordination 全量 + delta state + Agent-as-Tool + YAML + rewind + eval（6 天）
+
+> **新增（2026-05-07）：** ADK 对标 Phase D。
+> 详细任务：`docs/changes/adk-optimization/tasks.md` § Phase D + Iter-11
+> 关联 spec: `specs/core/coordination/spec.md`（16KB）、`specs/session/spec.md`
+
+### 核心交付
+
+1. **Coordinator + TaskDAG**：拓扑分层执行、层内并行（asyncio.gather）、依赖满足检测
+2. **LaneManager**：同 lane 串行、异 lane 并行、背压策略（drop_oldest/drop_newest/reject）
+3. **MessageBus**：Agent 间点对点 + 广播通信、幂等去重、TTL 清理
+4. **WorktreeManager**：Git worktree 创建/清理/文件变更追踪
+5. **ConflictDetector**：文件级 + 行级冲突检测
+6. **失败恢复**：L1 重试 / L2 重规划 / L3 分解 + CheckpointManager + StuckDetector
+7. **Runner 重构**：独立调度器，BrainstormEngine 退化为 SequentialFlow
+8. **Session delta state**：delta-tracking dict + commit/rollback + rewind
+9. **Agent-as-Tool**（完整）：子 agent 包装为工具、结果返回封装
+10. **YAML from_config**：从 YAML 加载 Agent 树配置
+11. **eval: 编排效率评估**：5 个并行 DAG 场景
+
+---
+
+## Iter-12+ 候选池
+
+> **新增（2026-05-07）：** ADK 对标 Phase E。
+> 按收益排序，实施时按 delta 流程创建独立变更。
+
+| # | 模块 | spec | 核心交付 | 约天数 |
+|---|------|------|---------|--------|
+| 1 | `eval/` 体系化 | 5971B | UserSimulator + LLM-as-judge + rubric + trajectory evaluator | 3 |
+| 2 | `memory/` 长期记忆 | 993B | BaseMemoryService + 向量检索 + 跨 session 召回 | 2 |
+| 3 | `errors/` 错误处理 | 1134B | CircuitBreaker + 重试接入 Desktop、统一错误码 | 1 |
+| 4 | `cost/` 费用追踪 | 961B | BudgetAwareRouter 接入 Desktop、费用 dashboard | 1 |
+| 5 | `observability/` | 370B | OpenTelemetry tracing + metrics + 调用链 | 2 |
+| 6 | `sandbox/` 容器 | 526B | ContainerCodeExecutor、GkeCodeExecutor | 2 |
+| 7 | `skills/` 插件 | 1161B | PluginManager + 第三方插件加载 | 2 |
+| 8 | `runtime/` processor | 2430B | 12+ 可组合 processor 管道 | 2 |
+| 9 | `coordination/` A2A | §2.3 | A2A adapter + agent card 发布 | 2 |
+
+---
+
 ## 跨迭代关注
 
 ### 端口与进程管理
@@ -2223,4 +2293,4 @@ commands:
 ---
 
 *Plan 版本: 5.2 — 2026-05-03*
-*变更: 对齐 Iter-6 的实际实现。持久连接注册表为 `_active_connections`（非 `_active_engines`），无活跃连接时 `/inject` 返回 400；`discussionConnected` 与 `discussionActive` 共存；线程展示采用消息气泡内引用预览块 + 线程色 accent，而非外层竖线。项目整体仍处于 IN PROGRESS，后续迭代为 Iter-7 至 Iter-9。*
+*变更: v5.3 — 2026-05-07 扩展 Iter-8~11 覆盖 ADK 对标 Phase A~D + eval + Iter-12+ 候选池。新增 Iter-10 (events 全量 + Agent 树 + transfer)、Iter-11 (coordination 全量 + delta state + Agent-as-Tool + YAML + rewind)、Iter-12+ (eval 体系化 + memory + errors + cost + observability + sandbox + plugin + pipeline + A2A)。详细变更见 `docs/changes/adk-optimization/`。*
