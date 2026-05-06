@@ -55,3 +55,6 @@ scripts/review_iter5_v2.py
 docs/ref/gstack-main/
 docs/ref/superpowers-main/
 docs/ref/claude_code_snapshot/
+
+# Claude local settings
+.claude/settings.local.json
