@@ -39,6 +39,7 @@ class StreamingASGITransport:
         self.raise_app_exceptions = raise_app_exceptions
         self.root_path = root_path
         self.client = client
+        self._tasks: list[asyncio.Task] = []
 
     async def handle_async_request(self, request):
         scope = {
@@ -107,7 +108,8 @@ class StreamingASGITransport:
                     await body_queue.put(None)
                 response_complete.set()
 
-        asyncio.create_task(run_app())
+        task = asyncio.create_task(run_app())
+        self._tasks.append(task)
 
         await start_message.wait()
 
@@ -128,7 +130,14 @@ class StreamingASGITransport:
         return Response(status_code, headers=response_headers, stream=_QueueStream(body_queue))
 
     async def aclose(self):
-        pass
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
+        self._tasks.clear()
 
     async def __aenter__(self):
         return self
