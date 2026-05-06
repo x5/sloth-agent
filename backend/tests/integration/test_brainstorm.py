@@ -3,6 +3,7 @@
 import asyncio
 from pathlib import Path
 import sys
+import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncByteStream, AsyncClient, Response
@@ -12,8 +13,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.main import app
-from app.services.brainstorm import AgentInfo, BrainstormEngine
-from app.services.llm import LLMService
+from app.services.brainstorm import AgentInfo, BrainstormEngine, SSEEvent
 
 
 # ──────────────────────────────────────────────
@@ -420,13 +420,37 @@ async def test_persistent_connect_inject_streams_user_and_agent_events(monkeypat
             )
         ]
 
-    async def fake_chat_stream(self, model, messages):
-        for token in ("Hello", " world"):
-            yield token
-            await asyncio.sleep(0)
+    async def fake_run_rounds(self, user_msg_id, user_content, current_round, agents, agent_indices, agent_names):
+        """Mock _run_rounds — bypasses LLM entirely, yields fixed events."""
+        for agent in agents:
+            yield SSEEvent(event="agent_start", data={
+                "agent_id": agent.id,
+                "agent_name": agent.name,
+                "agent_number": agent_indices.get(agent.id),
+                "parent_message_id": user_msg_id,
+            })
+            for token in ("Hello", " world"):
+                yield SSEEvent(event="agent_token", data={
+                    "agent_id": agent.id,
+                    "agent_name": agent.name,
+                    "token": token,
+                })
+                await asyncio.sleep(0)
+            msg_id = str(uuid.uuid4())
+            yield SSEEvent(event="message_done", data={
+                "agent_id": agent.id,
+                "agent_name": agent.name,
+                "agent_number": agent_indices.get(agent.id),
+                "message_id": msg_id,
+                "full_content": "Hello world",
+                "parent_message_id": user_msg_id,
+                "round": current_round,
+            })
+        yield SSEEvent(event="round_end", data={"round": current_round, "speeches": len(agents)})
+        yield SSEEvent(event="discussion_end", data={"summary": None, "message_count": 1, "round": current_round})
 
     monkeypatch.setattr(BrainstormEngine, "_load_agents", fake_load_agents)
-    monkeypatch.setattr(LLMService, "chat_stream", fake_chat_stream)
+    monkeypatch.setattr(BrainstormEngine, "_run_rounds", fake_run_rounds)
 
     transport = StreamingASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
