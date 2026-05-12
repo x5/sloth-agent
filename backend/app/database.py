@@ -50,6 +50,15 @@ async def _migrate_db():
             await conn.execute(text("ALTER TABLE messages ADD COLUMN intent TEXT"))
         if "truncated" not in cols:
             await conn.execute(text("ALTER TABLE messages ADD COLUMN truncated INTEGER NOT NULL DEFAULT 0"))
+        # agent_templates migrations
+        result = await conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_templates'")
+        )
+        if result.first():
+            result = await conn.execute(text("PRAGMA table_info(agent_templates)"))
+            at_cols = {row[1] for row in result.fetchall()}
+            if "tools" not in at_cols:
+                await conn.execute(text("ALTER TABLE agent_templates ADD COLUMN tools TEXT NOT NULL DEFAULT '[]'"))
 
 
 async def init_db():
