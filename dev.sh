@@ -8,6 +8,10 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND="$ROOT/backend"
 SRC_TAURI="$ROOT/src-tauri"
 
+export SLOTH_BACKEND_URL="${SLOTH_BACKEND_URL:-http://127.0.0.1:8080}"
+PORT=$(echo "$SLOTH_BACKEND_URL" | grep -oP ':\d+' | tr -d ':' || echo "8080")
+PORT=${PORT:-8080}
+
 cleanup() {
   echo ""
   echo "Shutting down..."
@@ -16,9 +20,9 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-echo "Starting backend..."
+echo "Starting backend on port $PORT (SLOTH_BACKEND_URL=$SLOTH_BACKEND_URL)..."
 cd "$BACKEND"
-uv run uvicorn app.main:app --reload --port 8000 &
+uv run uvicorn app.main:app --reload --port "$PORT" &
 BACKEND_PID=$!
 
 echo "Waiting for backend..."

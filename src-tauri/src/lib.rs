@@ -1,13 +1,10 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 
-const BACKEND_URL: &str = "http://127.0.0.1:8080";
-
-fn http_client() -> Result<Client, String> {
-    Client::builder()
-        .no_proxy()
-        .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))
+struct AppState {
+    backend_url: String,
+    http_client: Client,
 }
 
 fn urlencoding(s: &str) -> String {
@@ -99,7 +96,7 @@ fn default_chat_mode() -> String {
     "chat".to_string()
 }
 
-// ---- Greet / Echo (Phase 0) ----
+// ---- Greet / Echo / Config ----
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -107,11 +104,16 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn echo(message: String) -> Result<String, String> {
-    let client = http_client()?;
+fn get_backend_url(state: tauri::State<'_, AppState>) -> String {
+    state.backend_url.clone()
+}
+
+#[tauri::command]
+async fn echo(message: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     let body = serde_json::json!({ "message": message });
-    let resp = client
-        .post(format!("{}/api/echo", BACKEND_URL))
+    let resp = state
+        .http_client
+        .post(format!("{}/api/echo", state.backend_url))
         .header("Content-Type", "application/json")
         .body(body.to_string())
         .send()
@@ -127,11 +129,11 @@ async fn echo(message: String) -> Result<String, String> {
 // ---- Inspiration CRUD (Iter-1) ----
 
 #[tauri::command]
-async fn create_inspiration(name: String) -> Result<Inspiration, String> {
-    let client = http_client()?;
+async fn create_inspiration(name: String, state: tauri::State<'_, AppState>) -> Result<Inspiration, String> {
     let body = serde_json::json!({ "name": name });
-    let resp = client
-        .post(format!("{}/api/inspirations", BACKEND_URL))
+    let resp = state
+        .http_client
+        .post(format!("{}/api/inspirations", state.backend_url))
         .header("Content-Type", "application/json")
         .body(body.to_string())
         .send()
@@ -145,13 +147,13 @@ async fn create_inspiration(name: String) -> Result<Inspiration, String> {
 }
 
 #[tauri::command]
-async fn list_inspirations(query: Option<String>) -> Result<Vec<Inspiration>, String> {
-    let client = http_client()?;
-    let mut url = format!("{}/api/inspirations", BACKEND_URL);
+async fn list_inspirations(query: Option<String>, state: tauri::State<'_, AppState>) -> Result<Vec<Inspiration>, String> {
+    let mut url = format!("{}/api/inspirations", state.backend_url);
     if let Some(q) = &query {
         url = format!("{}?q={}", url, urlencoding(&q));
     }
-    let resp = client
+    let resp = state
+        .http_client
         .get(&url)
         .send()
         .await
@@ -164,10 +166,10 @@ async fn list_inspirations(query: Option<String>) -> Result<Vec<Inspiration>, St
 }
 
 #[tauri::command]
-async fn get_inspiration(id: String) -> Result<Inspiration, String> {
-    let client = http_client()?;
-    let resp = client
-        .get(format!("{}/api/inspirations/{}", BACKEND_URL, id))
+async fn get_inspiration(id: String, state: tauri::State<'_, AppState>) -> Result<Inspiration, String> {
+    let resp = state
+        .http_client
+        .get(format!("{}/api/inspirations/{}", state.backend_url, id))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -179,10 +181,10 @@ async fn get_inspiration(id: String) -> Result<Inspiration, String> {
 }
 
 #[tauri::command]
-async fn delete_inspiration(id: String) -> Result<(), String> {
-    let client = http_client()?;
-    let resp = client
-        .delete(format!("{}/api/inspirations/{}", BACKEND_URL, id))
+async fn delete_inspiration(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let resp = state
+        .http_client
+        .delete(format!("{}/api/inspirations/{}", state.backend_url, id))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -196,10 +198,10 @@ async fn delete_inspiration(id: String) -> Result<(), String> {
 // ---- LLM Config CRUD (Iter-2) ----
 
 #[tauri::command]
-async fn list_llm_configs() -> Result<Vec<LLMConfig>, String> {
-    let client = http_client()?;
-    let resp = client
-        .get(format!("{}/api/settings/llm", BACKEND_URL))
+async fn list_llm_configs(state: tauri::State<'_, AppState>) -> Result<Vec<LLMConfig>, String> {
+    let resp = state
+        .http_client
+        .get(format!("{}/api/settings/llm", state.backend_url))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -211,11 +213,11 @@ async fn list_llm_configs() -> Result<Vec<LLMConfig>, String> {
 }
 
 #[tauri::command]
-async fn create_llm_config(req: LLMCreateRequest) -> Result<LLMConfig, String> {
-    let client = http_client()?;
+async fn create_llm_config(req: LLMCreateRequest, state: tauri::State<'_, AppState>) -> Result<LLMConfig, String> {
     let body = serde_json::to_string(&req).map_err(|e| e.to_string())?;
-    let resp = client
-        .post(format!("{}/api/settings/llm", BACKEND_URL))
+    let resp = state
+        .http_client
+        .post(format!("{}/api/settings/llm", state.backend_url))
         .header("Content-Type", "application/json")
         .body(body)
         .send()
@@ -243,11 +245,11 @@ fn default_api_format() -> String {
 }
 
 #[tauri::command]
-async fn update_llm_config(id: String, req: LLMUpdateRequest) -> Result<LLMConfig, String> {
-    let client = http_client()?;
+async fn update_llm_config(id: String, req: LLMUpdateRequest, state: tauri::State<'_, AppState>) -> Result<LLMConfig, String> {
     let body = serde_json::to_string(&req).map_err(|e| e.to_string())?;
-    let resp = client
-        .patch(format!("{}/api/settings/llm/{}", BACKEND_URL, id))
+    let resp = state
+        .http_client
+        .patch(format!("{}/api/settings/llm/{}", state.backend_url, id))
         .header("Content-Type", "application/json")
         .body(body)
         .send()
@@ -275,10 +277,10 @@ struct LLMUpdateRequest {
 }
 
 #[tauri::command]
-async fn delete_llm_config(id: String) -> Result<(), String> {
-    let client = http_client()?;
-    let resp = client
-        .delete(format!("{}/api/settings/llm/{}", BACKEND_URL, id))
+async fn delete_llm_config(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let resp = state
+        .http_client
+        .delete(format!("{}/api/settings/llm/{}", state.backend_url, id))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -290,10 +292,10 @@ async fn delete_llm_config(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn set_default_llm(id: String) -> Result<LLMConfig, String> {
-    let client = http_client()?;
-    let resp = client
-        .put(format!("{}/api/settings/llm/{}/default", BACKEND_URL, id))
+async fn set_default_llm(id: String, state: tauri::State<'_, AppState>) -> Result<LLMConfig, String> {
+    let resp = state
+        .http_client
+        .put(format!("{}/api/settings/llm/{}/default", state.backend_url, id))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -307,10 +309,10 @@ async fn set_default_llm(id: String) -> Result<LLMConfig, String> {
 // ---- Agent Template CRUD (Iter-2) ----
 
 #[tauri::command]
-async fn list_agent_templates() -> Result<Vec<AgentTemplate>, String> {
-    let client = http_client()?;
-    let resp = client
-        .get(format!("{}/api/settings/agents", BACKEND_URL))
+async fn list_agent_templates(state: tauri::State<'_, AppState>) -> Result<Vec<AgentTemplate>, String> {
+    let resp = state
+        .http_client
+        .get(format!("{}/api/settings/agents", state.backend_url))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -322,11 +324,11 @@ async fn list_agent_templates() -> Result<Vec<AgentTemplate>, String> {
 }
 
 #[tauri::command]
-async fn update_agent_template(id: String, req: AgentTemplateUpdateRequest) -> Result<AgentTemplate, String> {
-    let client = http_client()?;
+async fn update_agent_template(id: String, req: AgentTemplateUpdateRequest, state: tauri::State<'_, AppState>) -> Result<AgentTemplate, String> {
     let body = serde_json::to_string(&req).map_err(|e| e.to_string())?;
-    let resp = client
-        .patch(format!("{}/api/settings/agents/{}", BACKEND_URL, id))
+    let resp = state
+        .http_client
+        .patch(format!("{}/api/settings/agents/{}", state.backend_url, id))
         .header("Content-Type", "application/json")
         .body(body)
         .send()
@@ -359,15 +361,16 @@ async fn send_chat_message(
     content: String,
     mode: Option<String>,
     brainstorm_session_id: Option<String>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<Message, String> {
-    let client = http_client()?;
     let body = serde_json::json!({
         "content": content,
         "mode": mode.unwrap_or_else(|| "chat".to_string()),
         "brainstorm_session_id": brainstorm_session_id,
     });
-    let resp = client
-        .post(format!("{}/api/inspirations/{}/chat", BACKEND_URL, inspiration_id))
+    let resp = state
+        .http_client
+        .post(format!("{}/api/inspirations/{}/chat", state.backend_url, inspiration_id))
         .header("Content-Type", "application/json")
         .body(body.to_string())
         .send()
@@ -386,11 +389,11 @@ async fn get_messages(
     limit: u32,
     before: Option<String>,
     brainstorm_session_id: Option<String>,
+    state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Message>, String> {
-    let client = http_client()?;
     let mut url = format!(
         "{}/api/inspirations/{}/messages?limit={}",
-        BACKEND_URL, inspiration_id, limit
+        state.backend_url, inspiration_id, limit
     );
     if let Some(b) = &before {
         url = format!("{}&before={}", url, b);
@@ -398,7 +401,8 @@ async fn get_messages(
     if let Some(sid) = &brainstorm_session_id {
         url = format!("{}&brainstorm_session_id={}", url, sid);
     }
-    let resp = client
+    let resp = state
+        .http_client
         .get(&url)
         .send()
         .await
@@ -431,13 +435,13 @@ struct BrainstormSession {
 }
 
 #[tauri::command]
-async fn create_brainstorm_session(inspiration_id: String, title: String) -> Result<BrainstormSession, String> {
-    let client = http_client()?;
+async fn create_brainstorm_session(inspiration_id: String, title: String, state: tauri::State<'_, AppState>) -> Result<BrainstormSession, String> {
     let body = serde_json::json!({ "title": title });
-    let resp = client
+    let resp = state
+        .http_client
         .post(format!(
             "{}/api/inspirations/{}/brainstorm-sessions",
-            BACKEND_URL, inspiration_id
+            state.backend_url, inspiration_id
         ))
         .header("Content-Type", "application/json")
         .body(body.to_string())
@@ -452,12 +456,12 @@ async fn create_brainstorm_session(inspiration_id: String, title: String) -> Res
 }
 
 #[tauri::command]
-async fn list_brainstorm_sessions(inspiration_id: String) -> Result<Vec<BrainstormSession>, String> {
-    let client = http_client()?;
-    let resp = client
+async fn list_brainstorm_sessions(inspiration_id: String, state: tauri::State<'_, AppState>) -> Result<Vec<BrainstormSession>, String> {
+    let resp = state
+        .http_client
         .get(format!(
             "{}/api/inspirations/{}/brainstorm-sessions",
-            BACKEND_URL, inspiration_id
+            state.backend_url, inspiration_id
         ))
         .send()
         .await
@@ -470,10 +474,10 @@ async fn list_brainstorm_sessions(inspiration_id: String) -> Result<Vec<Brainsto
 }
 
 #[tauri::command]
-async fn get_brainstorm_session(session_id: String) -> Result<BrainstormSession, String> {
-    let client = http_client()?;
-    let resp = client
-        .get(format!("{}/api/brainstorm-sessions/{}", BACKEND_URL, session_id))
+async fn get_brainstorm_session(session_id: String, state: tauri::State<'_, AppState>) -> Result<BrainstormSession, String> {
+    let resp = state
+        .http_client
+        .get(format!("{}/api/brainstorm-sessions/{}", state.backend_url, session_id))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -485,10 +489,10 @@ async fn get_brainstorm_session(session_id: String) -> Result<BrainstormSession,
 }
 
 #[tauri::command]
-async fn update_brainstorm_session(session_id: String, data: serde_json::Value) -> Result<BrainstormSession, String> {
-    let client = http_client()?;
-    let resp = client
-        .patch(format!("{}/api/brainstorm-sessions/{}", BACKEND_URL, session_id))
+async fn update_brainstorm_session(session_id: String, data: serde_json::Value, state: tauri::State<'_, AppState>) -> Result<BrainstormSession, String> {
+    let resp = state
+        .http_client
+        .patch(format!("{}/api/brainstorm-sessions/{}", state.backend_url, session_id))
         .header("Content-Type", "application/json")
         .body(data.to_string())
         .send()
@@ -516,10 +520,10 @@ struct TeamAgent {
 }
 
 #[tauri::command]
-async fn list_agents(inspiration_id: String) -> Result<Vec<TeamAgent>, String> {
-    let client = http_client()?;
-    let resp = client
-        .get(format!("{}/api/inspirations/{}/agents", BACKEND_URL, inspiration_id))
+async fn list_agents(inspiration_id: String, state: tauri::State<'_, AppState>) -> Result<Vec<TeamAgent>, String> {
+    let resp = state
+        .http_client
+        .get(format!("{}/api/inspirations/{}/agents", state.backend_url, inspiration_id))
         .send()
         .await
         .map_err(|e| format!("Network error: {}", e))?;
@@ -531,11 +535,11 @@ async fn list_agents(inspiration_id: String) -> Result<Vec<TeamAgent>, String> {
 }
 
 #[tauri::command]
-async fn add_agent_to_team(inspiration_id: String, template_id: String) -> Result<TeamAgent, String> {
-    let client = http_client()?;
+async fn add_agent_to_team(inspiration_id: String, template_id: String, state: tauri::State<'_, AppState>) -> Result<TeamAgent, String> {
     let body = serde_json::json!({ "template_id": template_id });
-    let resp = client
-        .post(format!("{}/api/inspirations/{}/agents", BACKEND_URL, inspiration_id))
+    let resp = state
+        .http_client
+        .post(format!("{}/api/inspirations/{}/agents", state.backend_url, inspiration_id))
         .header("Content-Type", "application/json")
         .body(body.to_string())
         .send()
@@ -549,11 +553,11 @@ async fn add_agent_to_team(inspiration_id: String, template_id: String) -> Resul
 }
 
 #[tauri::command]
-async fn update_agent(agent_id: String, model: String) -> Result<TeamAgent, String> {
-    let client = http_client()?;
+async fn update_agent(agent_id: String, model: String, state: tauri::State<'_, AppState>) -> Result<TeamAgent, String> {
     let body = serde_json::json!({ "model": model });
-    let resp = client
-        .patch(format!("{}/api/agents/{}", BACKEND_URL, agent_id))
+    let resp = state
+        .http_client
+        .patch(format!("{}/api/agents/{}", state.backend_url, agent_id))
         .header("Content-Type", "application/json")
         .body(body.to_string())
         .send()
@@ -567,12 +571,12 @@ async fn update_agent(agent_id: String, model: String) -> Result<TeamAgent, Stri
 }
 
 #[tauri::command]
-async fn remove_agent_from_team(inspiration_id: String, agent_id: String) -> Result<(), String> {
-    let client = http_client()?;
-    let resp = client
+async fn remove_agent_from_team(inspiration_id: String, agent_id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let resp = state
+        .http_client
         .delete(format!(
             "{}/api/inspirations/{}/agents/{}",
-            BACKEND_URL, inspiration_id, agent_id
+            state.backend_url, inspiration_id, agent_id
         ))
         .send()
         .await
@@ -589,8 +593,22 @@ async fn remove_agent_from_team(inspiration_id: String, agent_id: String) -> Res
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            let backend_url = std::env::var("SLOTH_BACKEND_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
+            let http_client = Client::builder()
+                .no_proxy()
+                .build()
+                .expect("Failed to build HTTP client");
+            app.manage(AppState {
+                backend_url,
+                http_client,
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
+            get_backend_url,
             echo,
             create_inspiration,
             list_inspirations,
