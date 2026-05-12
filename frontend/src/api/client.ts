@@ -16,7 +16,21 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
 
 // ---- Declarative route table ----
 
-export const BACKEND = "http://127.0.0.1:8080";
+export let BACKEND = "http://127.0.0.1:8080";
+
+/** Resolve backend URL from Tauri managed state, falling back to default.
+ *  Must be called once before any API calls (called from main.tsx). */
+export async function initBackendUrl(): Promise<void> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const url = await invoke<string>("get_backend_url");
+    if (url && url.trim()) {
+      BACKEND = url.trim();
+    }
+  } catch {
+    // Tauri not available (browser dev mode) — keep the default value
+  }
+}
 
 // ---- Streaming chat (SSE) ----
 
